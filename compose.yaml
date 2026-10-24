@@ -1,0 +1,64 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: homematch-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-homematch_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-homematch_password}
+      POSTGRES_DB: ${POSTGRES_DB:-homematch_db}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-homematch_user} -d ${POSTGRES_DB:-homematch_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - homematch-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: homematch-backend
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      - ASPNETCORE_URLS=http://+:5000
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=${POSTGRES_DB:-homematch_db};Username=${POSTGRES_USER:-homematch_user};Password=${POSTGRES_PASSWORD:-homematch_password};
+    ports:
+      - "${API_PORT:-5000}:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - homematch-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: homematch-frontend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:${API_PORT:-5000}
+      - API_INTERNAL_URL=http://backend:5000
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+    networks:
+      - homematch-network
+
+networks:
+  homematch-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

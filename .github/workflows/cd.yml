@@ -1,0 +1,28 @@
+name: HomeMatch CD Deployment
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build & Deploy Containers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate Deployment Configuration
+        run: |
+          echo "Validating Docker Compose setup..."
+          docker compose config
+
+      - name: Deploy Announcement
+        run: |
+          echo "Deployment triggered for release tag ${{ github.ref_name }}."
+          echo "In production, run ./infrastructure/scripts/deploy.sh on the target VPS or trigger webhook."

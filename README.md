@@ -141,7 +141,9 @@ docker compose up -d --build
 - **Backend API & Scalar API Docs:** http://localhost:5000/scalar/v1
 - **OpenAPI Document:** http://localhost:5000/openapi/v1.json
 - **Health Check:** http://localhost:5000/health
-- **PostgreSQL Database:** `localhost:5432` (User: `homematch_user`, DB: `homematch_db`)
+- **PostgreSQL Database:** `localhost:5432` hoặc `localhost:5433` (User: `homematch_user`, DB: `homematch_db`)
+
+> 📖 **Xem hướng dẫn chi tiết:** [Hướng dẫn chạy dự án bằng Docker](docs/guides/docker-setup.md) (bao gồm cấu hình port, kiểm tra kết nối PostGIS, và xử lý sự cố thường gặp).
 
 ---
 

@@ -28,6 +28,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\HomeMatch.Shared\HomeMatch.Shared.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Properties\HomeMatch.Modules.Properties.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Listings\HomeMatch.Modules.Listings.csproj" />
   </ItemGroup>
 
 </Project>

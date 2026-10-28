@@ -1,11 +1,18 @@
+using System.Text.Encodings.Web;
 using HomeMatch.Api.Middleware;
+using HomeMatch.Shared.Common;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using HomeMatch.Modules.Billing;
 using HomeMatch.Modules.Identity;
 using HomeMatch.Modules.Leasing;
 using HomeMatch.Modules.Listings;
+using HomeMatch.Modules.Listings.Presentation.Controllers;
 using HomeMatch.Modules.Messaging;
 using HomeMatch.Modules.Notifications;
 using HomeMatch.Modules.Properties;
+using HomeMatch.Modules.Properties.Presentation.Controllers;
 using HomeMatch.Modules.Viewings;
 using Scalar.AspNetCore;
 
@@ -13,6 +20,18 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 1. Core Services & OpenAPI (Native .NET 10)
 builder.Services.AddOpenApi();
+builder.Services.AddControllers()
+    .AddApplicationPart(typeof(PropertiesController).Assembly)
+    .AddApplicationPart(typeof(ListingsController).Assembly);
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = _ => new BadRequestObjectResult(
+        ApiResponse<string>.Failure(new Error("Request.Invalid", "Dữ liệu yêu cầu không hợp lệ.")));
+});
+builder.Services.AddAuthentication("IdentityUnavailable")
+    .AddScheme<AuthenticationSchemeOptions, UnavailableAuthenticationHandler>(
+        "IdentityUnavailable", _ => { });
+builder.Services.AddAuthorization();
 
 // 2. CORS configuration (allows Next.js frontend communication)
 builder.Services.AddCors(options =>
@@ -53,6 +72,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowFrontend");
+app.UseAuthentication();
+app.UseAuthorization();
 
 // 5. System Health & Status Endpoints
 app.MapGet("/health", () => Results.Ok(new
@@ -79,8 +100,7 @@ app.MapGet("/api/v1/system/status", () => Results.Ok(new
 
 // 6. Map Module Endpoints
 app.MapIdentityEndpoints();
-app.MapPropertiesEndpoints();
-app.MapListingsEndpoints();
+app.MapControllers();
 app.MapViewingsEndpoints();
 app.MapMessagingEndpoints();
 app.MapLeasingEndpoints();
@@ -88,3 +108,13 @@ app.MapBillingEndpoints();
 app.MapNotificationsEndpoints();
 
 app.Run();
+
+internal sealed class UnavailableAuthenticationHandler(
+    IOptionsMonitor<AuthenticationSchemeOptions> options,
+    ILoggerFactory logger,
+    UrlEncoder encoder)
+    : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+{
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync() =>
+        Task.FromResult(AuthenticateResult.NoResult());
+}

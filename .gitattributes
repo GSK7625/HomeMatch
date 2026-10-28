@@ -1,0 +1,7 @@
+# 1. An file tu dien mat khau
+backend/src/Modules/Identity/Infrastructure/Passwords/Data/common-passwords.txt linguist-generated=true
+
+# 2. An toan bo file Migration tu sinh cua EF Core
+**/Migrations/*.cs linguist-generated=true
+**/Migrations/*.Designer.cs linguist-generated=true
+**/Migrations/*ModelSnapshot.cs linguist-generated=true

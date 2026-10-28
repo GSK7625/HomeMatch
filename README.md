@@ -186,14 +186,16 @@ cd frontend && npm run build
 
 ---
 
-## 5. Quy Trình Phối Hợp Nhóm (GitHub Git Flow)
+## 5. Quy Trình Phối Hợp Nhóm & CI/CD (Jenkins Git Flow)
 
 1. Nhánh `main` là nhánh chính, luôn ở trạng thái ổn định và được bảo vệ (Protected Branch).
 2. Khi phát triển tính năng mới:
    - Tạo nhánh theo cú pháp: `feature/<module-name>-<task-name>` (ví dụ: `feature/listings-search-filter`, `feature/identity-jwt-login`).
    - Tạo Pull Request (PR) trỏ vào `main`.
-3. Hệ thống **GitHub Actions CI** (`.github/workflows/ci.yml`) sẽ tự động:
-   - Restore, build và chạy tests toàn bộ Solution Backend.
-   - Type-check và build ứng dụng Next.js Frontend.
-   - Kiểm tra tính hợp lệ của cấu hình `compose.yaml`.
-4. Sau khi CI pass và có ít nhất 1 thành viên review chấp thuận, tiến hành merge vào `main`.
+3. Hệ thống **Jenkins CI** (thông qua `Jenkinsfile`) sẽ tự động kích hoạt để kiểm thử toàn diện:
+   - Restore, build và chạy toàn bộ unit & integration tests cho Solution Backend (.NET 10).
+   - Type-check và build ứng dụng Next.js 15 Frontend (Node.js 22).
+   - Kiểm tra tính hợp lệ của cấu hình Docker Compose.
+4. Sau khi Jenkins Pipeline báo **SUCCESS** (xanh) và có ít nhất 1 thành viên review chấp thuận, tiến hành merge vào `main`.
+
+> 📖 **Xem hướng dẫn chi tiết:** [Hướng dẫn thiết lập Jenkins CI & Kích hoạt Webhook](docs/guides/jenkins-setup.md).

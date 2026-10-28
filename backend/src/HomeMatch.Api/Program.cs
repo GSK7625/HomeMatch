@@ -1,30 +1,45 @@
+using System.Text.Json;
+using HomeMatch.Api.Configuration;
 using HomeMatch.Api.Middleware;
 using HomeMatch.Modules.Billing;
 using HomeMatch.Modules.Identity;
+using HomeMatch.Modules.Identity.Presentation;
 using HomeMatch.Modules.Leasing;
 using HomeMatch.Modules.Listings;
 using HomeMatch.Modules.Messaging;
 using HomeMatch.Modules.Notifications;
 using HomeMatch.Modules.Properties;
 using HomeMatch.Modules.Viewings;
+using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. Core Services & OpenAPI (Native .NET 10)
 builder.Services.AddOpenApi();
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+});
 
 // 2. CORS configuration (allows Next.js frontend communication)
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", policy =>
+builder.Services.AddSingleton<IValidateOptions<FrontendCorsOptions>, FrontendCorsOptionsValidator>();
+builder.Services.AddOptions<FrontendCorsOptions>()
+    .Bind(builder.Configuration.GetSection(FrontendCorsOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddCors();
+builder.Services.AddOptions<Microsoft.AspNetCore.Cors.Infrastructure.CorsOptions>()
+    .Configure<IOptions<FrontendCorsOptions>>((options, frontend) =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://127.0.0.1:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        options.AddPolicy(FrontendCorsOptions.PolicyName, policy =>
+        {
+            policy.WithOrigins(frontend.Value.AllowedOrigins)
+                .WithHeaders("Content-Type", "Authorization", "X-CSRF-TOKEN")
+                .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+                .WithExposedHeaders("Retry-After", "X-Request-Id", "WWW-Authenticate")
+                .AllowCredentials();
+        });
     });
-});
 
 // 3. Register Modules
 builder.Services
@@ -39,8 +54,17 @@ builder.Services
 
 var app = builder.Build();
 
+if (args.Contains("--initialize-identity", StringComparer.Ordinal))
+{
+    await app.Services.InitializeIdentityDatabaseAsync();
+    return;
+}
+
 // 4. HTTP Pipeline & Middlewares
+app.UseMiddleware<RequestIdMiddleware>();
 app.UseCustomExceptionHandling();
+app.UseCors(FrontendCorsOptions.PolicyName);
+app.UseIdentityHttpSecurity();
 
 if (app.Environment.IsDevelopment())
 {
@@ -51,8 +75,6 @@ if (app.Environment.IsDevelopment())
                .WithTheme(ScalarTheme.Moon);
     });
 }
-
-app.UseCors("AllowFrontend");
 
 // 5. System Health & Status Endpoints
 app.MapGet("/health", () => Results.Ok(new
@@ -88,3 +110,6 @@ app.MapBillingEndpoints();
 app.MapNotificationsEndpoints();
 
 app.Run();
+
+// Expose the entry point to WebApplicationFactory without adding production-only test routes.
+public partial class Program { }

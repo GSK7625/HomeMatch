@@ -1,5 +1,3 @@
-using System.Net;
-using System.Text.Json;
 using HomeMatch.Shared.Common;
 
 namespace HomeMatch.Api.Middleware;
@@ -21,22 +19,29 @@ public class ExceptionHandlingMiddleware
         {
             await _next(context);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
-            _logger.LogError(ex, "An unhandled exception occurred: {Message}", ex.Message);
-            await HandleExceptionAsync(context, ex);
+            // The client has left; do not turn request cancellation into a JSON 500 response.
+            context.Abort();
         }
-    }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "An unhandled exception occurred. RequestId: {RequestId}", context.TraceIdentifier);
 
-    private static Task HandleExceptionAsync(HttpContext context, Exception exception)
-    {
-        context.Response.ContentType = "application/json";
-        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+            if (context.Response.HasStarted)
+            {
+                // Headers/body cannot be replaced safely; let the server terminate the response.
+                throw;
+            }
 
-        var response = ApiResponse<string>.Failure(new Error("Server.InternalError", exception.Message));
-        var json = JsonSerializer.Serialize(response);
+            context.Response.Clear();
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
 
-        return context.Response.WriteAsync(json);
+            var response = ApiResponse<string>.Failure(
+                new Error("Server.InternalError", "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau."));
+
+            await context.Response.WriteAsJsonAsync(response, cancellationToken: context.RequestAborted);
+        }
     }
 }
 

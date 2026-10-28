@@ -10,6 +10,21 @@ jobs:
   backend-ci:
     name: Backend Build & Tests (.NET 10)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: postgres
+          # Disposable CI-only credentials; the bootstrap role can create test databases.
+          POSTGRES_USER: homematch_test_admin
+          POSTGRES_PASSWORD: homematch_ci_test_password
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U homematch_test_admin -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,6 +41,9 @@ jobs:
         run: dotnet build backend/HomeMatch.sln --no-restore --configuration Release
 
       - name: Run Tests
+        env:
+          HOMEMATCH_TEST_POSTGRES_CONNECTION: >-
+            Host=127.0.0.1;Port=${{ job.services.postgres.ports[5432] }};Database=postgres;Username=homematch_test_admin;Password=homematch_ci_test_password;Timeout=10;Command Timeout=30
         run: dotnet test backend/HomeMatch.sln --no-build --configuration Release --verbosity normal
 
   frontend-ci:

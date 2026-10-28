@@ -1,3 +1,6 @@
+using HomeMatch.Modules.Notifications.Infrastructure.Email;
+using HomeMatch.Shared.Contracts.Notifications;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -10,7 +13,12 @@ public static class NotificationsModuleExtensions
 {
     public static IServiceCollection AddNotificationsModule(this IServiceCollection services, IConfiguration configuration)
     {
-        // TODO: Register Notifications services, repositories, validators, and DbContext
+        // Transactional mail crosses modules only through the Shared contract.
+        services.AddSingleton<IValidateOptions<GmailSmtpOptions>, GmailSmtpOptionsValidator>();
+        services.AddOptions<GmailSmtpOptions>().Bind(configuration.GetSection("Email:Smtp"))
+            .Configure(options => options.Enabled = configuration.GetValue<bool>("Email:Enabled")).ValidateOnStart();
+        services.AddSingleton<ISmtpSubmissionTransport, MailKitSmtpTransport>();
+        services.AddScoped<ITransactionalEmailSender, GmailSmtpEmailSender>();
         return services;
     }
 

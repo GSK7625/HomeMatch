@@ -75,13 +75,11 @@ public static class IdentityModuleExtensions
         services.AddScoped<IUserStore<IdentityAccount>, SqlIdentityUserStore>();
         services.RemoveAll<IPasswordHasher<IdentityAccount>>();
         services.AddScoped<IPasswordHasher<IdentityAccount>, CompatiblePasswordHasher>();
-        services.AddScoped<IdentityRoleSeeder>();
         services.AddSingleton<INewPasswordPolicy, NewPasswordPolicy>();
         services.RemoveAll<IPasswordValidator<IdentityAccount>>();
         services.AddScoped<IPasswordValidator<IdentityAccount>, IdentityNewPasswordValidator>();
         services.AddScoped<IRegistrationStore, PostgresRegistrationStore>();
         services.AddScoped<RegisterAccountHandler>();
-        services.AddScoped<IPublicOtpService, PublicOtpService>();
         services.AddScoped<IPublicOtpStore, PostgresPublicOtpStore>();
         services.AddScoped<SendPublicOtpHandler>();
         services.AddScoped<VerifyPublicOtpHandler>();
@@ -125,7 +123,6 @@ public static class IdentityModuleExtensions
         await using var scope = services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         await database.Database.MigrateAsync(cancellationToken);
-        await scope.ServiceProvider.GetRequiredService<IdentityRoleSeeder>().SeedAsync(cancellationToken);
     }
 
     public static IEndpointRouteBuilder MapIdentityEndpoints(this IEndpointRouteBuilder endpoints)

@@ -115,7 +115,7 @@ Việc tách giúp mỗi module giữ một nguồn sự thật và quy tắc nh
 
 - [`modular-monolith.md`](modular-monolith.md): cấu trúc và nguyên tắc tổng quát.
 - [`backend-rules.md`](backend-rules.md): quy tắc giao tiếp, phục hồi và idempotency.
-- [`schema-design.md`](../database/schema-design.md) và [`IDENTITY_SCHEMA_MAPPING.md`](../database/IDENTITY_SCHEMA_MAPPING.md): schema và ánh xạ Identity hiện hành.
+- [`schema-design.md`](../database/schema-design.md) và [`DATABASE_DOCUMENTATION.md`](../database/DATABASE_DOCUMENTATION.md): quy tắc schema và thiết kế SQL; kiểu ID Identity tuân theo quyết định BIGINT đã nêu ở mục 2.
 - `backend/src/HomeMatch.Api/Program.cs`: đăng ký các module vào cùng API.
 - `backend/src/HomeMatch.Shared/Contracts/Notifications/ITransactionalEmailSender.cs`: contract email đã dùng thật.
 - `backend/src/Modules/Notifications/NotificationsModuleExtensions.cs`: đăng ký implementation của Notifications.
@@ -129,7 +129,7 @@ Các liên kết `#L...` bên dưới trỏ đến **dòng của phiên bản co
 | Bước | File, dòng | Code thực hiện |
 |---|---|---|
 | 1 | [`Program.cs:46–53`](../../backend/src/HomeMatch.Api/Program.cs#L46) | `AddIdentityModule(...)` và `AddNotificationsModule(...)` cùng đăng ký dịch vụ vào `IServiceCollection` của một API. Các module khác cũng được đăng ký ở đây. |
-| 2 | [`IdentityModuleExtensions.cs:82–86`](../../backend/src/Modules/Identity/IdentityModuleExtensions.cs#L82) | Identity nối `IPublicOtpService` → `PublicOtpService`, `IPublicOtpStore` → `PostgresPublicOtpStore`, cùng các handler gửi/xác thực/đặt lại mật khẩu. |
+| 2 | [`IdentityModuleExtensions.cs:83–86`](../../backend/src/Modules/Identity/IdentityModuleExtensions.cs#L83) | Identity nối `IPublicOtpStore` → `PostgresPublicOtpStore` và đăng ký trực tiếp các handler gửi/xác thực/đặt lại mật khẩu. |
 | 3 | [`NotificationsModuleExtensions.cs:18–21`](../../backend/src/Modules/Notifications/NotificationsModuleExtensions.cs#L18) | Notifications nối `ISmtpSubmissionTransport` → `MailKitSmtpTransport` và `ITransactionalEmailSender` → `GmailSmtpEmailSender`. |
 | 4 | [`Program.cs:104–111`](../../backend/src/HomeMatch.Api/Program.cs#L104) | Ánh xạ endpoint của từng module. Đây là route HTTP cho client, **không phải** cách hai module tự gọi nhau. |
 
@@ -137,21 +137,20 @@ Khi `PostgresPublicOtpStore` yêu cầu `ITransactionalEmailSender`, DI tìm imp
 
 ### 7.2 Gửi OTP đăng ký hoặc quên mật khẩu: Identity → Notifications → Gmail
 
-1. [`IdentityModuleExtensions.cs:127–132`](../../backend/src/Modules/Identity/IdentityModuleExtensions.cs#L127) tạo nhóm route `/api/v1/identity`; [`IdentityEndpoints.cs:20`](../../backend/src/Modules/Identity/Presentation/IdentityEndpoints.cs#L20) gọi `MapPublicOtp`.
-2. [`PublicOtpEndpoints.cs:22–30`](../../backend/src/Modules/Identity/Presentation/PublicOtp/PublicOtpEndpoints.cs#L22) khai báo các route `registration/send-otp`, `forgot-password` và route xác thực tương ứng. Cả hai route gửi đều đi vào cùng handler HTTP, khác `purpose` (`Registration` hoặc `PasswordReset`).
-3. [`PublicOtpEndpoints.cs:38–72`](../../backend/src/Modules/Identity/Presentation/PublicOtp/PublicOtpEndpoints.cs#L38) đọc JSON, kiểm tra trường, áp hạn mức yêu cầu rồi gọi `IPublicOtpService.SendAsync(...)` ở dòng 70. Lớp Presentation chưa biết SMTP.
-4. [`PublicOtpService.cs:5–12`](../../backend/src/Modules/Identity/Application/PublicOtp/PublicOtpService.cs#L5) chuyển lời gọi đến `SendPublicOtpHandler`; [`SendPublicOtpHandler.cs:9–15`](../../backend/src/Modules/Identity/Application/PublicOtp/SendPublicOtpHandler.cs#L9) chuẩn hóa email, kiểm tra `purpose` và chuyển tiếp cho `IPublicOtpStore`.
-5. [`PostgresPublicOtpStore.cs:21–65`](../../backend/src/Modules/Identity/Infrastructure/EmailVerification/PostgresPublicOtpStore.cs#L21) kiểm tra cấu hình, tài khoản, hạn mức; tạo mã sáu số, lưu challenge đã được bảo vệ trong schema Identity. Đối với đăng ký, tài khoản phải tồn tại, mật khẩu đúng và email chưa xác thực; với quên mật khẩu, email phải đã xác thực. Phản hồi cho trường hợp không đủ điều kiện được giữ chung để không lộ sự tồn tại của tài khoản.
-6. [`PostgresPublicOtpStore.cs:66–70`](../../backend/src/Modules/Identity/Infrastructure/EmailVerification/PostgresPublicOtpStore.cs#L66) kết thúc transaction trước khi gửi SMTP, tạo `TransactionalEmail` và gọi `sender.SendAsync(...)`. `sender` là `ITransactionalEmailSender`, khai báo tại [`ITransactionalEmailSender.cs:6–10`](../../backend/src/HomeMatch.Shared/Contracts/Notifications/ITransactionalEmailSender.cs#L6). **Đây là điểm gọi xuyên module thực tế.**
+1. [`IdentityModuleExtensions.cs:128–132`](../../backend/src/Modules/Identity/IdentityModuleExtensions.cs#L128) tạo nhóm route `/api/v1/identity`; [`IdentityEndpoints.cs:20`](../../backend/src/Modules/Identity/Presentation/IdentityEndpoints.cs#L20) gọi `MapPublicOtp`.
+2. [`PublicOtpEndpoints.cs:21–29`](../../backend/src/Modules/Identity/Presentation/PublicOtp/PublicOtpEndpoints.cs#L21) khai báo các route `registration/send-otp`, `forgot-password` và route xác thực tương ứng. Cả hai route gửi đều đi vào cùng handler HTTP, khác `purpose` (`Registration` hoặc `PasswordReset`).
+3. [`PublicOtpEndpoints.cs:39–72`](../../backend/src/Modules/Identity/Presentation/PublicOtp/PublicOtpEndpoints.cs#L39) đọc JSON, kiểm tra trường, áp hạn mức yêu cầu rồi gọi trực tiếp `SendPublicOtpHandler.HandleAsync(...)`. Lớp Presentation chưa biết SMTP.
+4. [`SendPublicOtpHandler.cs:9–15`](../../backend/src/Modules/Identity/Application/PublicOtp/SendPublicOtpHandler.cs#L9) chuẩn hóa email, kiểm tra `purpose` và chuyển tiếp cho `IPublicOtpStore`.
+5. [`PostgresPublicOtpStore.cs:24–68`](../../backend/src/Modules/Identity/Infrastructure/EmailVerification/PostgresPublicOtpStore.cs#L24) kiểm tra cấu hình, tài khoản, hạn mức; tạo mã sáu số, lưu challenge đã được bảo vệ trong schema Identity. Đối với đăng ký, tài khoản phải tồn tại, mật khẩu đúng và email chưa xác thực; với quên mật khẩu, email phải đã xác thực. Phản hồi cho trường hợp không đủ điều kiện được giữ chung để không lộ sự tồn tại của tài khoản.
+6. [`PostgresPublicOtpStore.cs:69–73`](../../backend/src/Modules/Identity/Infrastructure/EmailVerification/PostgresPublicOtpStore.cs#L69) kết thúc transaction trước khi gửi SMTP, tạo `TransactionalEmail` và gọi `sender.SendAsync(...)`. `sender` là `ITransactionalEmailSender`, khai báo tại [`ITransactionalEmailSender.cs:6–10`](../../backend/src/HomeMatch.Shared/Contracts/Notifications/ITransactionalEmailSender.cs#L6). **Đây là điểm gọi xuyên module thực tế.**
 7. [`GmailSmtpEmailSender.cs:16–25`](../../backend/src/Modules/Notifications/Infrastructure/Email/GmailSmtpEmailSender.cs#L16) kiểm tra cấu hình và nội dung, sau đó gọi `transport.SubmitAsync(...)`; [`MailKitSmtpTransport.cs:16–32`](../../backend/src/Modules/Notifications/Infrastructure/Email/MailKitSmtpTransport.cs#L16) kết nối SMTP bằng STARTTLS, xác thực và gửi thư.
-8. [`PostgresPublicOtpStore.cs:71–78`](../../backend/src/Modules/Identity/Infrastructure/EmailVerification/PostgresPublicOtpStore.cs#L71) nhận `EmailSubmissionOutcome`: nếu SMTP tiếp nhận thì đánh dấu challenge `Submitted`, nếu không thì đóng challenge. Client nhận phản hồi đã gửi theo quy tắc ẩn thông tin tài khoản. `Accepted` nghĩa là SMTP tiếp nhận, không bảo đảm email đã tới hộp thư.
+8. [`PostgresPublicOtpStore.cs:74–82`](../../backend/src/Modules/Identity/Infrastructure/EmailVerification/PostgresPublicOtpStore.cs#L74) nhận `EmailSubmissionOutcome`: nếu SMTP tiếp nhận thì đánh dấu challenge `Submitted`, nếu không thì đóng challenge. Client nhận phản hồi đã gửi theo quy tắc ẩn thông tin tài khoản. `Accepted` nghĩa là SMTP tiếp nhận, không bảo đảm email đã tới hộp thư.
 
 Sơ đồ gọi ngắn gọn:
 
 ```text
 Client
   → Identity/PublicOtpEndpoints
-  → IPublicOtpService / PublicOtpService
   → SendPublicOtpHandler
   → IPublicOtpStore / PostgresPublicOtpStore
   → Shared/ITransactionalEmailSender
@@ -159,7 +158,9 @@ Client
   → MailKitSmtpTransport → Gmail SMTP
 ```
 
-**Xác thực OTP và đặt lại mật khẩu không gọi Notifications.** Sau khi người dùng nhập mã, [`PublicOtpEndpoints.cs:70–72`](../../backend/src/Modules/Identity/Presentation/PublicOtp/PublicOtpEndpoints.cs#L70) gọi `VerifyAsync` hoặc `ResetAsync`; [`PostgresPublicOtpStore.cs:82–147`](../../backend/src/Modules/Identity/Infrastructure/EmailVerification/PostgresPublicOtpStore.cs#L82) kiểm tra challenge, cập nhật `EmailConfirmed` hoặc tạo reset token, rồi đổi mật khẩu và thu hồi phiên khi đặt lại. Toàn bộ bước này thuộc Identity.
+**Xác thực OTP và đặt lại mật khẩu không gọi Notifications.** Sau khi người dùng nhập mã, [`PublicOtpEndpoints.cs:69–71`](../../backend/src/Modules/Identity/Presentation/PublicOtp/PublicOtpEndpoints.cs#L69) gọi `VerifyPublicOtpHandler` hoặc `ResetPasswordHandler`; [`PostgresPublicOtpStore.cs:85–156`](../../backend/src/Modules/Identity/Infrastructure/EmailVerification/PostgresPublicOtpStore.cs#L85) kiểm tra challenge, cập nhật `EmailConfirmed` hoặc tạo reset token, rồi đổi mật khẩu và thu hồi phiên khi đặt lại. Toàn bộ bước này thuộc Identity.
+
+Khi database mất kết nối, [`PostgresPublicOtpStore.cs:159`](../../backend/src/Modules/Identity/Infrastructure/EmailVerification/PostgresPublicOtpStore.cs#L159) dùng `ExecuteAsync` để chuyển lỗi hạ tầng đã nhận diện thành `Result.Failure(PublicOtpErrors.Unavailable)`. Application truyền kết quả này về Presentation; `MapResult` ánh xạ thành HTTP 503 với mã `Server.DependencyUnavailable`. Endpoint không nhận diện lỗi Npgsql. Lỗi bất ngờ vẫn đi tới middleware; request bị hủy vẫn được truyền lên, không tự đổi thành 503.
 
 ### 7.3 Luồng gửi mã xác minh email từ phiên đăng nhập
 
@@ -203,9 +204,9 @@ Tách `Identity`, `Properties`, `Listings`... ở cấp project để xác đị
 |---|---|---|
 | Ai quyết định email đã xác thực? | Module `Identity` | Notifications chỉ gửi email, không sửa `EmailConfirmed`. |
 | Quy tắc mã OTP còn hiệu lực nằm ở đâu? | `Identity/Domain` | [`PublicOtpChallenge.cs:22–31`](../../backend/src/Modules/Identity/Domain/Entities/PublicOtpChallenge.cs#L22). |
-| Ai điều phối gửi, kiểm tra, đặt lại? | `Identity/Application` | [`PublicOtpService.cs:5–12`](../../backend/src/Modules/Identity/Application/PublicOtp/PublicOtpService.cs#L5). |
+| Ai điều phối gửi, kiểm tra, đặt lại? | `Identity/Application` | [`SendPublicOtpHandler.cs:7`](../../backend/src/Modules/Identity/Application/PublicOtp/SendPublicOtpHandler.cs#L7) và các handler verify/reset. |
 | Ai đọc/ghi PostgreSQL? | `Identity/Infrastructure` | [`IdentityDbContext.cs:10–21`](../../backend/src/Modules/Identity/Infrastructure/Persistence/IdentityDbContext.cs#L10). |
-| Ai nhận HTTP request? | `Identity/Presentation` | [`PublicOtpEndpoints.cs:22–30`](../../backend/src/Modules/Identity/Presentation/PublicOtp/PublicOtpEndpoints.cs#L22). |
+| Ai nhận HTTP request? | `Identity/Presentation` | [`PublicOtpEndpoints.cs:21–29`](../../backend/src/Modules/Identity/Presentation/PublicOtp/PublicOtpEndpoints.cs#L21). |
 
 ### 8.2 Vì sao `Domain/Entities` có nhiều file?
 
@@ -223,15 +224,17 @@ Nhờ vậy, khi sửa quy tắc của bước quên mật khẩu, có thể đi
 
 ### 8.4 Vì sao `Infrastructure` và `Presentation` có nhiều thư mục con?
 
-`Infrastructure` chứa **cách thực hiện**: [`PostgresPublicOtpStore.cs:17–21`](../../backend/src/Modules/Identity/Infrastructure/EmailVerification/PostgresPublicOtpStore.cs#L17) triển khai `IPublicOtpStore` bằng PostgreSQL; `Persistence/Configurations` chứa ánh xạ EF Core; `Persistence/Migrations` chứa thay đổi cấu trúc database; `Authentication` chứa code JWT và user store; `Passwords` chứa password hasher. Những thứ này thay đổi khi công nghệ lưu trữ hoặc tích hợp thay đổi, dù quy tắc nghiệp vụ có thể giữ nguyên.
+`Infrastructure` chứa **cách thực hiện**: [`PostgresPublicOtpStore.cs:17–24`](../../backend/src/Modules/Identity/Infrastructure/EmailVerification/PostgresPublicOtpStore.cs#L17) triển khai `IPublicOtpStore` bằng PostgreSQL; `Persistence/Configurations` chứa ánh xạ EF Core; `Persistence/Migrations` chứa thay đổi cấu trúc database; `Authentication` chứa code JWT và user store; `Passwords` chứa password hasher. Những thứ này thay đổi khi công nghệ lưu trữ hoặc tích hợp thay đổi, dù quy tắc nghiệp vụ có thể giữ nguyên.
 
-`Presentation` chứa **cách công khai** ca sử dụng: route, đọc JSON, xác thực request, giới hạn tần suất và ánh xạ lỗi nghiệp vụ ra HTTP. Ví dụ [`PublicOtpEndpoints.cs:36–85`](../../backend/src/Modules/Identity/Presentation/PublicOtp/PublicOtpEndpoints.cs#L36) kiểm tra request và trả status code; nó không quyết định challenge nào hợp lệ trong database.
+`Presentation` chứa **cách công khai** ca sử dụng: route, đọc JSON, xác thực request, giới hạn tần suất và ánh xạ lỗi nghiệp vụ ra HTTP. Ví dụ [`PublicOtpEndpoints.cs:36–83`](../../backend/src/Modules/Identity/Presentation/PublicOtp/PublicOtpEndpoints.cs#L36) kiểm tra request và trả status code; nó không quyết định challenge nào hợp lệ trong database.
 
 ### 8.5 Vì sao có `HomeMatch.Shared` và `HomeMatch.Api` ở ngoài module?
 
 [`HomeMatch.Api/Program.cs:46–53`](../../backend/src/HomeMatch.Api/Program.cs#L46) là **composition root**: nơi ghép các module vào một ứng dụng chạy được. Nó không phải nơi đặt logic OTP hoặc tính hóa đơn.
 
 `HomeMatch.Shared` chỉ chứa kiểu hoặc contract cần thiết để các module giao tiếp mà không tham chiếu trực tiếp code nội bộ của nhau. Ví dụ [`ITransactionalEmailSender.cs:6–10`](../../backend/src/HomeMatch.Shared/Contracts/Notifications/ITransactionalEmailSender.cs#L6) cho Identity biết *có thể yêu cầu gửi email và nhận kết quả gì*, còn [`GmailSmtpEmailSender.cs:9–16`](../../backend/src/Modules/Notifications/Infrastructure/Email/GmailSmtpEmailSender.cs#L9) của Notifications quyết định *gửi bằng cách nào*. Không đưa mọi entity, helper hoặc repository vào Shared; làm thế sẽ xóa nhòa quyền sở hữu giữa các module.
+
+`JwtOptions` và `AccessTokenClaims` hiện nằm trong `Application/Authentication`: đây là cấu hình thuần và logic đọc claims dùng chung giữa các lớp. Phần phát JWT bằng thư viện và truy vấn tài khoản bằng EF Core vẫn ở Infrastructure. `IdentityModuleExtensions` đăng ký `IAccessIdentityReader` → `DatabaseAccessIdentityReader` và `IAccessTokenIssuer` → `JwtAccessTokenIssuer`; Presentation sử dụng hợp đồng Application.
 
 ### 8.6 Hướng phụ thuộc cần nhớ
 

@@ -26,13 +26,15 @@ public static class PublicOtpEndpoints
         Map("/auth/forgot-password/verify-otp", "PasswordReset", "verify");
         Map("/auth/reset-password", "PasswordReset", "reset");
         void Map(string route, string purpose, string action) => group.MapPost(route,
-            (HttpContext c, IPublicOtpService service, PublicOtpLimiter limiter) => HandleAsync(c, service, limiter, purpose, action)).AllowAnonymous();
+            (HttpContext c, SendPublicOtpHandler send, VerifyPublicOtpHandler verify, ResetPasswordHandler reset, PublicOtpLimiter limiter)
+                => HandleAsync(c, send, verify, reset, limiter, purpose, action)).AllowAnonymous();
     }
     private sealed record Input(string Email, string Password, Guid Id, string Code, string Token)
     {
         public override string ToString() => "Input { [redacted] }";
     }
-    private static async Task<IResult> HandleAsync(HttpContext c, IPublicOtpService service, PublicOtpLimiter limiter, string purpose, string action)
+    private static async Task<IResult> HandleAsync(HttpContext c, SendPublicOtpHandler send, VerifyPublicOtpHandler verify,
+        ResetPasswordHandler reset, PublicOtpLimiter limiter, string purpose, string action)
     {
         var read = await IdentityJsonReader.ReadAsync<Input>(c.Request, root =>
         {
@@ -64,9 +66,9 @@ public static class PublicOtpEndpoints
             IdentityJsonError.UnsupportedMediaType => IdentityHttpErrors.UnsupportedMediaType(),
             _ => IdentityHttpErrors.ValidationFailed()
         };
-        var result = action == "send" ? await service.SendAsync(input!.Email, purpose, input.Password, c.RequestAborted)
-            : action == "verify" ? await service.VerifyAsync(input!.Id, input.Code, purpose, c.RequestAborted)
-            : await service.ResetAsync(input!.Token, input.Password, c.RequestAborted);
+        var result = action == "send" ? await send.HandleAsync(input!.Email, purpose, input.Password, c.RequestAborted)
+            : action == "verify" ? await verify.HandleAsync(input!.Id, input.Code, purpose, c.RequestAborted)
+            : await reset.HandleAsync(input!.Token, input.Password, c.RequestAborted);
         return MapResult(c, result);
     }
     public static IResult MapResult(HttpContext context, Result<PublicOtpResponse> result)

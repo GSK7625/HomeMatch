@@ -1,7 +1,7 @@
 # HomeMatch — Đặc tả chức năng và use case xác thực
 
-**Phiên bản:** 1.1
-**Ngày đối chiếu mã nguồn:** 31/10/2026
+**Phiên bản:** 1.2
+**Ngày đối chiếu mã nguồn:** 01/11/2026
 **Phạm vi chi tiết:** Đăng ký, xác thực OTP, đăng nhập, quên mật khẩu, quản lý phiên và vai trò tài khoản.
 **Cài đặt tài khoản:** Giữ chỗ để cập nhật sau; chưa đặc tả trong phiên bản này.
 
@@ -488,7 +488,7 @@ Hết hạn được kiểm tra qua timestamp khi xử lý request, không yêu 
 | AC-15 | Quota/cooldown | 429, thời gian chờ phù hợp. |
 | AC-16 | Logout-all A, cookie B | Thu hồi A, không xóa cookie B theo thao tác này. |
 
-Đây là tiêu chí nghiệm thu. Lần kiểm tra backend gần nhất trong phiên làm việc: build thành công, 151 unit test và 295 integration test đạt. Kiểm thử SMTP trực tiếp và giao diện frontend cần đánh giá riêng khi triển khai.
+Đây là tiêu chí nghiệm thu. Lần kiểm tra backend gần nhất trong phiên làm việc: build thành công, 151 unit test và 299 integration test đạt (đối chiếu ngày 01/11/2026; có 5 ca kiểm tra endpoint OTP trả 503 khi database mất kết nối). Đã bỏ test mẫu chỉ gọi `Assert.True(true)`; số test giảm một ca mà không bỏ kiểm chứng hành vi. Kiểm thử SMTP trực tiếp và giao diện frontend cần đánh giá riêng khi triển khai.
 
 ## 10. Cài đặt tài khoản — cập nhật sau
 
@@ -503,11 +503,12 @@ Khi triển khai cài đặt tài khoản, cập nhật phiên bản, sơ đồ 
 Đường dẫn dưới đây tương đối với repository HomeMatch:
 
 - Route: `backend/src/Modules/Identity/Presentation/IdentityEndpoints.cs`, `Presentation/PublicOtp/PublicOtpEndpoints.cs`.
-- OTP: `Application/PublicOtp/PublicOtpResponse.cs`, `Application/PublicOtp/PublicOtpService.cs`, `Infrastructure/EmailVerification/PostgresPublicOtpStore.cs`, `Domain/Entities/PublicOtpChallenge.cs`.
+- OTP: `Application/PublicOtp/PublicOtpResponse.cs`, `Application/PublicOtp/SendPublicOtpHandler.cs`, `VerifyPublicOtpHandler.cs`, `ResetPasswordHandler.cs`, `Infrastructure/EmailVerification/PostgresPublicOtpStore.cs`, `Domain/Entities/PublicOtpChallenge.cs`.
 - Đăng ký/login: `Application/Registration`, `Application/Login`, `Infrastructure/Persistence/PostgresRegistrationStore.cs`, `PostgresLoginStore.cs`.
 - Policy dữ liệu: `Application/Registration/NewPasswordPolicy.cs`, `Domain/Validation/AccountInput.cs`.
 - Role/quyền: `Domain/AccountRoles.cs`, `Presentation/Authentication/IdentityPolicies.cs`, `Presentation/IdentityHttpSecurityExtensions.cs`.
 - Phiên: `PostgresLogoutSessionService.cs`, `PostgresRefreshSessionService.cs`, `PostgresSessionRevocation.cs` trong `Infrastructure/Persistence`.
-- DB: `Infrastructure/Persistence/IdentityDbContext.cs`, `Configurations`, migration `20261031121117_ConvertIdentityToBigInt`; chi tiết tại [ánh xạ schema](../database/IDENTITY_SCHEMA_MAPPING.md).
+- DB: `Infrastructure/Persistence/IdentityDbContext.cs`, `Configurations`, migration `20261031121117_ConvertIdentityToBigInt`; chi tiết tại [thiết kế dữ liệu](../database/DATABASE_DOCUMENTATION.md).
+- Ranh giới lớp xác thực: `Application/Authentication/JwtOptions.cs`, `AccessTokenClaims.cs`; đăng ký implementation tại `IdentityModuleExtensions.cs`.
 - Kiểm thử luồng mới: `backend/tests/IntegrationTests/PublicOtpFlowTests.cs`.
 - Hướng dẫn API: [OTP đăng ký và quên mật khẩu](OTP_DANG_KY_VA_QUEN_MAT_KHAU.md).

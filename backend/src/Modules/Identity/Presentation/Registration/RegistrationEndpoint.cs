@@ -11,7 +11,7 @@ namespace HomeMatch.Modules.Identity.Presentation.Registration;
 public static class RegistrationEndpoint
 {
     public static async Task<IResult> HandleAsync(HttpContext context, RegistrationRequestReader reader,
-        RegistrationRateLimiter limiter, RegisterAccountHandler handler, IPublicOtpService otp)
+        RegistrationRateLimiter limiter, RegisterAccountHandler handler, SendPublicOtpHandler otp)
     {
         var read = await reader.ReadAsync(context.Request, context.RequestAborted);
         var normalized = AccountInput.TryNormalizeEmail(read.Command?.Email, out _, out var emailKey) ? emailKey : null;
@@ -30,7 +30,7 @@ public static class RegistrationEndpoint
         var outcome = await handler.HandleAsync(read.Command!, context.RequestAborted);
         if (outcome == RegistrationOutcome.Invalid) return IdentityHttpErrors.ValidationFailed();
         if (outcome != RegistrationOutcome.Accepted) return IdentityHttpErrors.DependencyUnavailable();
-        var result = await otp.SendAsync(normalized!, "Registration", read.Command!.Password, context.RequestAborted);
+        var result = await otp.HandleAsync(normalized!, "Registration", read.Command!.Password, context.RequestAborted);
         if (result.IsSuccess)
             return Results.Json(ApiResponse<PublicOtpResponse>.Success(result.Value),
                 statusCode: StatusCodes.Status202Accepted);

@@ -12,10 +12,10 @@ public sealed class EmailVerificationChallenge
 
     private EmailVerificationChallenge() { }
 
-    public EmailVerificationChallenge(Guid id, Guid userId, string email, string normalizedEmail,
+    public EmailVerificationChallenge(Guid id, long userId, string email, string normalizedEmail,
         string codeMac, string keyId, DateTimeOffset now)
     {
-        if (id == Guid.Empty || userId == Guid.Empty) throw new ArgumentException("Identifiers are required.");
+        if (id == Guid.Empty || userId <= 0) throw new ArgumentException("Identifiers are required.");
         if (string.IsNullOrWhiteSpace(email) || email.Length > 254
             || normalizedEmail != email.ToUpperInvariant()) throw new ArgumentException("Invalid email snapshot.");
         if (codeMac is not { Length: 64 } || !codeMac.All(char.IsAsciiHexDigit)) throw new ArgumentException("Invalid code MAC.");
@@ -27,7 +27,7 @@ public sealed class EmailVerificationChallenge
     }
 
     public Guid Id { get; private set; }
-    public Guid UserId { get; private set; }
+    public long UserId { get; private set; }
     public string Purpose { get; private set; } = VerificationPurpose;
     public string EmailSnapshot { get; private set; } = string.Empty;
     public string NormalizedEmailSnapshot { get; private set; } = string.Empty;

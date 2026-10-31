@@ -53,8 +53,8 @@ public sealed class PostgresDatabaseFixture : IAsyncLifetime
                 await using var sentinel = connection.CreateCommand();
                 sentinel.CommandText = """
                     CREATE SCHEMA t04_neighbor;
-                    CREATE TABLE t04_neighbor."Sentinel" ("Value" integer NOT NULL);
-                    INSERT INTO t04_neighbor."Sentinel" VALUES (42);
+                    CREATE TABLE t04_neighbor."sentinel" ("value" integer NOT NULL);
+                    INSERT INTO t04_neighbor."sentinel" VALUES (42);
                     """;
                 await sentinel.ExecuteNonQueryAsync();
             }

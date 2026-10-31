@@ -18,7 +18,7 @@ public class IdentityDomainTests
     public void ProfileTrimsNameAndStoresUtcWithoutRequiringAPhone()
     {
         var created = new DateTimeOffset(2026, 10, 28, 10, 0, 0, TimeSpan.FromHours(7));
-        var userId = Guid.NewGuid();
+        var userId = 1L;
         var profile = new UserProfile(userId, "  Nguyễn Văn An  ", created);
 
         Assert.Equal(userId, profile.UserId);
@@ -34,25 +34,25 @@ public class IdentityDomainTests
     [InlineData(" ")]
     [InlineData("a")]
     public void InvalidNameIsRejected(string name)
-        => Assert.Throws<ArgumentException>(() => new UserProfile(Guid.NewGuid(), name, DateTimeOffset.UtcNow));
+        => Assert.Throws<ArgumentException>(() => new UserProfile(999999L, name, DateTimeOffset.UtcNow));
 
     [Fact]
     public void InvalidUtf16IsRejectedBeforePersistence()
     {
         // Attribute metadata cannot preserve an unpaired surrogate; construct it at runtime.
         var name = new string(new[] { 'a', (char)0xD800 });
-        Assert.Throws<ArgumentException>(() => new UserProfile(Guid.NewGuid(), name, DateTimeOffset.UtcNow));
+        Assert.Throws<ArgumentException>(() => new UserProfile(999999L, name, DateTimeOffset.UtcNow));
     }
 
     [Fact]
     public void NameLengthCountsUnicodeScalarsRatherThanUtf16Units()
     {
         var validName = string.Concat(Enumerable.Repeat("😀", 100));
-        Assert.Equal(validName, new UserProfile(Guid.NewGuid(), validName, DateTimeOffset.UtcNow).FullName);
-        Assert.Throws<ArgumentException>(() => new UserProfile(Guid.NewGuid(), validName + "a", DateTimeOffset.UtcNow));
+        Assert.Equal(validName, new UserProfile(999999L, validName, DateTimeOffset.UtcNow).FullName);
+        Assert.Throws<ArgumentException>(() => new UserProfile(999999L, validName + "a", DateTimeOffset.UtcNow));
     }
 
     [Fact]
     public void ProfileCannotExistWithoutAnAccountId()
-        => Assert.Throws<ArgumentException>(() => new UserProfile(Guid.Empty, "Nguyễn An", DateTimeOffset.UtcNow));
+        => Assert.Throws<ArgumentException>(() => new UserProfile(0L, "Nguyễn An", DateTimeOffset.UtcNow));
 }

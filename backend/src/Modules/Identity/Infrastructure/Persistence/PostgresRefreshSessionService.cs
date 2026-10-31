@@ -30,16 +30,16 @@ public sealed class PostgresRefreshSessionService(IdentityDbContext database, IA
             await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
             // Match login's account -> session -> credential lock order.
             var account = (await database.Users.FromSqlInterpolated($"""
-                SELECT * FROM identity."Users" WHERE "Id" = {located.UserId} FOR UPDATE
+                SELECT * FROM identity."users" WHERE "id" = {located.UserId} FOR UPDATE
                 """).ToListAsync(cancellationToken)).SingleOrDefault();
             var session = (await database.Sessions.FromSqlInterpolated($"""
-                SELECT * FROM identity."Sessions"
-                WHERE "Id" = {located.SessionId} AND "UserId" = {located.UserId} FOR UPDATE
+                SELECT * FROM identity."sessions"
+                WHERE "id" = {located.SessionId} AND "user_id" = {located.UserId} FOR UPDATE
                 """).ToListAsync(cancellationToken)).SingleOrDefault();
-            var credential = (await database.RefreshCredentials.FromSqlInterpolated($"""
-                SELECT * FROM identity."RefreshCredentials"
-                WHERE "Id" = {located.CredentialId} AND "SessionId" = {located.SessionId} AND "TokenHash" = {hash} FOR UPDATE
-                """).ToListAsync(cancellationToken)).SingleOrDefault();
+            // The account lock serializes token rotation; EF joins canonical token rows with refresh metadata.
+            var credential = await database.RefreshCredentials.SingleOrDefaultAsync(
+                value => value.Id == located.CredentialId && value.SessionId == located.SessionId && value.TokenHash == hash,
+                cancellationToken);
             if (account is null || session is null || credential is null) return new(RefreshOutcome.InvalidSession);
 
             var now = PostgresTimestamp.UtcNow(clock);
@@ -56,22 +56,19 @@ public sealed class PostgresRefreshSessionService(IdentityDbContext database, IA
                 || credential.ExpiresAt > session.ExpiresAt)
                 return new(RefreshOutcome.InvalidSession);
 
-            var role = await (
-                from membership in database.UserRoles
-                join value in database.Roles on membership.RoleId equals value.Id
-                where membership.UserId == account.Id
-                select value.Name).SingleOrDefaultAsync(cancellationToken);
+            var role = account.Role;
             if (role is null || !AccountRoles.All.Contains(role)
                 || !await database.Profiles.AnyAsync(profile => profile.UserId == account.Id, cancellationToken))
                 return new(RefreshOutcome.InvalidSession);
 
             var fresh = RefreshSecrets.Create();
-            var replacement = new RefreshCredential(session.Id, fresh.Hash, now, credential.ExpiresAt);
+            var replacement = new RefreshCredential(session.Id, fresh.Hash, now, credential.ExpiresAt, account.Id);
             credential.Consume(now);
             // Release the partial unique index slot before inserting the successor.
             // This save remains inside the transaction; rollback restores the original credential.
             await database.SaveChangesAsync(cancellationToken);
             database.RefreshCredentials.Add(replacement);
+            await database.SaveChangesAsync(cancellationToken);
             credential.LinkReplacement(replacement);
             await database.SaveChangesAsync(cancellationToken);
             IssuedAccessToken issued;
@@ -85,7 +82,7 @@ public sealed class PostgresRefreshSessionService(IdentityDbContext database, IA
                 return new(RefreshOutcome.InvalidSession);
             }
             await transaction.CommitAsync(cancellationToken);
-            return new(RefreshOutcome.Succeeded, issued, fresh.Raw, session.RememberMe, RefreshExpiresAt: replacement.ExpiresAt.UtcDateTime);
+            return new(RefreshOutcome.Succeeded, issued, fresh.Raw, RefreshExpiresAt: replacement.ExpiresAt.UtcDateTime);
         }
         catch (Exception exception) when (IdentityDatabaseFailure.IsUnavailable(exception))
         {
@@ -95,5 +92,5 @@ public sealed class PostgresRefreshSessionService(IdentityDbContext database, IA
         }
     }
 
-    private sealed record CredentialLocation(Guid CredentialId, Guid SessionId, Guid UserId);
+    private sealed record CredentialLocation(long CredentialId, Guid SessionId, long UserId);
 }

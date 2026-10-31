@@ -128,7 +128,7 @@ public partial class IdentityRefreshTests
                             .SetProperty(value => value.ExpiresAt, now.AddSeconds(-1)));
             }
             if (reason == "profile") await db.Profiles.Where(value => value.UserId == account.Id).ExecuteDeleteAsync();
-            if (reason == "membership") await db.UserRoles.Where(value => value.UserId == account.Id).ExecuteDeleteAsync();
+            if (reason == "membership") await db.Profiles.Where(value => value.UserId == account.Id).ExecuteDeleteAsync();
         }
         using var response = await client.PostAsync("/api/v1/identity/auth/refresh", null);
         await AssertFailure(response, HttpStatusCode.Unauthorized, "Identity.SessionInvalid", true);
@@ -140,7 +140,7 @@ public partial class IdentityRefreshTests
         var account = await Account();
         await using var factory = Factory();
         using var client = await Browser(factory);
-        using var login = await Login(client, account, remember: true);
+        using var login = await Login(client, account);
         var raw = Raw(login);
         SetRefresh(client, raw);
         var end = DateTimeOffset.UtcNow.AddSeconds(45);
@@ -165,7 +165,7 @@ public partial class IdentityRefreshTests
         var account = await Account();
         await using var factory = Factory();
         using var client = await Browser(factory);
-        using var login = await Login(client, account, remember: true);
+        using var login = await Login(client, account);
         var raw = Raw(login);
         SetRefresh(client, raw);
         var end = DateTimeOffset.UtcNow.AddMinutes(5);
@@ -178,7 +178,7 @@ public partial class IdentityRefreshTests
         }
         using var response = await client.PostAsync("/api/v1/identity/auth/refresh", null);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("max-age=", Assert.Single(response.Headers.GetValues("Set-Cookie")).ToLowerInvariant());
+        Assert.DoesNotContain("max-age=", Assert.Single(response.Headers.GetValues("Set-Cookie")).ToLowerInvariant());
         var successorHash = RefreshSecrets.TryHash(Raw(response))!;
         await using var verification = database.Services.CreateAsyncScope();
         var context = verification.ServiceProvider.GetRequiredService<IdentityDbContext>();

@@ -9,7 +9,7 @@ namespace HomeMatch.UnitTests.Identity;
 public sealed class EmailVerificationTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 28, 0, 0, 0, TimeSpan.Zero);
-    private static EmailVerificationChallenge Challenge() => new(Guid.NewGuid(), Guid.NewGuid(),
+    private static EmailVerificationChallenge Challenge() => new(Guid.NewGuid(), 1L,
         "tenant@example.test", "TENANT@EXAMPLE.TEST", new string('A', 64), "v1", Now);
 
     [Fact]
@@ -74,13 +74,13 @@ public sealed class EmailVerificationTests
         var key = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
         var settings = new EmailVerificationOptions { Enabled = true, Keys = new() { ["v1"] = key } };
         var protector = new EmailVerificationCodeProtector(Options.Create(settings));
-        var user = Guid.NewGuid(); var id = Guid.NewGuid();
+        var user = 1L; var id = Guid.NewGuid();
         var material = protector.Create(user, "TENANT@EXAMPLE.TEST", id);
         Assert.Matches("^[0-9]{6}$", material.Code);
         var challenge = new EmailVerificationChallenge(id, user, "tenant@example.test", "TENANT@EXAMPLE.TEST", material.Mac, material.KeyId, Now);
         Assert.True(protector.Verify(challenge, material.Code));
         Assert.False(protector.Verify(new(Guid.NewGuid(), user, challenge.EmailSnapshot, challenge.NormalizedEmailSnapshot, material.Mac, "v1", Now), material.Code));
-        Assert.False(protector.Verify(new(id, Guid.NewGuid(), challenge.EmailSnapshot, challenge.NormalizedEmailSnapshot, material.Mac, "v1", Now), material.Code));
+        Assert.False(protector.Verify(new(id, 2L, challenge.EmailSnapshot, challenge.NormalizedEmailSnapshot, material.Mac, "v1", Now), material.Code));
         Assert.False(protector.Verify(new(id, user, "other@example.test", "OTHER@EXAMPLE.TEST", material.Mac, "v1", Now), material.Code));
         settings.Keys["v2"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)); settings.KeyId = "v2";
         Assert.True(protector.Verify(challenge, material.Code));

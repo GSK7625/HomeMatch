@@ -24,7 +24,7 @@ public class JwtAccessTokenIssuerTests
             Secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
             Issuer = "test-issuer", Audience = "test-client", ExpirationMinutes = 15
         };
-        var subject = new AccessTokenSubject(Guid.NewGuid(), Guid.NewGuid(), AccountRoles.Tenant, 4, Now.AddSeconds(sessionSeconds));
+        var subject = new AccessTokenSubject(1L, Guid.NewGuid(), AccountRoles.Tenant, 4, Now.AddSeconds(sessionSeconds));
         var issuer = new JwtAccessTokenIssuer(Options.Create(options), new FixedClock());
         var issued = issuer.Issue(subject);
         var handler = new JsonWebTokenHandler { MapInboundClaims = false };
@@ -67,7 +67,7 @@ public class JwtAccessTokenIssuerTests
         var settings = Options.Create(new JwtOptions { Secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)) });
         var issuer = new JwtAccessTokenIssuer(settings, new FixedClock());
         var failure = Assert.ThrowsAny<ArgumentException>(() => issuer.Issue(new AccessTokenSubject(
-            invalid == "user" ? Guid.Empty : Guid.NewGuid(),
+            invalid == "user" ? 0L : 1L,
             invalid == "session" ? Guid.Empty : Guid.NewGuid(),
             invalid == "role" ? "admin" : AccountRoles.Tenant,
             invalid == "version" ? 0 : 1,

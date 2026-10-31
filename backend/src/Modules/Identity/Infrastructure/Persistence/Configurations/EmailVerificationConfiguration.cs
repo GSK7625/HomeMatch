@@ -19,24 +19,24 @@ public sealed class EmailVerificationChallengeConfiguration : IEntityTypeConfigu
         builder.HasOne<IdentityAccount>().WithMany().HasForeignKey(value => value.UserId).OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(value => new { value.UserId, value.CreatedAt });
         builder.HasIndex(value => new { value.UserId, value.Purpose }).IsUnique()
-            .HasFilter("\"State\" IN (1, 2)").HasDatabaseName("UX_EmailVerificationChallenges_Active");
+            .HasFilter("\"state\" IN (1, 2)").HasDatabaseName("UX_EmailVerificationChallenges_Active");
         builder.ToTable("EmailVerificationChallenges", table =>
         {
-            table.HasCheckConstraint("CK_EmailVerification_Purpose", "\"Purpose\" = 'EmailVerification'");
-            table.HasCheckConstraint("CK_EmailVerification_Mac", "\"CodeMac\" ~ '^[0-9A-F]{64}$'");
-            table.HasCheckConstraint("CK_EmailVerification_KeyId", "\"KeyId\" ~ '^[A-Za-z0-9_-]{1,32}$'");
-            table.HasCheckConstraint("CK_EmailVerification_State", "\"State\" BETWEEN 1 AND 6");
+            table.HasCheckConstraint("CK_EmailVerification_Purpose", "\"purpose\" = 'EmailVerification'");
+            table.HasCheckConstraint("CK_EmailVerification_Mac", "\"code_mac\" ~ '^[0-9A-F]{64}$'");
+            table.HasCheckConstraint("CK_EmailVerification_KeyId", "\"key_id\" ~ '^[A-Za-z0-9_-]{1,32}$'");
+            table.HasCheckConstraint("CK_EmailVerification_State", "\"state\" BETWEEN 1 AND 6");
             table.HasCheckConstraint("CK_EmailVerification_Time",
-                "\"ExpiresAt\" = \"CreatedAt\" + interval '5 minutes' AND \"PendingLeaseUntil\" = \"CreatedAt\" + interval '2 minutes'");
-            table.HasCheckConstraint("CK_EmailVerification_Attempts", "\"FailedAttempts\" BETWEEN 0 AND 5");
+                "\"expires_at\" = \"created_at\" + interval '5 minutes' AND \"pending_lease_until\" = \"created_at\" + interval '2 minutes'");
+            table.HasCheckConstraint("CK_EmailVerification_Attempts", "\"failed_attempts\" BETWEEN 0 AND 5");
             table.HasCheckConstraint("CK_EmailVerification_Submitted",
-                "(\"State\" NOT IN (2,4,6) OR \"SubmittedAt\" IS NOT NULL) AND (\"SubmittedAt\" IS NULL OR (\"SubmittedAt\" >= \"CreatedAt\" AND \"SubmittedAt\" < \"ExpiresAt\"))");
+                "(\"state\" NOT IN (2,4,6) OR \"submitted_at\" IS NOT NULL) AND (\"submitted_at\" IS NULL OR (\"submitted_at\" >= \"created_at\" AND \"submitted_at\" < \"expires_at\"))");
             table.HasCheckConstraint("CK_EmailVerification_Consumed",
-                "(\"State\" = 4) = (\"ConsumedAt\" IS NOT NULL) AND (\"ConsumedAt\" IS NULL OR (\"ConsumedAt\" >= \"CreatedAt\" AND \"ConsumedAt\" < \"ExpiresAt\"))");
+                "(\"state\" = 4) = (\"consumed_at\" IS NOT NULL) AND (\"consumed_at\" IS NULL OR (\"consumed_at\" >= \"created_at\" AND \"consumed_at\" < \"expires_at\"))");
             table.HasCheckConstraint("CK_EmailVerification_Invalidated",
-                "(\"State\" IN (3,5,6)) = (\"InvalidatedAt\" IS NOT NULL) AND (\"InvalidatedAt\" IS NULL OR \"InvalidatedAt\" >= \"CreatedAt\")");
-            table.HasCheckConstraint("CK_EmailVerification_LastAttempt", "\"LastAttemptAt\" IS NULL OR \"LastAttemptAt\" >= \"CreatedAt\"");
-            table.HasCheckConstraint("CK_EmailVerification_Locked", "(\"State\" = 6) = (\"FailedAttempts\" = 5)");
+                "(\"state\" IN (3,5,6)) = (\"invalidated_at\" IS NOT NULL) AND (\"invalidated_at\" IS NULL OR \"invalidated_at\" >= \"created_at\")");
+            table.HasCheckConstraint("CK_EmailVerification_LastAttempt", "\"last_attempt_at\" IS NULL OR \"last_attempt_at\" >= \"created_at\"");
+            table.HasCheckConstraint("CK_EmailVerification_Locked", "(\"state\" = 6) = (\"failed_attempts\" = 5)");
         });
     }
 }
@@ -49,8 +49,8 @@ public sealed class EmailVerificationQuotaConfiguration : IEntityTypeConfigurati
         builder.Property(value => value.Key).HasMaxLength(160).ValueGeneratedNever();
         builder.ToTable("EmailVerificationQuotas", table =>
         {
-            table.HasCheckConstraint("CK_EmailVerificationQuota_Window", "\"WindowEnd\" > \"WindowStart\"");
-            table.HasCheckConstraint("CK_EmailVerificationQuota_Count", "\"Count\" >= 0");
+            table.HasCheckConstraint("CK_EmailVerificationQuota_Window", "\"window_end\" > \"window_start\"");
+            table.HasCheckConstraint("CK_EmailVerificationQuota_Count", "\"count\" >= 0");
         });
     }
 }

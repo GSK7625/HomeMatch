@@ -10,9 +10,14 @@ namespace HomeMatch.UnitTests.Identity;
 
 public class RefreshRotationTests
 {
+    private static long _nextTokenId;
     private static readonly DateTimeOffset Now = new(2026, 10, 28, 0, 0, 0, TimeSpan.Zero);
     private static RefreshCredential Credential(Guid session, DateTimeOffset? created = null, DateTimeOffset? expires = null)
-        => new(session, RefreshSecrets.Create().Hash, created ?? Now, expires ?? Now.AddDays(1));
+        {
+        var credential = new RefreshCredential(session, RefreshSecrets.Create().Hash, created ?? Now, expires ?? Now.AddDays(1), 1L);
+        typeof(UserToken).GetProperty(nameof(UserToken.Id))!.SetValue(credential, Interlocked.Increment(ref _nextTokenId));
+        return credential;
+    }
 
     [Fact]
     public void ConsumptionIsOneWayAndLinksOnlyOneSuccessor()
@@ -63,7 +68,7 @@ public class RefreshRotationTests
         var issuer = new JwtAccessTokenIssuer(Options.Create(new JwtOptions
             { Secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)) }), clock);
         Assert.Throws<AccessTokenSessionExpiredException>(() => issuer.Issue(new AccessTokenSubject(
-            Guid.NewGuid(), Guid.NewGuid(), "Tenant", 1, Now.AddMilliseconds(900))));
+            1L, Guid.NewGuid(), "Tenant", 1, Now.AddMilliseconds(900))));
     }
 
     private sealed class Clock : TimeProvider

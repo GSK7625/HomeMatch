@@ -6,9 +6,9 @@ public sealed class UserProfile
 {
     private UserProfile() { }
 
-    public UserProfile(Guid userId, string fullName, DateTimeOffset createdAt)
+    public UserProfile(long userId, string fullName, DateTimeOffset createdAt)
     {
-        if (userId == Guid.Empty)
+        if (userId <= 0)
         {
             throw new ArgumentException("A profile must belong to an account.", nameof(userId));
         }
@@ -24,9 +24,15 @@ public sealed class UserProfile
         UpdatedAt = CreatedAt;
     }
 
-    public Guid UserId { get; private set; }
+    public long UserId { get; private set; }
     public string FullName { get; private set; } = string.Empty;
     public string? PhoneNumber { get; private set; }
+    public string? AvatarUrl { get; set; }
+    public DateOnly? DateOfBirth { get; set; }
+    public string? Gender { get; set; }
+    public bool NotifyEmail { get; set; } = true;
+    public bool NotifySms { get; set; }
+    public bool NotifyPush { get; set; } = true;
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 }

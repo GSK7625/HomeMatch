@@ -10,11 +10,6 @@ public interface INewPasswordPolicy
     bool IsAllowed(string? password);
 }
 
-public interface IPasswordBlocklist
-{
-    bool Contains(string password);
-}
-
 public interface IRegistrationStore
 {
     Task<RegistrationOutcome> CreateIfAbsentAsync(ValidatedRegistration registration, CancellationToken cancellationToken);

@@ -15,9 +15,9 @@ public sealed class AccountSessionConfiguration : IEntityTypeConfiguration<Accou
         builder.HasOne<IdentityAccount>().WithMany().HasForeignKey(session => session.UserId).OnDelete(DeleteBehavior.Cascade);
         builder.ToTable("Sessions", table =>
         {
-            table.HasCheckConstraint("CK_Sessions_SecurityVersion", "\"SecurityVersion\" > 0");
-            table.HasCheckConstraint("CK_Sessions_Expiry", "\"ExpiresAt\" > \"CreatedAt\"");
-            table.HasCheckConstraint("CK_Sessions_Revocation", "\"RevokedAt\" IS NULL OR \"RevokedAt\" >= \"CreatedAt\"");
+            table.HasCheckConstraint("CK_Sessions_SecurityVersion", "\"security_version\" > 0");
+            table.HasCheckConstraint("CK_Sessions_Expiry", "\"expires_at\" > \"created_at\"");
+            table.HasCheckConstraint("CK_Sessions_Revocation", "\"revoked_at\" IS NULL OR \"revoked_at\" >= \"created_at\"");
         });
     }
 }

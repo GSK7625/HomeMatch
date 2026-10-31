@@ -59,26 +59,32 @@ public static class IdentityModuleExtensions
             options.User.AllowedUserNameCharacters = string.Empty;
             options.SignIn.RequireConfirmedEmail = false;
             options.SignIn.RequireConfirmedAccount = false;
-            options.Lockout.AllowedForNewUsers = true;
-            options.Lockout.MaxFailedAccessAttempts = 5;
-            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
-            // The shared INewPasswordPolicy/Identity validator enforce scalar length and blocklist below.
-            options.Password.RequiredLength = 15;
+            options.Lockout.AllowedForNewUsers = false;
+            // All password creation rules live in NewPasswordPolicy.
+            options.Password.RequiredLength = 8;
             options.Password.RequireDigit = false;
             options.Password.RequireLowercase = false;
             options.Password.RequireUppercase = false;
             options.Password.RequireNonAlphanumeric = false;
         })
-            .AddRoles<IdentityRole<Guid>>()
+            .AddRoles<IdentityRole<long>>()
             .AddEntityFrameworkStores<IdentityDbContext>();
+        services.RemoveAll<IUserStore<IdentityAccount>>();
+        services.AddScoped<IUserStore<IdentityAccount>, SqlIdentityUserStore>();
+        services.RemoveAll<IPasswordHasher<IdentityAccount>>();
+        services.AddScoped<IPasswordHasher<IdentityAccount>, CompatiblePasswordHasher>();
         services.AddScoped<IdentityRoleSeeder>();
-        services.AddSingleton<IPasswordBlocklist, OfflinePasswordBlocklist>();
         services.AddSingleton<INewPasswordPolicy, NewPasswordPolicy>();
         services.RemoveAll<IPasswordValidator<IdentityAccount>>();
         services.AddScoped<IPasswordValidator<IdentityAccount>, IdentityNewPasswordValidator>();
-        services.AddHostedService<PasswordPolicyStartupCheck>();
         services.AddScoped<IRegistrationStore, PostgresRegistrationStore>();
         services.AddScoped<RegisterAccountHandler>();
+        services.AddScoped<HomeMatch.Modules.Identity.Application.PublicOtp.IPublicOtpService, HomeMatch.Modules.Identity.Application.PublicOtp.PublicOtpService>();
+        services.AddScoped<HomeMatch.Modules.Identity.Application.PublicOtp.IPublicOtpStore, PostgresPublicOtpStore>();
+        services.AddScoped<HomeMatch.Modules.Identity.Application.PublicOtp.SendPublicOtpHandler>();
+        services.AddScoped<HomeMatch.Modules.Identity.Application.PublicOtp.VerifyPublicOtpHandler>();
+        services.AddScoped<HomeMatch.Modules.Identity.Application.PublicOtp.ResetPasswordHandler>();
+        services.AddSingleton<HomeMatch.Modules.Identity.Presentation.PublicOtp.PublicOtpLimiter>();
         services.AddScoped<ILoginStore, PostgresLoginStore>();
         services.AddScoped<LoginHandler>();
         services.AddSingleton<LoginDummyCredential>();

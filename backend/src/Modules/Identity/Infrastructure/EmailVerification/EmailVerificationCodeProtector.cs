@@ -8,7 +8,7 @@ namespace HomeMatch.Modules.Identity.Infrastructure.EmailVerification;
 
 public sealed class EmailVerificationCodeProtector(IOptions<EmailVerificationOptions> configured)
 {
-    public (string Code, string Mac, string KeyId) Create(Guid userId, string normalizedEmail, Guid challengeId)
+    public (string Code, string Mac, string KeyId) Create(long userId, string normalizedEmail, Guid challengeId)
     {
         var code = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6", CultureInfo.InvariantCulture);
         var options = configured.Value;
@@ -23,7 +23,7 @@ public sealed class EmailVerificationCodeProtector(IOptions<EmailVerificationOpt
         return CryptographicOperations.FixedTimeEquals(Convert.FromHexString(challenge.CodeMac), Convert.FromHexString(expected));
     }
 
-    private static string Compute(string encodedKey, Guid userId, string email, Guid challengeId, string code)
+    private static string Compute(string encodedKey, long userId, string email, Guid challengeId, string code)
     {
         var key = Convert.FromBase64String(encodedKey);
         try

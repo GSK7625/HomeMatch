@@ -16,7 +16,7 @@ public static class AccessTokenClaims
             return values.Length == 1 ? values[0] : null;
         }
 
-        if (!Guid.TryParseExact(Single("sub"), "D", out var userId) || userId == Guid.Empty
+        if (!long.TryParse(Single("sub"), NumberStyles.None, CultureInfo.InvariantCulture, out var userId) || userId <= 0
             || !Guid.TryParseExact(Single("sid"), "D", out var sessionId) || sessionId == Guid.Empty
             || !Guid.TryParseExact(Single("jti"), "D", out var tokenId) || tokenId == Guid.Empty
             || !long.TryParse(Single("sv"), NumberStyles.None, CultureInfo.InvariantCulture, out var version) || version <= 0

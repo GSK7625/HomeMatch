@@ -36,8 +36,10 @@ public partial class IdentityLoginTests
     [InlineData("[]")]
     [InlineData("{")]
     [InlineData("{\"email\":\"a@example.test\",\"password\":\"old\",\"rememberMe\":\"true\"}")]
-    [InlineData("{\"email\":\"a@example.test\",\"password\":\"old\"}")]
+    [InlineData("{\"email\":\"a@example.test\"}")]
     [InlineData("{\"email\":\"a@example.test\",\"password\":\"old\",\"rememberMe\":null}")]
+    [InlineData("{\"email\":\"a@example.test\",\"password\":\"old\",\"rememberMe\":true}")]
+    [InlineData("{\"email\":\"a@example.test\",\"password\":\"old\",\"rememberMe\":false}")]
     [InlineData("{\"email\":\"a@example.test\",\"password\":\"old\",\"rememberMe\":false,\"role\":\"Admin\"}")]
     [InlineData("{\"email\":\"a@example.test\",\"password\":\"old\",\"rememberMe\":false,\"rememberMe\":true}")]
     [InlineData("{\"email\":\"a@example.test\",\"password\":\"\\uD800\",\"rememberMe\":false}")]
@@ -86,18 +88,9 @@ public partial class IdentityLoginTests
     [Theory]
     [InlineData("wrong")]
     [InlineData("missing")]
-    [InlineData("locked")]
     public async Task CredentialFailuresAreIndistinguishableInResponse(string kind)
     {
         var account = await AccountAsync();
-        if (kind == "locked")
-        {
-            await using var scope = database.Services.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-            var stored = await db.Users.SingleAsync(value => value.Id == account.Id);
-            stored.LockoutEnd = DateTimeOffset.UtcNow.AddMinutes(15);
-            await db.SaveChangesAsync();
-        }
         await using var factory = Factory();
         using var client = await BrowserAsync(factory);
         using var response = await Login(client, kind == "missing" ? Guid.NewGuid().ToString("N") + "@example.test" : account.Email!,

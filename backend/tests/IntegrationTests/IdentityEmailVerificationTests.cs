@@ -1,3 +1,5 @@
+using HomeMatch.Modules.Identity.Infrastructure.Authentication;
+using Microsoft.AspNetCore.Identity;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
@@ -48,7 +50,7 @@ public partial class IdentityEmailVerificationTests(PostgresDatabaseFixture data
     private static HttpClient Client(WebApplicationFactory<Program> factory) => factory.CreateClient(new WebApplicationFactoryClientOptions
         { BaseAddress = new Uri("https://api.example.test"), HandleCookies = false, AllowAutoRedirect = false });
 
-    private static async Task<User> RegisterLogin(HttpClient client, string role = "Tenant")
+    private async Task<User> RegisterLogin(HttpClient client, string role = "Tenant")
     {
         var email = $"otp-{Guid.NewGuid():N}@example.test";
         client.DefaultRequestHeaders.Add("Origin", "https://frontend.example.test");
@@ -59,18 +61,35 @@ public partial class IdentityEmailVerificationTests(PostgresDatabaseFixture data
             var data = await Data(csrf);
             client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", data.GetProperty("requestToken").GetString());
         }
-        using (var register = await client.PostAsJsonAsync(Root + "/auth/register",
-                   new { email, password = Password, fullName = "Nguyễn Văn An", role }))
-            Assert.Equal(HttpStatusCode.OK, register.StatusCode);
-        using var login = await client.PostAsJsonAsync(Root + "/auth/login", new { email, password = Password, rememberMe = true });
+        // These tests exercise the legacy Bearer email-verification endpoints. Seed a session
+        // for an account whose email becomes unverified after login; public registration is tested separately.
+        await using (var setup = database.Services.CreateAsyncScope())
+        {
+            var db = setup.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            var manager = setup.ServiceProvider.GetRequiredService<UserManager<IdentityAccount>>();
+            var account = new IdentityAccount(email, DateTimeOffset.UtcNow.AddMinutes(-1)) { EmailConfirmed = true };
+            Assert.True((await manager.CreateAsync(account, Password)).Succeeded);
+            account.Role = role;
+        Assert.True((await manager.UpdateAsync(account)).Succeeded);
+            db.Profiles.Add(new UserProfile(account.Id, "Test User", account.CreatedAt));
+            await db.SaveChangesAsync();
+        }
+        using var login = await client.PostAsJsonAsync(Root + "/auth/login", new { email, password = Password });
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         var token = (await Data(login)).GetProperty("accessToken").GetString()!;
+        await using (var edit = database.Services.CreateAsyncScope())
+        {
+            var db = edit.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            var account = await db.Users.SingleAsync(x => x.Email == email);
+            account.EmailConfirmed = false;
+            await db.SaveChangesAsync();
+        }
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         using var me = await client.GetAsync(Root + "/me");
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
         var profile = await Data(me);
         Assert.False(profile.GetProperty("emailVerified").GetBoolean());
-        return new(profile.GetProperty("id").GetGuid(), token, email);
+        return new(profile.GetProperty("id").GetInt64(), token, email);
     }
 
     private static Task<HttpResponseMessage> Request(HttpClient client) => client.PostAsync(Root + "/auth/resend-verification", null);
@@ -206,7 +225,7 @@ public partial class IdentityEmailVerificationTests(PostgresDatabaseFixture data
         Assert.True(repeated.Headers.RetryAfter?.Delta > TimeSpan.Zero); Assert.Single(mailbox.Messages);
     }
 
-    private sealed record User(Guid Id, string Token, string Email);
+    private sealed record User(long Id, string Token, string Email);
     private sealed class Clock : TimeProvider
     {
         private long _ticks = DateTimeOffset.UtcNow.UtcTicks;

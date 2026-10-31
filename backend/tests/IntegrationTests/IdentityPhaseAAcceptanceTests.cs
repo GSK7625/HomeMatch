@@ -24,11 +24,9 @@ public sealed class IdentityPhaseAAcceptanceTests(PostgresDatabaseFixture databa
     });
 
     [Theory]
-    [InlineData("Tenant", false)]
-    [InlineData("Tenant", true)]
-    [InlineData("Landlord", false)]
-    [InlineData("Landlord", true)]
-    public async Task UnverifiedAccountCompletesRegistrationAndSessionLifecycleAcrossDevices(string role, bool remember)
+    [InlineData("Tenant")]
+    [InlineData("Landlord")]
+    public async Task VerifiedAccountCompletesRegistrationAndSessionLifecycleAcrossDevices(string role)
     {
         var email = $"acceptance-{Guid.NewGuid():N}@example.test";
         await using var factory = Factory();
@@ -39,23 +37,25 @@ public sealed class IdentityPhaseAAcceptanceTests(PostgresDatabaseFixture databa
         using (var registered = await first.SendAsync(HttpMethod.Post, "/auth/register",
                    new { email, password = Password, fullName = FullName, role }))
         {
-            Assert.Equal(HttpStatusCode.OK, registered.StatusCode);
+            Assert.Equal(HttpStatusCode.Accepted, registered.StatusCode);
             Assert.False(registered.Headers.Contains("Set-Cookie"));
         }
         await AssertProfileAsync(first, null, HttpStatusCode.Unauthorized);
         using (var duplicate = await first.SendAsync(HttpMethod.Post, "/auth/register",
                    new { email = email.ToUpperInvariant(), password = "Một mật khẩu khác khi đăng ký 2026!",
                        fullName = "Tên không được ghi đè", role = role == "Tenant" ? "Landlord" : "Tenant" }))
-            Assert.Equal(HttpStatusCode.OK, duplicate.StatusCode);
+            Assert.Equal(HttpStatusCode.Accepted, duplicate.StatusCode);
 
-        var initial = await LoginAsync(first, email.ToUpperInvariant(), remember);
-        var otherDevice = await LoginAsync(second, email, !remember);
+        await OtpTestHelper.VerifyRegistrationAsync(factory, email, (id, code) => first.SendAsync(HttpMethod.Post,
+            "/auth/registration/verify-otp", new { challengeId = id, code }));
+        var initial = await LoginAsync(first, email.ToUpperInvariant());
+        var otherDevice = await LoginAsync(second, email);
         var owner = await AssertProfileAsync(first, initial.AccessToken, HttpStatusCode.OK, email, role);
         Assert.Equal(owner, await AssertProfileAsync(second, otherDevice.AccessToken, HttpStatusCode.OK, email, role));
 
         Session rotated;
         using (var refresh = await first.SendAsync(HttpMethod.Post, "/auth/refresh"))
-            rotated = await ReadSessionAsync(first, refresh, remember);
+            rotated = await ReadSessionAsync(first, refresh);
         Assert.NotEqual(initial.RefreshSecret, rotated.RefreshSecret);
         Assert.Equal(initial.SessionExpiresAt, rotated.SessionExpiresAt);
         await AssertProfileAsync(first, rotated.AccessToken, HttpStatusCode.OK, email, role);
@@ -71,7 +71,7 @@ public sealed class IdentityPhaseAAcceptanceTests(PostgresDatabaseFixture databa
         using (var revokedRefresh = await first.SendAsync(HttpMethod.Post, "/auth/refresh"))
             Assert.Equal(HttpStatusCode.Unauthorized, revokedRefresh.StatusCode);
 
-        var signedInAgain = await LoginAsync(first, email, remember);
+        var signedInAgain = await LoginAsync(first, email);
         using (var logoutAll = await second.SendAsync(HttpMethod.Post, "/auth/logout-all",
                    accessToken: otherDevice.AccessToken))
             await AssertNoContentAsync(logoutAll);
@@ -82,7 +82,7 @@ public sealed class IdentityPhaseAAcceptanceTests(PostgresDatabaseFixture databa
             Assert.Equal(HttpStatusCode.Unauthorized, revokedRefresh.StatusCode);
 
         // Logout-all does not suspend the account: a fresh password login uses the new security version.
-        var fresh = await LoginAsync(second, email, !remember);
+        var fresh = await LoginAsync(second, email);
         await AssertProfileAsync(second, fresh.AccessToken, HttpStatusCode.OK, email, role);
 
         await using var scope = database.Services.CreateAsyncScope();
@@ -90,7 +90,7 @@ public sealed class IdentityPhaseAAcceptanceTests(PostgresDatabaseFixture databa
         var account = await db.Users.AsNoTracking().SingleAsync(value => value.NormalizedEmail == email.ToUpperInvariant());
         Assert.Equal(owner, account.Id);
         Assert.Equal(AccountStatus.Active, account.Status);
-        Assert.False(account.EmailConfirmed);
+        Assert.True(account.EmailConfirmed);
         Assert.Equal(2L, account.SecurityVersion);
         var sessions = await db.Sessions.AsNoTracking().Where(value => value.UserId == owner).ToListAsync();
         Assert.Equal(4, sessions.Count);
@@ -115,8 +115,10 @@ public sealed class IdentityPhaseAAcceptanceTests(PostgresDatabaseFixture databa
         using var browser = await Browser.CreateAsync(factory);
         using (var registered = await browser.SendAsync(HttpMethod.Post, "/auth/register",
                    new { email, password = Password, fullName = FullName, role = "Tenant" }))
-            Assert.Equal(HttpStatusCode.OK, registered.StatusCode);
-        var session = await LoginAsync(browser, email, false);
+            Assert.Equal(HttpStatusCode.Accepted, registered.StatusCode);
+        await OtpTestHelper.VerifyRegistrationAsync(factory, email, (id, code) => browser.SendAsync(HttpMethod.Post,
+            "/auth/registration/verify-otp", new { challengeId = id, code }));
+        var session = await LoginAsync(browser, email);
 
         using (var denied = await browser.SendAsync(HttpMethod.Post, route, accessToken: "invalid-token"))
             Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
@@ -127,19 +129,19 @@ public sealed class IdentityPhaseAAcceptanceTests(PostgresDatabaseFixture databa
         await AssertProfileAsync(browser, session.AccessToken, HttpStatusCode.Unauthorized);
     }
 
-    private static async Task<Session> LoginAsync(Browser browser, string email, bool remember)
+    private static async Task<Session> LoginAsync(Browser browser, string email)
     {
         using var response = await browser.SendAsync(HttpMethod.Post, "/auth/login",
-            new { email, password = Password, rememberMe = remember });
-        return await ReadSessionAsync(browser, response, remember);
+            new { email, password = Password });
+        return await ReadSessionAsync(browser, response);
     }
 
-    private static async Task<Session> ReadSessionAsync(Browser browser, HttpResponseMessage response, bool remember)
+    private static async Task<Session> ReadSessionAsync(Browser browser, HttpResponseMessage response)
     {
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var data = await ReadDataAsync(response);
         var cookie = Assert.IsType<Cookie>(browser.RefreshCookie);
-        Assert.Equal(remember, cookie.Expires != DateTime.MinValue);
+        Assert.Equal(DateTime.MinValue, cookie.Expires);
         Assert.True(cookie.Secure);
         Assert.True(cookie.HttpOnly);
         Assert.DoesNotContain(cookie.Value, await response.Content.ReadAsStringAsync());
@@ -147,7 +149,7 @@ public sealed class IdentityPhaseAAcceptanceTests(PostgresDatabaseFixture databa
             data.GetProperty("sessionExpiresAt").GetDateTimeOffset());
     }
 
-    private static async Task<Guid> AssertProfileAsync(Browser browser, string? accessToken, HttpStatusCode status,
+    private static async Task<long> AssertProfileAsync(Browser browser, string? accessToken, HttpStatusCode status,
         string? email = null, string? role = null)
     {
         using var response = await browser.SendAsync(HttpMethod.Get, "/me", accessToken: accessToken);
@@ -156,14 +158,14 @@ public sealed class IdentityPhaseAAcceptanceTests(PostgresDatabaseFixture databa
         if (status != HttpStatusCode.OK)
         {
             Assert.Equal("Bearer", Assert.Single(response.Headers.WwwAuthenticate).Scheme);
-            return Guid.Empty;
+            return 0L;
         }
         var data = await ReadDataAsync(response);
-        Assert.False(data.GetProperty("emailVerified").GetBoolean());
+        Assert.True(data.GetProperty("emailVerified").GetBoolean());
         Assert.Equal(FullName, data.GetProperty("fullName").GetString());
         if (email is not null) Assert.Equal(email, data.GetProperty("email").GetString());
         if (role is not null) Assert.Equal(role, data.GetProperty("role").GetString());
-        return data.GetProperty("id").GetGuid();
+        return data.GetProperty("id").GetInt64();
     }
 
     private static async Task<JsonElement> ReadDataAsync(HttpResponseMessage response)

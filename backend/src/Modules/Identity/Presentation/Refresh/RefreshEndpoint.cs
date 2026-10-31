@@ -34,7 +34,7 @@ public static class RefreshEndpoint
         var result = await service.RefreshAsync(cookie.Read(context), client, context.RequestAborted);
         if (result.Outcome == RefreshOutcome.Succeeded)
         {
-            cookie.Write(context, result.RefreshSecret!, result.RememberMe, result.RefreshExpiresAt!.Value);
+            cookie.Write(context, result.RefreshSecret!);
             return Results.Ok(ApiResponse<IssuedAccessToken>.Success(result.Token!));
         }
         if (result.Outcome == RefreshOutcome.RateLimited) return RateLimited(context, result.RetryAfter!.Value);

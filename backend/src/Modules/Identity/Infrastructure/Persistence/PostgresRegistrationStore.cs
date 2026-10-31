@@ -22,9 +22,7 @@ public sealed class PostgresRegistrationStore(IdentityDbContext database, UserMa
             await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
             if (users.NormalizeEmail(registration.Email) != registration.NormalizedEmail)
                 throw new InvalidOperationException("Email normalization is inconsistent.");
-            if (!await database.Roles.AnyAsync(role => role.NormalizedName == registration.Role.ToUpperInvariant(), cancellationToken))
-                return RegistrationOutcome.Unavailable;
-            var account = new IdentityAccount(registration.Email, clock.GetUtcNow());
+            var account = new IdentityAccount(registration.Email, clock.GetUtcNow()) { Role = registration.Role };
             // CreateAsync(user, password) validates/hashes before duplicate user lookup.
             // Keep both new and existing email branches on this path; no existence fast-path.
             cancellationToken.ThrowIfCancellationRequested();
@@ -38,15 +36,13 @@ public sealed class PostgresRegistrationStore(IdentityDbContext database, UserMa
             }
 
 
-            var assigned = await users.AddToRoleAsync(account, registration.Role);
-            if (!assigned.Succeeded) throw new InvalidOperationException("Identity role provisioning failed.");
             database.Profiles.Add(new UserProfile(account.Id, registration.FullName, account.CreatedAt));
             await database.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return RegistrationOutcome.Accepted;
         }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException
-               { SqlState: PostgresErrorCodes.UniqueViolation, SchemaName: "identity", TableName: "Users" } postgres
+               { SqlState: PostgresErrorCodes.UniqueViolation, SchemaName: "identity", TableName: "users" } postgres
                && postgres.ConstraintName is "UX_Users_NormalizedEmail" or "UserNameIndex")
         {
             // The unique index wins a race even if both UserManager lookups saw no account.

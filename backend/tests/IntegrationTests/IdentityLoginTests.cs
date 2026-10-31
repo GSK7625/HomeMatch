@@ -41,8 +41,8 @@ public partial class IdentityLoginTests(PostgresDatabaseFixture database) : ICla
         return client;
     }
 
-    private static Task<HttpResponseMessage> Login(HttpClient client, string email, string password = Password, bool remember = false)
-        => client.PostAsJsonAsync("/api/v1/identity/auth/login", new { email, password, rememberMe = remember });
+    private static Task<HttpResponseMessage> Login(HttpClient client, string email, string password = Password)
+        => client.PostAsJsonAsync("/api/v1/identity/auth/login", new { email, password });
 
     private static async Task<string> AccessToken(HttpResponseMessage response)
     {
@@ -76,27 +76,32 @@ public partial class IdentityLoginTests(PostgresDatabaseFixture database) : ICla
         await using var scope = database.Services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         var manager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityAccount>>();
-        var account = new IdentityAccount(email ?? $"login-{Guid.NewGuid():N}@example.test", DateTimeOffset.UtcNow);
+        var account = new IdentityAccount(email ?? $"login-{Guid.NewGuid():N}@example.test", DateTimeOffset.UtcNow) { EmailConfirmed = true };
         Assert.True((await manager.CreateAsync(account, Password)).Succeeded);
-        Assert.True((await manager.AddToRoleAsync(account, "Tenant")).Succeeded);
+        account.Role = "Tenant";
+        Assert.True((await manager.UpdateAsync(account)).Succeeded);
         context.Profiles.Add(new UserProfile(account.Id, "Nguyễn Văn An", account.CreatedAt));
         await context.SaveChangesAsync();
         return account;
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task RegisterLoginMeWorksBeforeEmailVerificationAndStoresOnlyRefreshHash(bool remember)
+    [InlineData("Tenant")]
+    [InlineData("Landlord")]
+    public async Task RegisterVerifyLoginMeStoresOnlyRefreshHash(string role)
     {
         var email = $"flow-{Guid.NewGuid():N}@example.test";
         await using var factory = Factory();
         using var client = await BrowserAsync(factory);
         using var registered = await client.PostAsJsonAsync("/api/v1/identity/auth/register",
-            new { email, password = Password, fullName = "Nguyễn Văn An", role = remember ? "Landlord" : "Tenant" });
-        Assert.Equal(HttpStatusCode.OK, registered.StatusCode);
+            new { email, password = Password, fullName = "Nguyễn Văn An", role });
+        Assert.Equal(HttpStatusCode.Accepted, registered.StatusCode);
+        using (var unverified = await Login(client, email))
+            Assert.Equal(HttpStatusCode.Forbidden, unverified.StatusCode);
+        await OtpTestHelper.VerifyRegistrationAsync(factory, email, (id, code) => client.PostAsJsonAsync(
+            "/api/v1/identity/auth/registration/verify-otp", new { challengeId = id, code }));
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "stale-token");
-        using var login = await Login(client, email.ToUpperInvariant(), remember: remember);
+        using var login = await Login(client, email.ToUpperInvariant());
         var token = await AccessToken(login);
         var raw = RefreshSecret(login);
         Assert.Matches("^[A-Za-z0-9_-]{43}$", raw);
@@ -107,8 +112,8 @@ public partial class IdentityLoginTests(PostgresDatabaseFixture database) : ICla
         Assert.Contains("; httponly", cookie);
         Assert.Contains("samesite=lax", cookie);
         Assert.DoesNotContain("domain=", cookie);
-        Assert.Equal(remember, cookie.Contains("expires="));
-        Assert.Equal(remember, cookie.Contains("max-age="));
+        Assert.DoesNotContain("expires=", cookie);
+        Assert.DoesNotContain("max-age=", cookie);
         var json = await login.Content.ReadAsStringAsync();
         Assert.DoesNotContain(raw, json);
         using var parsed = JsonDocument.Parse(json);
@@ -118,20 +123,19 @@ public partial class IdentityLoginTests(PostgresDatabaseFixture database) : ICla
         Assert.Equal("Bearer", data.GetProperty("tokenType").GetString());
         Assert.InRange(data.GetProperty("expiresIn").GetInt32(), 1, 900);
         var end = data.GetProperty("sessionExpiresAt").GetDateTime();
-        Assert.InRange(end - DateTime.UtcNow, remember ? TimeSpan.FromDays(29) : TimeSpan.FromHours(23),
-            remember ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24));
+        Assert.InRange(end - DateTime.UtcNow, TimeSpan.FromHours(23),
+            TimeSpan.FromHours(24));
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         using var me = await client.GetAsync("/api/v1/identity/me");
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
         using var profile = JsonDocument.Parse(await me.Content.ReadAsStringAsync());
-        Assert.False(profile.RootElement.GetProperty("data").GetProperty("emailVerified").GetBoolean());
+        Assert.True(profile.RootElement.GetProperty("data").GetProperty("emailVerified").GetBoolean());
         await using var scope = database.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         var account = await db.Users.SingleAsync(value => value.NormalizedEmail == email.ToUpperInvariant());
         var session = await db.Sessions.SingleAsync(value => value.UserId == account.Id);
         var credential = await db.RefreshCredentials.SingleAsync(value => value.SessionId == session.Id);
-        Assert.Equal(remember, session.RememberMe);
         Assert.Equal(RefreshSecrets.TryHash(raw), credential.TokenHash);
         Assert.Equal(session.ExpiresAt, credential.ExpiresAt);
         Assert.Null(credential.UsedAt);
@@ -169,5 +173,28 @@ public partial class IdentityLoginTests(PostgresDatabaseFixture database) : ICla
         using var client = await BrowserAsync(factory);
         using var response = await Login(client, account.Email!, old);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var verification = database.Services.CreateAsyncScope();
+        var upgraded = await verification.ServiceProvider.GetRequiredService<IdentityDbContext>().Users.SingleAsync(value => value.Id == account.Id);
+        Assert.StartsWith("{bcrypt-sha384}", upgraded.PasswordHash);
+    }
+
+    [Fact]
+    public async Task SqlBcryptPasswordCanLoginAndIsUpgraded()
+    {
+        var account = await AccountAsync();
+        await using (var scope = database.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            var stored = await db.Users.SingleAsync(value => value.Id == account.Id);
+            stored.PasswordHash = BCrypt.Net.BCrypt.HashPassword(Password, 4);
+            await db.SaveChangesAsync();
+        }
+        await using var factory = Factory();
+        using var client = await BrowserAsync(factory);
+        using var response = await Login(client, account.Email!, Password);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var verification = database.Services.CreateAsyncScope();
+        var upgraded = await verification.ServiceProvider.GetRequiredService<IdentityDbContext>().Users.SingleAsync(value => value.Id == account.Id);
+        Assert.StartsWith("{bcrypt-sha384}", upgraded.PasswordHash);
     }
 }

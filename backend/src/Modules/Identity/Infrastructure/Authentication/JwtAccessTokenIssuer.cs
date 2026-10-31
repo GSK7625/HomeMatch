@@ -12,7 +12,7 @@ public sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> options, TimeProvi
 {
     public IssuedAccessToken Issue(AccessTokenSubject subject)
     {
-        if (subject.UserId == Guid.Empty || subject.SessionId == Guid.Empty || subject.SecurityVersion <= 0
+        if (subject.UserId <= 0 || subject.SessionId == Guid.Empty || subject.SecurityVersion <= 0
             || !AccountRoles.All.Contains(subject.Role))
             throw new ArgumentException("Invalid access token subject.", nameof(subject));
 

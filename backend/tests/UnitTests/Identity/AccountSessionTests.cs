@@ -9,9 +9,8 @@ public class AccountSessionTests
     [Fact]
     public void SessionUsesAbsoluteExpiryAndRevocationCannotBeUndone()
     {
-        var session = new AccountSession(Guid.NewGuid(), 3, true, Now, Now.AddDays(30));
+        var session = new AccountSession(1L, 3, Now, Now.AddDays(30));
         Assert.NotEqual(Guid.Empty, session.Id);
-        Assert.True(session.RememberMe);
         Assert.Equal(3, session.SecurityVersion);
         Assert.False(session.IsActiveAt(Now.AddTicks(-1)));
         Assert.True(session.IsActiveAt(Now));
@@ -30,6 +29,6 @@ public class AccountSessionTests
     [InlineData("expiry")]
     public void InvalidSessionStateIsRejected(string invalid)
         => Assert.ThrowsAny<ArgumentException>(() => new AccountSession(
-            invalid == "user" ? Guid.Empty : Guid.NewGuid(), invalid == "version" ? 0 : 1,
-            false, Now, invalid == "expiry" ? Now : Now.AddDays(1)));
+            invalid == "user" ? 0L : 1L, invalid == "version" ? 0 : 1,
+            Now, invalid == "expiry" ? Now : Now.AddDays(1)));
 }

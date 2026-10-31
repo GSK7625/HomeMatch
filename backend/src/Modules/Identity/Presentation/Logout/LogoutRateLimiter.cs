@@ -12,5 +12,5 @@ public sealed class LogoutRateLimiter(IOptions<JwtOptions> options, TimeProvider
         120, TimeSpan.FromMinutes(1), 5, TimeSpan.FromMinutes(15));
 
     public TimeSpan? TryCurrent(string clientAddress) => _current.TryAcquire(clientAddress, null);
-    public TimeSpan? TryAll(string clientAddress, Guid userId) => _all.TryAcquire(clientAddress, userId.ToString("D"));
+    public TimeSpan? TryAll(string clientAddress, long userId) => _all.TryAcquire(clientAddress, userId.ToString("D"));
 }

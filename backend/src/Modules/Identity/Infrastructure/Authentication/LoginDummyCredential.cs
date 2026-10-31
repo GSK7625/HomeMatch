@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using HomeMatch.Modules.Identity.Infrastructure.Passwords;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -13,7 +14,7 @@ public sealed class LoginDummyCredential
 
     public LoginDummyCredential(IOptions<PasswordHasherOptions> options)
     {
-        _hash = new PasswordHasher<IdentityAccount>(options).HashPassword(_subject,
+        _hash = new CompatiblePasswordHasher(options).HashPassword(_subject,
             Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
     }
 

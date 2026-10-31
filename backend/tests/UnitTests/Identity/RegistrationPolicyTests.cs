@@ -3,7 +3,6 @@ using HomeMatch.Modules.Identity.Application.Registration;
 using HomeMatch.Modules.Identity.Domain.Entities;
 using HomeMatch.Modules.Identity.Domain.Validation;
 using HomeMatch.Modules.Identity.Infrastructure.Configuration;
-using HomeMatch.Modules.Identity.Infrastructure.Passwords;
 using HomeMatch.Modules.Identity.Presentation.Registration;
 using Microsoft.Extensions.Options;
 
@@ -11,7 +10,7 @@ namespace HomeMatch.UnitTests.Identity;
 
 public class RegistrationPolicyTests
 {
-    private readonly NewPasswordPolicy _policy = new(new OfflinePasswordBlocklist());
+    private readonly NewPasswordPolicy _policy = new();
 
     [Theory]
     [InlineData(" An+tag@Example.COM ", "An+tag@Example.COM", "AN+TAG@EXAMPLE.COM")]
@@ -46,21 +45,22 @@ public class RegistrationPolicyTests
     }
 
     [Theory]
-    [InlineData(14, false)]
-    [InlineData(15, true)]
+    [InlineData(7, false)]
+    [InlineData(8, true)]
     [InlineData(128, true)]
     [InlineData(129, false)]
     public void PasswordLengthCountsUnicodeScalars(int count, bool expected)
-        => Assert.Equal(expected, _policy.IsAllowed(string.Concat(Enumerable.Repeat("😀", count))));
+        => Assert.Equal(expected, _policy.IsAllowed("a1" + string.Concat(Enumerable.Repeat("😀", count - 2))));
 
     [Theory]
-    [InlineData("123456789012345")]
-    [InlineData("1234567890123456")]
-    public void EmbeddedCorpusBlocksKnownLongPasswords(string password)
-    {
-        Assert.True(new OfflinePasswordBlocklist().Contains(password));
-        Assert.False(_policy.IsAllowed(password));
-    }
+    [InlineData("abc12345", true)]
+    [InlineData("password12345678", true)]
+    [InlineData("abcdefgh", false)]
+    [InlineData("12345678", false)]
+    [InlineData("!!!!!!!!", false)]
+    [InlineData("Ánhsáng1", true)]
+    public void PasswordRequiresLetterAndDigitWithoutBlocklist(string password, bool expected)
+        => Assert.Equal(expected, _policy.IsAllowed(password));
 
     [Fact]
     public void PasswordIsNotTrimmedOrNormalizedAndInvalidUtf16IsRejected()
@@ -75,7 +75,7 @@ public class RegistrationPolicyTests
     [InlineData("An\tBình")]
     [InlineData("An\0Bình")]
     public void ProfileRejectsControlCharacters(string input)
-        => Assert.Throws<ArgumentException>(() => new UserProfile(Guid.NewGuid(), input, DateTimeOffset.UtcNow));
+        => Assert.Throws<ArgumentException>(() => new UserProfile(999999L, input, DateTimeOffset.UtcNow));
 
     private sealed class Clock : TimeProvider
     {

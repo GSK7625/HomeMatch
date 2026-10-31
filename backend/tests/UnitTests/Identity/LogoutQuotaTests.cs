@@ -7,6 +7,7 @@ namespace HomeMatch.UnitTests.Identity;
 
 public class LogoutQuotaTests
 {
+    private static long _nextUserId;
     private sealed class Clock : TimeProvider
     {
         public DateTimeOffset Now = DateTimeOffset.UtcNow;
@@ -24,7 +25,7 @@ public class LogoutQuotaTests
         var results = await Task.WhenAll(Enumerable.Range(0, 100).Select(_ => Task.Run(() => limiter.TryCurrent("same-ip"))));
         Assert.Equal(30, results.Count(value => value is null));
         Assert.Equal(TimeSpan.FromMinutes(1), limiter.TryCurrent("same-ip"));
-        Assert.Null(limiter.TryAll("same-ip", Guid.NewGuid()));
+        Assert.Null(limiter.TryAll("same-ip", Interlocked.Increment(ref _nextUserId)));
         clock.Now = clock.Now.AddMinutes(1);
         Assert.Null(limiter.TryCurrent("same-ip"));
     }
@@ -34,11 +35,11 @@ public class LogoutQuotaTests
     {
         var clock = new Clock();
         var limiter = Limiter(clock);
-        var user = Guid.NewGuid();
+        var user = Interlocked.Increment(ref _nextUserId);
         var results = await Task.WhenAll(Enumerable.Range(0, 50).Select(index => Task.Run(() => limiter.TryAll("ip-" + index, user))));
         Assert.Equal(5, results.Count(value => value is null));
         Assert.Equal(TimeSpan.FromMinutes(15), limiter.TryAll("other", user));
-        Assert.Null(limiter.TryAll("other", Guid.NewGuid()));
+        Assert.Null(limiter.TryAll("other", Interlocked.Increment(ref _nextUserId)));
         clock.Now = clock.Now.AddMinutes(1);
         Assert.Equal(TimeSpan.FromMinutes(14), limiter.TryAll("other", user));
         clock.Now = clock.Now.AddMinutes(14);
@@ -49,8 +50,8 @@ public class LogoutQuotaTests
     public void LogoutAllAlsoHasAnIpCeilingAcrossDifferentUsers()
     {
         var limiter = Limiter(new Clock());
-        for (var index = 0; index < 120; index++) Assert.Null(limiter.TryAll("shared-ip", Guid.NewGuid()));
-        Assert.NotNull(limiter.TryAll("shared-ip", Guid.NewGuid()));
-        Assert.Null(limiter.TryAll("different-ip", Guid.NewGuid()));
+        for (var index = 0; index < 120; index++) Assert.Null(limiter.TryAll("shared-ip", Interlocked.Increment(ref _nextUserId)));
+        Assert.NotNull(limiter.TryAll("shared-ip", Interlocked.Increment(ref _nextUserId)));
+        Assert.Null(limiter.TryAll("different-ip", Interlocked.Increment(ref _nextUserId)));
     }
 }

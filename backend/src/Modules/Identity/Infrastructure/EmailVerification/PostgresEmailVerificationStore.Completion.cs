@@ -17,8 +17,8 @@ public sealed partial class PostgresEmailVerificationStore
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
             var account = await VerificationPrincipalLock.AcquireAsync(db, subject, clock, cancellationToken);
             var challenge = (await db.EmailVerificationChallenges.FromSqlInterpolated($"""
-                SELECT * FROM identity."EmailVerificationChallenges"
-                WHERE "Id" = {challengeId} AND "UserId" = {subject.UserId} FOR UPDATE
+                SELECT * FROM identity."email_verification_challenges"
+                WHERE "id" = {challengeId} AND "user_id" = {subject.UserId} FOR UPDATE
                 """).ToListAsync(cancellationToken)).SingleOrDefault();
             var now = PostgresTimestamp.UtcNow(clock);
             if (challenge is null || challenge.State != EmailVerificationState.Pending)

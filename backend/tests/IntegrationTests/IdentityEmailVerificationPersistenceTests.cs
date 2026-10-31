@@ -52,7 +52,7 @@ public partial class IdentityEmailVerificationTests
         clock.Advance(TimeSpan.FromSeconds(60));
         await using (var scope = database.Services.CreateAsyncScope())
             await scope.ServiceProvider.GetRequiredService<IdentityDbContext>().EmailVerificationQuotas
-                .Where(value => value.Key == "send24:" + user.Id.ToString("N"))
+                .Where(value => value.Key == "send24:" + user.Id.ToString(System.Globalization.CultureInfo.InvariantCulture))
                 .ExecuteUpdateAsync(update => update.SetProperty(value => value.Count, 20));
         using var blocked = await Request(client); Assert.Equal(HttpStatusCode.TooManyRequests, blocked.StatusCode);
         Assert.True(blocked.Headers.RetryAfter?.Delta > TimeSpan.FromHours(23));
@@ -79,7 +79,7 @@ public partial class IdentityEmailVerificationTests
         {
             var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
             var error = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlInterpolatedAsync($"""
-                UPDATE identity."EmailVerificationChallenges" SET "FailedAttempts" = 6 WHERE "Id" = {id}
+                UPDATE identity."email_verification_challenges" SET "failed_attempts" = 6 WHERE "id" = {id}
                 """));
             Assert.Equal(PostgresErrorCodes.CheckViolation, error.SqlState);
         }

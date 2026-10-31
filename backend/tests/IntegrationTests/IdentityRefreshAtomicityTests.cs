@@ -96,7 +96,7 @@ public partial class IdentityRefreshTests
         var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         var session = await db.Sessions.SingleAsync(value => value.UserId == account.Id);
         db.RefreshCredentials.Add(new HomeMatch.Modules.Identity.Domain.Entities.RefreshCredential(
-            session.Id, RefreshSecrets.Create().Hash, DateTimeOffset.UtcNow, session.ExpiresAt));
+            session.Id, RefreshSecrets.Create().Hash, DateTimeOffset.UtcNow, session.ExpiresAt, account.Id));
         var failure = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
         var postgres = Assert.IsType<PostgresException>(failure.InnerException);
         Assert.Equal(PostgresErrorCodes.UniqueViolation, postgres.SqlState);
@@ -123,7 +123,7 @@ public partial class IdentityRefreshTests
         var old = await db.RefreshCredentials.AsNoTracking().SingleAsync(value => value.TokenHash == firstHash);
         var unrelated = await db.RefreshCredentials.AsNoTracking().SingleAsync(value => value.TokenHash == secondHash);
         var failure = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlInterpolatedAsync($"""
-            UPDATE identity."RefreshCredentials" SET "ReplacedByCredentialId" = {unrelated.Id} WHERE "Id" = {old.Id}
+            UPDATE identity."refresh_credential_metadata" SET "replaced_by_credential_id" = {unrelated.Id} WHERE "id" = {old.Id}
             """));
         Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, failure.SqlState);
         await db.Users.Where(value => value.Id == account.Id).ExecuteDeleteAsync();
@@ -192,9 +192,9 @@ public partial class IdentityRefreshTests
         public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
             CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
         {
-            if (command.CommandText.Contains("FROM identity.\"Users\"", StringComparison.Ordinal)
-                && command.CommandText.Contains("FOR UPDATE", StringComparison.Ordinal)
-                && !command.CommandText.Contains("NormalizedEmail", StringComparison.Ordinal))
+            if (command.CommandText.Replace("\"", "").Contains("FROM identity.users", StringComparison.Ordinal)
+                && command.CommandText.Replace("\"", "").Contains("FOR UPDATE", StringComparison.Ordinal)
+                && !command.CommandText.Replace("\"", "").Contains("normalized_email", StringComparison.Ordinal))
             {
                 var number = Interlocked.Increment(ref _arrivals);
                 if (number <= 2)

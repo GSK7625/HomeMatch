@@ -198,8 +198,8 @@ public partial class IdentityEmailVerificationTests
         public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
             CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
         {
-            if (command.CommandText.Contains("FROM identity.\"Users\"", StringComparison.Ordinal)
-                && command.CommandText.Contains("FOR UPDATE", StringComparison.Ordinal))
+            if (command.CommandText.Replace("\"", "").Contains("FROM identity.users", StringComparison.Ordinal)
+                && command.CommandText.Replace("\"", "").Contains("FOR UPDATE", StringComparison.Ordinal))
             {
                 var count = Interlocked.Increment(ref _arrivals);
                 if (count <= 2)

@@ -18,7 +18,7 @@ public class AccessTokenClaimsTests
     {
         var claims = new[]
         {
-            new Claim("sub", Guid.NewGuid().ToString("D")), new Claim("sid", Guid.NewGuid().ToString("D")),
+            new Claim("sub", "123"), new Claim("sid", Guid.NewGuid().ToString("D")),
             new Claim("jti", Guid.NewGuid().ToString("D")), new Claim("role", "Tenant"),
             new Claim("sv", "1"), new Claim("iat", "100"), new Claim("nbf", "100"), new Claim("exp", "1000")
         };

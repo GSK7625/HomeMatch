@@ -5,7 +5,7 @@ namespace HomeMatch.Modules.Identity.Application.Refresh;
 public enum RefreshOutcome { Succeeded, InvalidSession, RateLimited, Unavailable }
 
 public sealed record RefreshResult(RefreshOutcome Outcome, IssuedAccessToken? Token = null,
-    string? RefreshSecret = null, bool RememberMe = false, TimeSpan? RetryAfter = null, DateTime? RefreshExpiresAt = null)
+    string? RefreshSecret = null, TimeSpan? RetryAfter = null, DateTime? RefreshExpiresAt = null)
 {
     public override string ToString() => $"RefreshResult {{ Outcome = {Outcome}, [credentials redacted] }}";
 }

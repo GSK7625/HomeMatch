@@ -28,7 +28,7 @@ public class ApiFoundationTests
         Assert.Equal(new[] { "data", "error", "isSuccess", "timestamp" }, root.EnumerateObject().Select(p => p.Name).Order());
         Assert.False(root.GetProperty("isSuccess").GetBoolean());
         Assert.Equal(JsonValueKind.Null, root.GetProperty("data").ValueKind);
-        Assert.Equal(new[] { "code", "message" }, root.GetProperty("error").EnumerateObject().Select(p => p.Name).Order());
+        Assert.Equal(new[] { "code", "details", "message" }, root.GetProperty("error").EnumerateObject().Select(p => p.Name).Order());
         Assert.Equal("Server.InternalError", root.GetProperty("error").GetProperty("code").GetString());
         Assert.False(string.IsNullOrWhiteSpace(root.GetProperty("error").GetProperty("message").GetString()));
         Assert.Equal(DateTimeKind.Utc, root.GetProperty("timestamp").GetDateTime().Kind);
@@ -120,7 +120,7 @@ public class ApiFoundationTests
     [InlineData("Cors:AllowedOrigins:0", "https://frontend.example.test/path")]
     public void InvalidConfigurationFailsDuringHostStartup(string key, string? value)
     {
-        using var factory = new ApiFactory(new Dictionary<string, string?> { [key] = value });
+        using var factory = new ApiFactory(new Dictionary<string, string?> { [key] = value, ["Email:Enabled"] = "false" });
 
         var exception = Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
 

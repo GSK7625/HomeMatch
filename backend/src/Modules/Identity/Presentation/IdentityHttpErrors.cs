@@ -20,6 +20,8 @@ public static class IdentityHttpErrors
 
     public static IResult EmailVerificationInvalid() => Failure(400, "Identity.EmailVerificationInvalid", "Mã xác minh không hợp lệ hoặc đã hết hiệu lực.");
 
+    public static IResult EmailNotVerified() => Failure(403, "Identity.EmailNotVerified", "Vui lòng xác thực email bằng OTP trước khi đăng nhập.");
+
     private static IResult Failure(int status, string code, string message)
         => Results.Json(ApiResponse<object>.Failure(new Error(code, message)), statusCode: status);
 }

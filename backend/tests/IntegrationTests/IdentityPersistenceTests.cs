@@ -23,12 +23,13 @@ public class IdentityPersistenceTests(PostgresDatabaseFixture database)
         await using var scope = database.Services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         var applied = (await context.Database.GetAppliedMigrationsAsync()).ToArray();
-        Assert.Equal(5, applied.Length);
+        Assert.Equal(9, applied.Length);
         Assert.EndsWith("_InitialIdentity", applied[0]);
         Assert.EndsWith("_AddAccountSessions", applied[1]);
         Assert.EndsWith("_AddRefreshCredentials", applied[2]);
         Assert.EndsWith("_AddRefreshRotation", applied[3]);
         Assert.EndsWith("_AddEmailVerification", applied[4]);
+        Assert.EndsWith("_SimplifyLoginPolicy", applied[5]);
         Assert.False(context.Database.HasPendingModelChanges());
         Assert.All(context.Model.GetEntityTypes(), entity => Assert.Equal("identity", entity.GetSchema()));
 
@@ -36,7 +37,7 @@ public class IdentityPersistenceTests(PostgresDatabaseFixture database)
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT (SELECT count(*) FROM t04_neighbor."Sentinel" WHERE "Value" = 42),
+            SELECT (SELECT count(*) FROM t04_neighbor."sentinel" WHERE "value" = 42),
                    (SELECT count(*) FROM information_schema.tables
                     WHERE table_schema = 'identity' AND table_name = '__EFMigrationsHistory'),
                    (SELECT count(*) FROM information_schema.tables
@@ -59,9 +60,7 @@ public class IdentityPersistenceTests(PostgresDatabaseFixture database)
         await database.Services.InitializeIdentityDatabaseAsync();
         await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => database.Services.InitializeIdentityDatabaseAsync()));
 
-        var roles = await context.Roles.AsNoTracking().ToListAsync();
-        Assert.Equal(AccountRoles.All.Order(), roles.Select(role => role.Name!).Order());
-        Assert.Equal(3, roles.Select(role => role.Id).Distinct().Count());
+        Assert.DoesNotContain(context.Model.GetEntityTypes(), entity => entity.GetTableName() is "roles" or "user_roles");
         Assert.Equal(usersBefore, await context.Users.CountAsync());
     }
 
@@ -104,7 +103,7 @@ public class IdentityPersistenceTests(PostgresDatabaseFixture database)
         Assert.DoesNotContain("Now listening on", await output, StringComparison.OrdinalIgnoreCase);
         await using var scope = database.Services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-        Assert.Equal(3, await context.Roles.CountAsync());
+        Assert.False(context.Database.HasPendingModelChanges());
     }
 
     [Fact]
@@ -117,7 +116,8 @@ public class IdentityPersistenceTests(PostgresDatabaseFixture database)
         await using (var transaction = await context.Database.BeginTransactionAsync())
         {
             AssertSuccess(await manager.CreateAsync(account, Password));
-            AssertSuccess(await manager.AddToRoleAsync(account, AccountRoles.Tenant));
+            account.Role = AccountRoles.Tenant;
+        AssertSuccess(await manager.UpdateAsync(account));
             context.Profiles.Add(new UserProfile(account.Id, "  Nguyễn Văn An  ", account.CreatedAt));
             await context.SaveChangesAsync();
             await transaction.CommitAsync();
@@ -129,7 +129,7 @@ public class IdentityPersistenceTests(PostgresDatabaseFixture database)
         Assert.Equal(AccountStatus.Active, stored.Status);
         Assert.False(stored.EmailConfirmed);
         Assert.Equal(1L, stored.SecurityVersion);
-        Assert.True(stored.LockoutEnabled);
+        Assert.False(stored.LockoutEnabled);
         Assert.Equal(stored.Email!.ToUpperInvariant(), stored.NormalizedEmail);
         Assert.NotEqual(Password, stored.PasswordHash);
         Assert.True(await manager.CheckPasswordAsync(stored, Password));
@@ -192,7 +192,8 @@ public class IdentityPersistenceTests(PostgresDatabaseFixture database)
             var manager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityAccount>>();
             await using var transaction = await context.Database.BeginTransactionAsync();
             AssertSuccess(await manager.CreateAsync(account, Password));
-            AssertSuccess(await manager.AddToRoleAsync(account, AccountRoles.Landlord));
+            account.Role = AccountRoles.Landlord;
+        AssertSuccess(await manager.UpdateAsync(account));
             context.Profiles.Add(new UserProfile(account.Id, "Nguyễn An", account.CreatedAt));
             await context.SaveChangesAsync();
             await transaction.RollbackAsync();
@@ -202,24 +203,18 @@ public class IdentityPersistenceTests(PostgresDatabaseFixture database)
         var db = verify.ServiceProvider.GetRequiredService<IdentityDbContext>();
         Assert.False(await db.Users.AnyAsync(user => user.Id == account.Id));
         Assert.False(await db.Profiles.AnyAsync(profile => profile.UserId == account.Id));
-        Assert.False(await db.UserRoles.AnyAsync(role => role.UserId == account.Id));
+        Assert.False(await db.CredentialTokens.AnyAsync(token => token.UserId == account.Id));
     }
 
     [Fact]
-    public async Task SecondBusinessRoleIsRejectedByDatabase()
+    public async Task UnsupportedBusinessRoleIsRejectedByDatabase()
     {
         await using var scope = database.Services.CreateAsyncScope();
         var manager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityAccount>>();
         var account = NewAccount();
-        AssertSuccess(await manager.CreateAsync(account, Password));
-        AssertSuccess(await manager.AddToRoleAsync(account, AccountRoles.Tenant));
-
-        var error = await Assert.ThrowsAsync<DbUpdateException>(
-            () => manager.AddToRoleAsync(account, AccountRoles.Landlord));
-
-        var postgres = Assert.IsType<PostgresException>(error.InnerException);
-        Assert.Equal(PostgresErrorCodes.UniqueViolation, postgres.SqlState);
-        Assert.Equal("UX_UserRoles_UserId", postgres.ConstraintName);
+        account.Role = "Unsupported";
+        var error = await Assert.ThrowsAsync<DbUpdateException>(() => manager.CreateAsync(account, Password));
+        Assert.Equal(PostgresErrorCodes.CheckViolation, Assert.IsType<PostgresException>(error.InnerException).SqlState);
     }
 
     [Fact]
@@ -248,7 +243,7 @@ public class IdentityPersistenceTests(PostgresDatabaseFixture database)
     {
         await using var scope = database.Services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-        context.Profiles.Add(new UserProfile(Guid.NewGuid(), "Nguyễn An", DateTimeOffset.UtcNow));
+        context.Profiles.Add(new UserProfile(999999L, "Nguyễn An", DateTimeOffset.UtcNow));
 
         var error = await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
 

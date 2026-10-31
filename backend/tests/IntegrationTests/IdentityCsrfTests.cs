@@ -170,14 +170,14 @@ public class IdentityCsrfTests
     }
 
     [Fact]
-    public async Task UnimplementedPasswordRecoveryRoutesRemainAbsent()
+    public async Task PublicPasswordRecoveryRoutesRejectMissingJsonWithoutCsrf()
     {
         await using var factory = new ApiFactory();
         using var client = Client(factory);
         foreach (var route in new[] { "forgot-password", "reset-password" })
         {
             using var response = await client.PostAsync("/api/v1/identity/auth/" + route, null);
-            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
         }
     }
 }

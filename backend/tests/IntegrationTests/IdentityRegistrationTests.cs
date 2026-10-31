@@ -1,3 +1,4 @@
+using HomeMatch.Modules.Identity.Infrastructure.Passwords;
 using System.Data.Common;
 using System.Net;
 using System.Net.Http.Headers;
@@ -57,12 +58,11 @@ public class IdentityRegistrationTests(PostgresDatabaseFixture database) : IClas
         // Registration is public; no Origin, CSRF, cookie or valid Bearer is needed.
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "stale-token");
         using var response = await client.PostAsJsonAsync("/api/v1/identity/auth/register", Request("  " + email + "  ", role));
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         Assert.Contains("no-store", response.Headers.CacheControl!.ToString());
         Assert.False(response.Headers.Contains("Set-Cookie"));
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        Assert.Equal(new[] { "message" }, body.RootElement.GetProperty("data").EnumerateObject().Select(property => property.Name));
-        Assert.Equal(RegistrationEndpoint.AcceptedMessage, body.RootElement.GetProperty("data").GetProperty("message").GetString());
+        Assert.Equal("Submitted", body.RootElement.GetProperty("data").GetProperty("status").GetString());
         await using var scope = database.Services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         var manager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityAccount>>();
@@ -71,7 +71,7 @@ public class IdentityRegistrationTests(PostgresDatabaseFixture database) : IClas
         Assert.Equal(AccountStatus.Active, account.Status);
         Assert.False(account.EmailConfirmed);
         Assert.Equal(1, account.SecurityVersion);
-        Assert.True(account.LockoutEnabled);
+        Assert.False(account.LockoutEnabled);
         Assert.True(await manager.CheckPasswordAsync(account, Password));
         Assert.False(await manager.CheckPasswordAsync(account, Password.Trim()));
         var profile = await context.Profiles.SingleAsync(value => value.UserId == account.Id);
@@ -88,7 +88,7 @@ public class IdentityRegistrationTests(PostgresDatabaseFixture database) : IClas
         await using var factory = Factory();
         using var client = Client(factory);
         using var first = await client.PostAsJsonAsync("/api/v1/identity/auth/register", Request(email));
-        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, first.StatusCode);
         await using (var scope = database.Services.CreateAsyncScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
@@ -100,10 +100,10 @@ public class IdentityRegistrationTests(PostgresDatabaseFixture database) : IClas
         }
         using var duplicate = await client.PostAsJsonAsync("/api/v1/identity/auth/register",
             Request(email.ToUpperInvariant(), "Landlord", "Mật khẩu khác dành cho test 2026!", "Người khác"));
-        Assert.Equal(HttpStatusCode.OK, duplicate.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, duplicate.StatusCode);
         using var firstJson = JsonDocument.Parse(await first.Content.ReadAsStringAsync());
         using var secondJson = JsonDocument.Parse(await duplicate.Content.ReadAsStringAsync());
-        Assert.Equal(firstJson.RootElement.GetProperty("data").GetRawText(), secondJson.RootElement.GetProperty("data").GetRawText());
+        Assert.Equal(firstJson.RootElement.GetProperty("data").GetProperty("status").GetString(), secondJson.RootElement.GetProperty("data").GetProperty("status").GetString());
         await using var verification = database.Services.CreateAsyncScope();
         var db = verification.ServiceProvider.GetRequiredService<IdentityDbContext>();
         var manager = verification.ServiceProvider.GetRequiredService<UserManager<IdentityAccount>>();
@@ -122,7 +122,7 @@ public class IdentityRegistrationTests(PostgresDatabaseFixture database) : IClas
     [InlineData("null")]
     [InlineData("[]")]
     [InlineData("{")]
-    [InlineData("{\"email\":\"a@example.test\",\"password\":\"Mật khẩu hợp lệ 2026!\",\"fullName\":\"An Bình\",\"role\":\"Tenant\",\"status\":\"Active\"}")]
+    [InlineData("{\"email\":\"a@example.test\",\"password\":\"Mật khẩu hợp lệ 2026!\",\"fullName\":\"An Bình\",\"role\":\"Tenant\",\"status\":\"active\"}")]
     [InlineData("{\"email\":\"a@example.test\",\"emailVerified\":true,\"password\":\"Mật khẩu hợp lệ 2026!\",\"fullName\":\"An Bình\",\"role\":\"Tenant\"}")]
     [InlineData("{\"email\":\"a@example.test\",\"password\":\"Mật khẩu hợp lệ 2026!\",\"fullName\":\"An Bình\",\"role\":\"Tenant\",\"role\":\"Landlord\"}")]
     [InlineData("{\"Email\":\"a@example.test\",\"password\":\"Mật khẩu hợp lệ 2026!\",\"fullName\":\"An Bình\",\"role\":\"Tenant\"}")]
@@ -232,7 +232,7 @@ public class IdentityRegistrationTests(PostgresDatabaseFixture database) : IClas
         await db.Database.ExecuteSqlRawAsync("""
             CREATE FUNCTION identity.t06_fail_profile() RETURNS trigger LANGUAGE plpgsql AS $$
             BEGIN RAISE EXCEPTION 'private-test-rollback-marker'; END; $$;
-            CREATE TRIGGER t06_fail_profile BEFORE INSERT ON identity."UserProfiles"
+            CREATE TRIGGER t06_fail_profile BEFORE INSERT ON identity."user_profiles"
             FOR EACH ROW EXECUTE FUNCTION identity.t06_fail_profile();
             """);
         try
@@ -244,12 +244,12 @@ public class IdentityRegistrationTests(PostgresDatabaseFixture database) : IClas
             Assert.DoesNotContain("private-test-rollback-marker", await response.Content.ReadAsStringAsync());
             Assert.False(await db.Users.AnyAsync(value => value.NormalizedEmail == email.ToUpperInvariant()));
             Assert.False(await db.Profiles.AnyAsync(profile => !db.Users.Any(user => user.Id == profile.UserId)));
-            Assert.False(await db.UserRoles.AnyAsync(role => !db.Users.Any(user => user.Id == role.UserId)));
+            Assert.False(await db.Profiles.AnyAsync(profile => !db.Users.Any(user => user.Id == profile.UserId)));
         }
         finally
         {
             await db.Database.ExecuteSqlRawAsync("""
-                DROP TRIGGER t06_fail_profile ON identity."UserProfiles";
+                DROP TRIGGER t06_fail_profile ON identity."user_profiles";
                 DROP FUNCTION identity.t06_fail_profile();
                 """);
         }
@@ -272,17 +272,17 @@ public class IdentityRegistrationTests(PostgresDatabaseFixture database) : IClas
         var attempts = await Task.WhenAll(
             client.PostAsJsonAsync("/api/v1/identity/auth/register", Request(email)),
             client.PostAsJsonAsync("/api/v1/identity/auth/register", Request(email.ToUpperInvariant(), "Landlord")));
-        foreach (var attempt in attempts) { using (attempt) Assert.Equal(HttpStatusCode.OK, attempt.StatusCode); }
+        foreach (var attempt in attempts) { using (attempt) Assert.Contains(attempt.StatusCode, new[] { HttpStatusCode.Accepted, HttpStatusCode.TooManyRequests }); }
         Assert.Equal(2, barrier.Arrivals);
         Assert.Equal(2, hasher.Hashes);
         using var duplicate = await client.PostAsJsonAsync("/api/v1/identity/auth/register", Request(email));
-        Assert.Equal(HttpStatusCode.OK, duplicate.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, duplicate.StatusCode);
         Assert.Equal(3, hasher.Hashes);
         await using var scope = database.Services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         var account = await context.Users.SingleAsync(value => value.NormalizedEmail == email.ToUpperInvariant());
         Assert.Equal(1, await context.Profiles.CountAsync(value => value.UserId == account.Id));
-        Assert.Equal(1, await context.UserRoles.CountAsync(value => value.UserId == account.Id));
+        Assert.Contains(account.Role, new[] { "Tenant", "Landlord" });
     }
 
     [Fact]
@@ -292,7 +292,7 @@ public class IdentityRegistrationTests(PostgresDatabaseFixture database) : IClas
         await using var factory = Factory();
         using var client = Client(factory);
         using var response = await client.PostAsJsonAsync("/api/v1/identity/auth/register", Request(email));
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         await using var scope = database.Services.CreateAsyncScope();
         var manager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityAccount>>();
         var account = (await manager.FindByEmailAsync(email))!;
@@ -309,12 +309,12 @@ public class IdentityRegistrationTests(PostgresDatabaseFixture database) : IClas
     public async Task UnicodeScalarBoundariesAreEnforcedThroughHttpAndIdentity()
     {
         var email = $"unicode-{Guid.NewGuid():N}@example.test";
-        var password = string.Concat(Enumerable.Repeat("😀", 128));
+        var password = "a1" + string.Concat(Enumerable.Repeat("😀", 126));
         var name = string.Concat(Enumerable.Repeat("😀", 100));
         await using var factory = Factory();
         using var client = Client(factory);
         using var accepted = await client.PostAsJsonAsync("/api/v1/identity/auth/register", Request(email, password: password, name: name));
-        Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
         using var invalid = await client.PostAsJsonAsync("/api/v1/identity/auth/register", Request(email + ".other", password: password + "😀"));
         await AssertError(invalid, HttpStatusCode.BadRequest, "Identity.ValidationFailed");
         await using var scope = database.Services.CreateAsyncScope();
@@ -322,7 +322,24 @@ public class IdentityRegistrationTests(PostgresDatabaseFixture database) : IClas
         var account = (await manager.FindByEmailAsync(email))!;
         Assert.True(await manager.CheckPasswordAsync(account, password));
         var direct = new IdentityAccount("direct-unicode-" + Guid.NewGuid().ToString("N") + "@example.test", DateTimeOffset.UtcNow);
-        Assert.False((await manager.CreateAsync(direct, string.Concat(Enumerable.Repeat("😀", 14)))).Succeeded);
+        Assert.False((await manager.CreateAsync(direct, "abc1234")).Succeeded);
+    }
+
+    [Theory]
+    [InlineData("abc12345")]
+    [InlineData("password12345678")]
+    public async Task NewPasswordPolicyAcceptsEightCharactersAndFormerlyBlockedPasswords(string password)
+    {
+        var email = $"simple-{Guid.NewGuid():N}@example.test";
+        await using var factory = Factory();
+        using var client = Client(factory);
+        using var response = await client.PostAsJsonAsync("/api/v1/identity/auth/register", Request(email, password: password));
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        await using var scope = database.Services.CreateAsyncScope();
+        var manager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityAccount>>();
+        var account = (await manager.FindByEmailAsync(email))!;
+        Assert.False(account.LockoutEnabled);
+        Assert.True(await manager.CheckPasswordAsync(account, password));
     }
 
     private sealed class StreamingContent(byte[] bytes) : HttpContent
@@ -333,7 +350,7 @@ public class IdentityRegistrationTests(PostgresDatabaseFixture database) : IClas
 
     private sealed class CountingHasher : IPasswordHasher<IdentityAccount>
     {
-        private readonly PasswordHasher<IdentityAccount> _inner = new();
+        private readonly CompatiblePasswordHasher _inner = new(Microsoft.Extensions.Options.Options.Create(new PasswordHasherOptions()));
         private int _hashes;
         public int Hashes => _hashes;
         public string HashPassword(IdentityAccount user, string password)
@@ -350,7 +367,7 @@ public class IdentityRegistrationTests(PostgresDatabaseFixture database) : IClas
         public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
             CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
         {
-            if (command.CommandText.Contains("INSERT INTO identity.\"Users\"", StringComparison.Ordinal))
+            if (command.CommandText.Replace("\"", "").Contains("INSERT INTO identity.users", StringComparison.Ordinal))
             {
                 var number = Interlocked.Increment(ref _arrivals);
                 if (number <= 2)

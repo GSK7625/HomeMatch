@@ -1,6 +1,6 @@
 namespace HomeMatch.Modules.Identity.Application.EmailVerification;
 
-public sealed record VerificationSubject(Guid UserId, Guid SessionId, string Role);
+public sealed record VerificationSubject(long UserId, Guid SessionId, string Role);
 public enum VerificationOutcome { Reserved, Submitted, AlreadyVerified, Verified, InvalidCode, InvalidAuthentication, RateLimited, Unavailable }
 public enum VerificationDeliveryOutcome { Accepted, Rejected, Unknown, Unavailable }
 

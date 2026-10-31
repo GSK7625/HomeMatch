@@ -15,7 +15,7 @@ internal static class PostgresSessionRevocation
                 value => value.CreatedAt > now ? value.CreatedAt : now), cancellationToken);
     }
 
-    public static async Task RevokeAccountAsync(IdentityDbContext database, Guid userId,
+    public static async Task RevokeAccountAsync(IdentityDbContext database, long userId,
         DateTimeOffset now, CancellationToken cancellationToken)
     {
         await database.Sessions.Where(value => value.UserId == userId && value.RevokedAt == null)

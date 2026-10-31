@@ -15,7 +15,6 @@ public class IdentityConfigurationTests
         Assert.Equal(30, options.ClockSkewSeconds);
         Assert.True(new IdentitySessionOptionsValidator().Validate(null, new IdentitySessionOptions()).Succeeded);
         Assert.Equal(24, new IdentitySessionOptions().NormalLifetimeHours);
-        Assert.Equal(30, new IdentitySessionOptions().RememberLifetimeDays);
     }
 
     [Theory]
@@ -84,14 +83,11 @@ public class IdentityConfigurationTests
     }
 
     [Theory]
-    [InlineData(0, 30)]
-    [InlineData(25, 30)]
-    [InlineData(24, 0)]
-    [InlineData(24, 31)]
-    public void SessionLifetimeOutsidePolicyIsRejected(int hours, int days)
+    [InlineData(0)]
+    [InlineData(25)]
+    public void SessionLifetimeOutsidePolicyIsRejected(int hours)
     {
-        var options = new IdentitySessionOptions { NormalLifetimeHours = hours, RememberLifetimeDays = days };
-
+        var options = new IdentitySessionOptions { NormalLifetimeHours = hours };
         Assert.True(new IdentitySessionOptionsValidator().Validate(null, options).Failed);
     }
 

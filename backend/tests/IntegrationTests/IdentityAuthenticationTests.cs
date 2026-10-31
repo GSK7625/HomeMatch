@@ -34,7 +34,7 @@ public class IdentityAuthenticationTests(PostgresDatabaseFixture database) : ICl
     private static HttpClient Client(ApiFactory factory, string origin = "https://api.example.test") => factory.CreateClient(
         new WebApplicationFactoryClientOptions { BaseAddress = new Uri(origin), HandleCookies = false, AllowAutoRedirect = false });
 
-    private async Task<(Guid UserId, AccountSession Session)> NewAccountAsync(string role = AccountRoles.Tenant,
+    private async Task<(long UserId, AccountSession Session)> NewAccountAsync(string role = AccountRoles.Tenant,
         bool verified = false, DateTimeOffset? expires = null)
     {
         await using var scope = database.Services.CreateAsyncScope();
@@ -43,20 +43,21 @@ public class IdentityAuthenticationTests(PostgresDatabaseFixture database) : ICl
         var account = new IdentityAccount($"auth-{Guid.NewGuid():N}@example.test", DateTimeOffset.UtcNow.AddMinutes(-1))
             { EmailConfirmed = verified };
         Assert.True((await manager.CreateAsync(account, "Mat khau integration test 2026!")).Succeeded);
-        Assert.True((await manager.AddToRoleAsync(account, role)).Succeeded);
+        account.Role = role;
+        Assert.True((await manager.UpdateAsync(account)).Succeeded);
         context.Profiles.Add(new UserProfile(account.Id, "Nguyễn Văn An", account.CreatedAt));
-        var session = new AccountSession(account.Id, account.SecurityVersion, false,
+        var session = new AccountSession(account.Id, account.SecurityVersion,
             account.CreatedAt, expires ?? DateTimeOffset.UtcNow.AddDays(1));
         context.Sessions.Add(session);
         await context.SaveChangesAsync();
         return (account.Id, session);
     }
 
-    private string Token(ApiFactory factory, Guid userId, AccountSession session, string role = AccountRoles.Tenant)
+    private string Token(ApiFactory factory, long userId, AccountSession session, string role = AccountRoles.Tenant)
         => factory.Services.GetRequiredService<IAccessTokenIssuer>().Issue(
             new AccessTokenSubject(userId, session.Id, role, session.SecurityVersion, session.ExpiresAt)).AccessToken;
 
-    private string CustomToken(Guid userId, Guid sessionId, string invalid = "", DateTime? expiredSessionEnd = null)
+    private string CustomToken(long userId, Guid sessionId, string invalid = "", DateTime? expiredSessionEnd = null)
     {
         var now = DateTime.UtcNow;
         var claims = new Dictionary<string, object>
@@ -112,7 +113,7 @@ public class IdentityAuthenticationTests(PostgresDatabaseFixture database) : ICl
         Assert.Contains("no-store", response.Headers.CacheControl!.ToString());
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var data = body.RootElement.GetProperty("data");
-        Assert.Equal(userId, data.GetProperty("id").GetGuid());
+        Assert.Equal(userId, data.GetProperty("id").GetInt64());
         Assert.Equal(verified, data.GetProperty("emailVerified").GetBoolean());
         Assert.Equal(AccountRoles.Tenant, data.GetProperty("role").GetString());
         Assert.Equal(JsonValueKind.Null, data.GetProperty("phoneNumber").ValueKind);
@@ -146,7 +147,7 @@ public class IdentityAuthenticationTests(PostgresDatabaseFixture database) : ICl
         using var client = Client(factory);
         if (invalid != "missing")
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
-                invalid == "malformed" ? "private-invalid-token" : CustomToken(Guid.NewGuid(), Guid.NewGuid(), invalid));
+                invalid == "malformed" ? "private-invalid-token" : CustomToken(999999L, Guid.NewGuid(), invalid));
         using var response = await client.GetAsync("/api/v1/identity/me");
         await AssertError(response, HttpStatusCode.Unauthorized, "Identity.AuthenticationRequired");
         Assert.DoesNotContain("private-invalid-token", await response.Content.ReadAsStringAsync());
@@ -177,16 +178,7 @@ public class IdentityAuthenticationTests(PostgresDatabaseFixture database) : ICl
             var account = await context.Users.SingleAsync(value => value.Id == userId);
             if (change == "suspended") account.Status = AccountStatus.Suspended;
             if (change == "account-version") account.SecurityVersion++;
-            if (change == "role")
-            {
-                var membership = await context.UserRoles.SingleAsync(value => value.UserId == userId);
-                context.UserRoles.Remove(membership);
-                await context.SaveChangesAsync();
-                context.UserRoles.Add(new IdentityUserRole<Guid>
-                {
-                    UserId = userId, RoleId = await context.Roles.Where(value => value.Name == AccountRoles.Admin).Select(value => value.Id).SingleAsync()
-                });
-            }
+            if (change == "role") account.Role = AccountRoles.Admin;
             if (change == "profile") context.Profiles.Remove(await context.Profiles.SingleAsync(value => value.UserId == userId));
             if (change == "deleted") context.Users.Remove(account);
             await context.SaveChangesAsync();
@@ -242,7 +234,7 @@ public class IdentityAuthenticationTests(PostgresDatabaseFixture database) : ICl
     {
         await using var factory = Factory(realDatabase: false);
         using var client = Client(factory);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CustomToken(Guid.NewGuid(), Guid.NewGuid()));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CustomToken(999999L, Guid.NewGuid()));
         using var response = await client.GetAsync("/api/v1/identity/me");
         await AssertError(response, HttpStatusCode.ServiceUnavailable, "Server.DependencyUnavailable");
         Assert.DoesNotContain("Npgsql", await response.Content.ReadAsStringAsync());

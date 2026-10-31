@@ -22,13 +22,12 @@ public sealed class PostgresLoginStore(IdentityDbContext database, UserManager<I
         try
         {
             await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
-            // The account lock serializes password checks, rehashing and lockout updates across requests.
-            // Always lock account before touching session rows; keep this order in refresh/logout tasks.
+            // Serialize credential checks with concurrent account/session changes.
             var matches = await database.Users.FromSqlInterpolated($"""
-                SELECT * FROM identity."Users" WHERE "NormalizedEmail" = {login.NormalizedEmail} FOR UPDATE
+                SELECT * FROM identity."users" WHERE "normalized_email" = {login.NormalizedEmail} FOR UPDATE
                 """).ToListAsync(cancellationToken);
             var account = matches.SingleOrDefault();
-            if (account is null || await users.IsLockedOutAsync(account))
+            if (account is null)
             {
                 dummy.Verify(hasher, login.Password);
                 return new(LoginOutcome.InvalidCredentials);
@@ -37,14 +36,10 @@ public sealed class PostgresLoginStore(IdentityDbContext database, UserManager<I
             cancellationToken.ThrowIfCancellationRequested();
             if (!await users.CheckPasswordAsync(account, login.Password))
             {
-                if (account.LockoutEnabled)
-                {
-                    EnsureSuccess(await users.AccessFailedAsync(account));
-                    await transaction.CommitAsync(cancellationToken);
-                }
                 return new(LoginOutcome.InvalidCredentials);
             }
             if (account.Status != AccountStatus.Active) return new(LoginOutcome.AccountSuspended);
+            if (!account.EmailConfirmed) return new(LoginOutcome.EmailNotVerified);
 
             var role = (await users.GetRolesAsync(account)).SingleOrDefault();
             if (role is null || !AccountRoles.All.Contains(role)
@@ -52,20 +47,11 @@ public sealed class PostgresLoginStore(IdentityDbContext database, UserManager<I
                 return new(LoginOutcome.Unavailable);
 
             var now = PostgresTimestamp.UtcNow(clock);
-            if (account.AccessFailedCount != 0 || account.LockoutEnd is not null)
-            {
-                account.AccessFailedCount = 0;
-                account.LockoutEnd = null;
-                account.UpdatedAt = now;
-                EnsureSuccess(await users.UpdateAsync(account));
-            }
-
-            var lifetime = login.RememberMe ? TimeSpan.FromDays(sessions.Value.RememberLifetimeDays)
-                : TimeSpan.FromHours(sessions.Value.NormalLifetimeHours);
-            var session = new AccountSession(account.Id, account.SecurityVersion, login.RememberMe, now, now.Add(lifetime));
+            var session = new AccountSession(account.Id, account.SecurityVersion, now,
+                now.AddHours(sessions.Value.NormalLifetimeHours));
             var refresh = RefreshSecrets.Create();
             database.Sessions.Add(session);
-            database.RefreshCredentials.Add(new RefreshCredential(session.Id, refresh.Hash, now, session.ExpiresAt));
+            database.RefreshCredentials.Add(new RefreshCredential(session.Id, refresh.Hash, now, session.ExpiresAt, account.Id));
 
             // Only a valid existing cookie can replace a session, including when changing accounts in one browser.
             // No cookie is read by the endpoint until Origin/CSRF validation has succeeded.
@@ -76,7 +62,7 @@ public sealed class PostgresLoginStore(IdentityDbContext database, UserManager<I
             await database.SaveChangesAsync(cancellationToken);
             var issued = tokens.Issue(new AccessTokenSubject(account.Id, session.Id, role, account.SecurityVersion, session.ExpiresAt));
             await transaction.CommitAsync(cancellationToken);
-            return new(LoginOutcome.Succeeded, issued, refresh.Raw, login.RememberMe);
+            return new(LoginOutcome.Succeeded, issued, refresh.Raw);
         }
         catch (Exception exception) when (IdentityDatabaseFailure.IsUnavailable(exception))
         {
@@ -100,10 +86,5 @@ public sealed class PostgresLoginStore(IdentityDbContext database, UserManager<I
         if (previous is not null)
             await database.Sessions.Where(session => session.Id == previous && session.RevokedAt == null)
                 .ExecuteUpdateAsync(update => update.SetProperty(session => session.RevokedAt, now), cancellationToken);
-    }
-
-    private static void EnsureSuccess(IdentityResult result)
-    {
-        if (!result.Succeeded) throw new InvalidOperationException("Identity credential state update failed.");
     }
 }

@@ -46,9 +46,10 @@ public partial class IdentityLogoutTests(PostgresDatabaseFixture database) : ICl
         await using var scope = database.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         var manager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityAccount>>();
-        var account = new IdentityAccount(Guid.NewGuid().ToString("N") + "@example.test", DateTimeOffset.UtcNow);
+        var account = new IdentityAccount(Guid.NewGuid().ToString("N") + "@example.test", DateTimeOffset.UtcNow) { EmailConfirmed = true };
         Assert.True((await manager.CreateAsync(account, Password)).Succeeded);
-        Assert.True((await manager.AddToRoleAsync(account, "Tenant")).Succeeded);
+        account.Role = "Tenant";
+        Assert.True((await manager.UpdateAsync(account)).Succeeded);
         db.Profiles.Add(new UserProfile(account.Id, "Nguyễn Văn An", account.CreatedAt));
         await db.SaveChangesAsync();
         return account;
@@ -57,7 +58,7 @@ public partial class IdentityLogoutTests(PostgresDatabaseFixture database) : ICl
     private static async Task<(string Access, string Raw)> Login(HttpClient client, IdentityAccount account)
     {
         using var response = await client.PostAsJsonAsync("/api/v1/identity/auth/login",
-            new { email = account.Email, password = Password, rememberMe = false });
+            new { email = account.Email, password = Password });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         return (json.RootElement.GetProperty("data").GetProperty("accessToken").GetString()!,

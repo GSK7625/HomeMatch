@@ -16,11 +16,11 @@ public sealed partial class PostgresEmailVerificationStore
             var account = await VerificationPrincipalLock.AcquireAsync(db, subject, clock, cancellationToken);
             if (account is null) return new(VerificationOutcome.InvalidAuthentication);
             var challenge = (await db.EmailVerificationChallenges.FromSqlInterpolated($"""
-                SELECT * FROM identity."EmailVerificationChallenges"
-                WHERE "Id" = {challengeId} AND "UserId" = {subject.UserId} FOR UPDATE
+                SELECT * FROM identity."email_verification_challenges"
+                WHERE "id" = {challengeId} AND "user_id" = {subject.UserId} FOR UPDATE
                 """).ToListAsync(cancellationToken)).SingleOrDefault();
             var now = PostgresTimestamp.UtcNow(clock);
-            var window = await WindowAsync("verify15:" + subject.UserId.ToString("N"), now, TimeSpan.FromMinutes(15), false, cancellationToken);
+            var window = await WindowAsync("verify15:" + subject.UserId.ToString(System.Globalization.CultureInfo.InvariantCulture), now, TimeSpan.FromMinutes(15), false, cancellationToken);
             if (window.RetryAfter(now, 20) is { } retry) return new(VerificationOutcome.RateLimited, RetryAfter: retry);
             window.Consume(now, 20);
             var validChallenge = !account.EmailConfirmed && challenge is not null && challenge.IsVerifiableAt(now)

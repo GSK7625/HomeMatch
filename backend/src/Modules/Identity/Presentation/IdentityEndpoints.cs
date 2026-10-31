@@ -17,6 +17,7 @@ public static class IdentityEndpoints
 {
     public static void MapAccountEndpoints(this RouteGroupBuilder group)
     {
+        HomeMatch.Modules.Identity.Presentation.PublicOtp.PublicOtpEndpoints.MapPublicOtp(group);
         group.MapPost("/auth/register", RegistrationEndpoint.HandleAsync)
             .AllowAnonymous()
             .WithName("Identity.Register");

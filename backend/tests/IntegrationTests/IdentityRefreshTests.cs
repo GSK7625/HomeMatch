@@ -45,9 +45,10 @@ public partial class IdentityRefreshTests(PostgresDatabaseFixture database) : IC
         await using var scope = database.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         var manager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityAccount>>();
-        var account = new IdentityAccount(Guid.NewGuid().ToString("N") + "@example.test", DateTimeOffset.UtcNow);
+        var account = new IdentityAccount(Guid.NewGuid().ToString("N") + "@example.test", DateTimeOffset.UtcNow) { EmailConfirmed = true };
         Assert.True((await manager.CreateAsync(account, Password)).Succeeded);
-        Assert.True((await manager.AddToRoleAsync(account, "Tenant")).Succeeded);
+        account.Role = "Tenant";
+        Assert.True((await manager.UpdateAsync(account)).Succeeded);
         db.Profiles.Add(new UserProfile(account.Id, "Nguyễn Văn An", account.CreatedAt));
         await db.SaveChangesAsync();
         return account;
@@ -70,8 +71,8 @@ public partial class IdentityRefreshTests(PostgresDatabaseFixture database) : IC
         return json.RootElement.GetProperty("data").GetProperty("accessToken").GetString()!;
     }
 
-    private static async Task<HttpResponseMessage> Login(HttpClient client, IdentityAccount account, bool remember = false)
-        => await client.PostAsJsonAsync("/api/v1/identity/auth/login", new { email = account.Email, password = Password, rememberMe = remember });
+    private static async Task<HttpResponseMessage> Login(HttpClient client, IdentityAccount account)
+        => await client.PostAsJsonAsync("/api/v1/identity/auth/login", new { email = account.Email, password = Password });
 
     private static async Task AssertFailure(HttpResponseMessage response, HttpStatusCode expected, string code, bool deletesCookie = false)
     {
@@ -90,15 +91,13 @@ public partial class IdentityRefreshTests(PostgresDatabaseFixture database) : IC
         }
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task RotationPreservesSessionAbsoluteExpiryAndCookiePersistence(bool remember)
+    [Fact]
+    public async Task RotationPreservesSessionAbsoluteExpiryAndUsesSessionCookie()
     {
         var account = await Account();
         await using var factory = Factory();
         using var client = await Browser(factory);
-        using var login = await Login(client, account, remember);
+        using var login = await Login(client, account);
         var oldRaw = Raw(login);
         var oldAccess = await Access(login);
         var oldJwt = new JsonWebTokenHandler().ReadJsonWebToken(oldAccess);
@@ -116,8 +115,8 @@ public partial class IdentityRefreshTests(PostgresDatabaseFixture database) : IC
         Assert.NotEqual(oldJwt.Id, jwt.Id);
         var cookie = Assert.Single(refreshed.Headers.GetValues("Set-Cookie")).ToLowerInvariant();
         Assert.Contains("; secure", cookie);
-        Assert.Equal(remember, cookie.Contains("expires="));
-        Assert.Equal(remember, cookie.Contains("max-age="));
+        Assert.DoesNotContain("expires=", cookie);
+        Assert.DoesNotContain("max-age=", cookie);
         using var resultJson = JsonDocument.Parse(await refreshed.Content.ReadAsStringAsync());
         Assert.Equal(absoluteEnd, resultJson.RootElement.GetProperty("data").GetProperty("sessionExpiresAt").GetDateTime());
         Assert.DoesNotContain(newRaw, await refreshed.Content.ReadAsStringAsync());

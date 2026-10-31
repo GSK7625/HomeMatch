@@ -25,10 +25,10 @@ public sealed class PostgresLogoutSessionService(IdentityDbContext database, Tim
 
             await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
             var owner = (await database.Users.FromSqlInterpolated($"""
-                SELECT * FROM identity."Users" WHERE "Id" = {location.UserId} FOR UPDATE
+                SELECT * FROM identity."users" WHERE "id" = {location.UserId} FOR UPDATE
                 """).ToListAsync(cancellationToken)).SingleOrDefault();
             var session = (await database.Sessions.FromSqlInterpolated($"""
-                SELECT * FROM identity."Sessions" WHERE "Id" = {location.SessionId} AND "UserId" = {location.UserId} FOR UPDATE
+                SELECT * FROM identity."sessions" WHERE "id" = {location.SessionId} AND "user_id" = {location.UserId} FOR UPDATE
                 """).ToListAsync(cancellationToken)).SingleOrDefault();
             if (owner is null || session is null) return new(LogoutOutcome.Succeeded, true);
             await PostgresSessionRevocation.RevokeFamilyAsync(database, session, PostgresTimestamp.UtcNow(clock), cancellationToken);
@@ -51,10 +51,10 @@ public sealed class PostgresLogoutSessionService(IdentityDbContext database, Tim
         {
             await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
             var account = (await database.Users.FromSqlInterpolated($"""
-                SELECT * FROM identity."Users" WHERE "Id" = {subject.UserId} FOR UPDATE
+                SELECT * FROM identity."users" WHERE "id" = {subject.UserId} FOR UPDATE
                 """).ToListAsync(cancellationToken)).SingleOrDefault();
             var session = (await database.Sessions.FromSqlInterpolated($"""
-                SELECT * FROM identity."Sessions" WHERE "Id" = {subject.SessionId} AND "UserId" = {subject.UserId} FOR UPDATE
+                SELECT * FROM identity."sessions" WHERE "id" = {subject.SessionId} AND "user_id" = {subject.UserId} FOR UPDATE
                 """).ToListAsync(cancellationToken)).SingleOrDefault();
             var now = PostgresTimestamp.UtcNow(clock);
             // Authentication may have completed before another request revoked this principal.
@@ -62,10 +62,7 @@ public sealed class PostgresLogoutSessionService(IdentityDbContext database, Tim
             if (account is null || session is null || account.Status != AccountStatus.Active
                 || !session.IsActiveAt(now) || session.SecurityVersion != account.SecurityVersion
                 || !await database.Profiles.AnyAsync(profile => profile.UserId == subject.UserId, cancellationToken)
-                || !await (from membership in database.UserRoles
-                           join role in database.Roles on membership.RoleId equals role.Id
-                           where membership.UserId == subject.UserId && role.Name == subject.Role
-                           select membership.UserId).AnyAsync(cancellationToken))
+                || account.Role != subject.Role)
                 return new(LogoutOutcome.InvalidAuthentication);
 
             var cookieHash = RefreshSecrets.TryHash(rawRefreshSecret);
@@ -90,5 +87,5 @@ public sealed class PostgresLogoutSessionService(IdentityDbContext database, Tim
         }
     }
 
-    private sealed record SessionLocation(Guid SessionId, Guid UserId);
+    private sealed record SessionLocation(Guid SessionId, long UserId);
 }

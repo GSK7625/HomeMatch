@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using HomeMatch.Shared.Contracts.Notifications;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -17,7 +20,11 @@ internal sealed class ApiFactory(
         {
             var settings = new Dictionary<string, string?>
             {
-                ["Email:Enabled"] = "false",
+                ["Email:Enabled"] = "true",
+                ["Email:Smtp:Username"] = "sender@gmail.com",
+                ["Email:Smtp:FromAddress"] = "sender@gmail.com",
+                ["Email:Smtp:AppPassword"] = "abcdefghijklmnop",
+                ["Identity:EmailVerification:Keys:v1"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
                 ["Jwt:Secret"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
                 ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Port=55432;Database=homematch_host_tests;Username=homematch_test",
                 ["Jwt:Issuer"] = "HomeMatch.Tests",
@@ -37,5 +44,11 @@ internal sealed class ApiFactory(
             configuration.AddInMemoryCollection(settings);
         });
         builder.ConfigureServices(services => services.AddSingleton<IStartupFilter, ProbeStartupFilter>());
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<ITransactionalEmailSender>();
+            services.AddSingleton<CapturingEmailSender>();
+            services.AddSingleton<ITransactionalEmailSender>(provider => provider.GetRequiredService<CapturingEmailSender>());
+        });
     }
 }

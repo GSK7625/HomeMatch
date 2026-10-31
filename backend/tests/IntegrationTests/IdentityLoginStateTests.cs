@@ -1,3 +1,4 @@
+using HomeMatch.Modules.Identity.Infrastructure.Passwords;
 using System.Net;
 using System.Text.Json;
 using System.Net.Http.Headers;
@@ -17,18 +18,18 @@ namespace HomeMatch.IntegrationTests;
 public partial class IdentityLoginTests
 {
     [Fact]
-    public async Task ConcurrentFailuresReachLockoutWithoutLostIncrementsAndDoNotRevokeExistingSession()
+    public async Task RepeatedWrongPasswordsDoNotLockAccountOrRevokeExistingSession()
     {
         var account = await AccountAsync();
         await using var factory = Factory();
         using var client = await BrowserAsync(factory);
         using var initial = await Login(client, account.Email!);
         var oldAccess = await AccessToken(initial);
-        var failures = await Task.WhenAll(Enumerable.Range(0, 5).Select(async _ =>
+        var failures = await Task.WhenAll(Enumerable.Range(0, 6).Select(async _ =>
         {
             await using var scope = database.Services.CreateAsyncScope();
             return await scope.ServiceProvider.GetRequiredService<ILoginStore>().AuthenticateAndStartSessionAsync(
-                new ValidatedLogin(account.Email!.ToUpperInvariant(), "incorrect", false), null, default);
+                new ValidatedLogin(account.Email!.ToUpperInvariant(), "incorrect"), null, default);
         }));
         Assert.All(failures, value => Assert.Equal(LoginOutcome.InvalidCredentials, value.Outcome));
         await using (var scope = database.Services.CreateAsyncScope())
@@ -36,24 +37,24 @@ public partial class IdentityLoginTests
             var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
             var stored = await db.Users.SingleAsync(value => value.Id == account.Id);
             Assert.Equal(0, stored.AccessFailedCount);
-            Assert.InRange(stored.LockoutEnd!.Value - DateTimeOffset.UtcNow, TimeSpan.FromMinutes(14), TimeSpan.FromMinutes(16));
+            Assert.Null(stored.LockoutEnd);
         }
-        using var blocked = await Login(client, account.Email!);
-        await AssertError(blocked, HttpStatusCode.Unauthorized, "Identity.InvalidCredentials");
+        using var correct = await Login(client, account.Email!);
+        Assert.Equal(HttpStatusCode.OK, correct.StatusCode);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", oldAccess);
         using var me = await client.GetAsync("/api/v1/identity/me");
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
     }
 
     [Fact]
-    public async Task CorrectPasswordAfterLockoutExpiryClearsFailureState()
+    public async Task LegacyLockoutStateDoesNotBlockCorrectPassword()
     {
         var account = await AccountAsync();
         await using (var scope = database.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
             var stored = await db.Users.SingleAsync(value => value.Id == account.Id);
-            stored.LockoutEnd = DateTimeOffset.UtcNow.AddSeconds(-1);
+            stored.LockoutEnd = DateTimeOffset.UtcNow.AddMinutes(15);
             stored.AccessFailedCount = 2;
             await db.SaveChangesAsync();
         }
@@ -64,8 +65,8 @@ public partial class IdentityLoginTests
         await using var verification = database.Services.CreateAsyncScope();
         var context = verification.ServiceProvider.GetRequiredService<IdentityDbContext>();
         var actual = await context.Users.SingleAsync(value => value.Id == account.Id);
-        Assert.Equal(0, actual.AccessFailedCount);
-        Assert.Null(actual.LockoutEnd);
+        Assert.Equal(2, actual.AccessFailedCount);
+        Assert.NotNull(actual.LockoutEnd);
     }
 
     [Theory]
@@ -77,7 +78,7 @@ public partial class IdentityLoginTests
         var next = changeAccount ? await AccountAsync() : first;
         await using var factory = Factory();
         using var client = await BrowserAsync(factory);
-        using var initial = await Login(client, first.Email!, remember: true);
+        using var initial = await Login(client, first.Email!);
         var oldAccess = await AccessToken(initial);
         var oldRaw = RefreshSecret(initial);
         SetRefresh(client, oldRaw);
@@ -92,7 +93,7 @@ public partial class IdentityLoginTests
         using var newMe = await client.GetAsync("/api/v1/identity/me");
         Assert.Equal(HttpStatusCode.OK, newMe.StatusCode);
         using var profile = JsonDocument.Parse(await newMe.Content.ReadAsStringAsync());
-        Assert.Equal(next.Id, profile.RootElement.GetProperty("data").GetProperty("id").GetGuid());
+        Assert.Equal(next.Id, profile.RootElement.GetProperty("data").GetProperty("id").GetInt64());
         await using var scope = database.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         var oldHash = RefreshSecrets.TryHash(oldRaw)!;
@@ -171,17 +172,9 @@ public partial class IdentityLoginTests
     [Theory]
     [InlineData("missing")]
     [InlineData("wrong")]
-    [InlineData("locked")]
-    public async Task MissingWrongAndLockedCredentialsEachPerformHashVerification(string kind)
+    public async Task MissingAndWrongCredentialsEachPerformHashVerification(string kind)
     {
         var account = await AccountAsync();
-        if (kind == "locked")
-        {
-            await using var scope = database.Services.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-            (await db.Users.SingleAsync(value => value.Id == account.Id)).LockoutEnd = DateTimeOffset.UtcNow.AddMinutes(15);
-            await db.SaveChangesAsync();
-        }
         var spy = new VerificationCounter();
         await using var original = Factory();
         await using var factory = original.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
@@ -203,7 +196,7 @@ public partial class IdentityLoginTests
 
     private sealed class VerificationCounter : IPasswordHasher<IdentityAccount>
     {
-        private readonly PasswordHasher<IdentityAccount> _inner = new();
+        private readonly CompatiblePasswordHasher _inner = new(Microsoft.Extensions.Options.Options.Create(new PasswordHasherOptions()));
         private int _verifications;
         public int Verifications => _verifications;
         public string HashPassword(IdentityAccount user, string password) => _inner.HashPassword(user, password);

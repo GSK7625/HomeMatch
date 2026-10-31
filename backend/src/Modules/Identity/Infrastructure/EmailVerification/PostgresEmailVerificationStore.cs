@@ -34,8 +34,8 @@ public sealed partial class PostgresEmailVerificationStore(IdentityDbContext db,
                 nextRequest = latest.PendingLeaseUntil;
             if (nextRequest > now) return new(VerificationOutcome.RateLimited, RetryAfter: nextRequest - now);
 
-            var shortWindow = await WindowAsync("send15:" + subject.UserId.ToString("N"), now, TimeSpan.FromMinutes(15), false, cancellationToken);
-            var dailyWindow = await WindowAsync("send24:" + subject.UserId.ToString("N"), now, TimeSpan.FromDays(1), false, cancellationToken);
+            var shortWindow = await WindowAsync("send15:" + subject.UserId.ToString(System.Globalization.CultureInfo.InvariantCulture), now, TimeSpan.FromMinutes(15), false, cancellationToken);
+            var dailyWindow = await WindowAsync("send24:" + subject.UserId.ToString(System.Globalization.CultureInfo.InvariantCulture), now, TimeSpan.FromDays(1), false, cancellationToken);
             var limits = new[] { (sender, 100), (shortWindow, 5), (dailyWindow, 20) };
             var retry = MaximumRetry(limits, now);
             if (retry is not null) return new(VerificationOutcome.RateLimited, RetryAfter: retry);
@@ -66,11 +66,11 @@ public sealed partial class PostgresEmailVerificationStore(IdentityDbContext db,
         var start = utcDay ? new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero) : now;
         var end = start + duration;
         await db.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO identity."EmailVerificationQuotas" ("Key", "WindowStart", "WindowEnd", "Count")
-            VALUES ({key}, {start}, {end}, 0) ON CONFLICT ("Key") DO NOTHING
+            INSERT INTO identity."email_verification_quotas" ("key", "window_start", "window_end", "count")
+            VALUES ({key}, {start}, {end}, 0) ON CONFLICT ("key") DO NOTHING
             """, cancellationToken);
         var window = (await db.EmailVerificationQuotas.FromSqlInterpolated($"""
-            SELECT * FROM identity."EmailVerificationQuotas" WHERE "Key" = {key} FOR UPDATE
+            SELECT * FROM identity."email_verification_quotas" WHERE "key" = {key} FOR UPDATE
             """).ToListAsync(cancellationToken)).Single();
         window.RenewIfExpired(now, duration, utcDay);
         return window;

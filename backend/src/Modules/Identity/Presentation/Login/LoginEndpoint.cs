@@ -35,8 +35,8 @@ public static class LoginEndpoint
         var result = await handler.HandleAsync(read.Value!, cookie.Read(context), context.RequestAborted);
         if (result.Outcome == LoginOutcome.Succeeded)
         {
-            cookie.Write(context, result.RefreshSecret!, result.RememberMe, result.Token!.SessionExpiresAt);
-            return Results.Ok(ApiResponse<IssuedAccessToken>.Success(result.Token));
+            cookie.Write(context, result.RefreshSecret!);
+            return Results.Ok(ApiResponse<IssuedAccessToken>.Success(result.Token!));
         }
         if (result.Outcome == LoginOutcome.InvalidCredentials) context.Response.Headers.WWWAuthenticate = "Bearer";
         return result.Outcome switch
@@ -44,6 +44,7 @@ public static class LoginEndpoint
             LoginOutcome.InvalidInput => IdentityHttpErrors.ValidationFailed(),
             LoginOutcome.InvalidCredentials => IdentityHttpErrors.InvalidCredentials(),
             LoginOutcome.AccountSuspended => IdentityHttpErrors.AccountSuspended(),
+            LoginOutcome.EmailNotVerified => IdentityHttpErrors.EmailNotVerified(),
             _ => IdentityHttpErrors.DependencyUnavailable()
         };
     }

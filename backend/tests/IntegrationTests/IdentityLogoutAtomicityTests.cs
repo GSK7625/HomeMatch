@@ -108,9 +108,9 @@ public partial class IdentityLogoutTests
         public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
             CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
         {
-            if (command.CommandText.Contains("FROM identity.\"Users\"", StringComparison.Ordinal)
-                && command.CommandText.Contains("FOR UPDATE", StringComparison.Ordinal)
-                && !command.CommandText.Contains("NormalizedEmail", StringComparison.Ordinal))
+            if (command.CommandText.Replace("\"", "").Contains("FROM identity.users", StringComparison.Ordinal)
+                && command.CommandText.Replace("\"", "").Contains("FOR UPDATE", StringComparison.Ordinal)
+                && !command.CommandText.Replace("\"", "").Contains("normalized_email", StringComparison.Ordinal))
             {
                 var number = Interlocked.Increment(ref _arrivals);
                 if (number <= 2)
@@ -130,10 +130,10 @@ public partial class IdentityLogoutTests
         public override ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(DbCommand command, CommandEventData eventData,
             InterceptionResult<int> result, CancellationToken cancellationToken = default)
         {
-            if (command.CommandText.StartsWith("UPDATE identity.\"Sessions\"", StringComparison.Ordinal)
-                || command.CommandText.StartsWith("UPDATE identity.\"RefreshCredentials\"", StringComparison.Ordinal))
+            if (command.CommandText.Replace("\"", "").StartsWith("UPDATE identity.sessions", StringComparison.Ordinal)
+                || command.CommandText.Replace("\"", "").StartsWith("UPDATE identity.refresh_credential_metadata", StringComparison.Ordinal))
                 Interlocked.Increment(ref _bulkUpdates);
-            if (command.CommandText.Contains("UPDATE identity.\"Users\"", StringComparison.Ordinal))
+            if (command.CommandText.Replace("\"", "").Contains("UPDATE identity.users", StringComparison.Ordinal))
                 throw new InvalidOperationException("private-logout-rollback-marker");
             return ValueTask.FromResult(result);
         }
@@ -141,7 +141,7 @@ public partial class IdentityLogoutTests
         public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
             CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
         {
-            if (command.CommandText.Contains("UPDATE identity.\"Users\"", StringComparison.Ordinal))
+            if (command.CommandText.Replace("\"", "").Contains("UPDATE identity.users", StringComparison.Ordinal))
                 throw new InvalidOperationException("private-logout-rollback-marker");
             return ValueTask.FromResult(result);
         }

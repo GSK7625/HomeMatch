@@ -42,7 +42,7 @@ public class LoginPolicyTests
     {
         var now = DateTimeOffset.UtcNow;
         Assert.ThrowsAny<ArgumentException>(() => new RefreshCredential(field == "id" ? Guid.Empty : Guid.NewGuid(),
-            field == "hash" ? "not-a-hash" : new string('a', 64), now, field == "expiry" ? now : now.AddDays(1)));
+            field == "hash" ? "not-a-hash" : new string('a', 64), now, field == "expiry" ? now : now.AddDays(1), 1L));
     }
 
     private sealed class Store : ILoginStore
@@ -56,10 +56,10 @@ public class LoginPolicyTests
     [InlineData("old")]
     [InlineData("123456789012345")]
     [InlineData("  Mật khẩu cũ giữ nguyên  ")]
-    public async Task LoginDoesNotApplyNewPasswordMinimumOrBlocklist(string password)
+    public async Task LoginDoesNotApplyNewPasswordCreationRules(string password)
     {
         var store = new Store();
-        await new LoginHandler(store).HandleAsync(new LoginCommand(" User+tag@Example.test ", password, false), null, default);
+        await new LoginHandler(store).HandleAsync(new LoginCommand(" User+tag@Example.test ", password), null, default);
         Assert.Equal("USER+TAG@EXAMPLE.TEST", store.Last!.NormalizedEmail);
         Assert.Equal(password, store.Last.Password);
     }
@@ -69,13 +69,11 @@ public class LoginPolicyTests
     [InlineData("password")]
     [InlineData("empty")]
     [InlineData("length")]
-    [InlineData("remember")]
     public async Task InvalidLoginInputCannotReachStore(string invalid)
     {
         var store = new Store();
         var result = await new LoginHandler(store).HandleAsync(new LoginCommand(invalid == "email" ? "invalid" : "a@example.test",
-            invalid == "password" ? null : invalid == "empty" ? "" : invalid == "length" ? new string('a', 129) : "old",
-            invalid == "remember" ? null : false), null, default);
+            invalid == "password" ? null : invalid == "empty" ? "" : invalid == "length" ? new string('a', 129) : "old"), null, default);
         Assert.Equal(LoginOutcome.InvalidInput, result.Outcome);
         Assert.Null(store.Last);
     }

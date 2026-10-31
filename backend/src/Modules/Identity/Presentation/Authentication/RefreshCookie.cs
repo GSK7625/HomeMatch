@@ -3,7 +3,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace HomeMatch.Modules.Identity.Presentation.Authentication;
 
-public sealed class RefreshCookie(IHostEnvironment environment, TimeProvider clock)
+public sealed class RefreshCookie(IHostEnvironment environment)
 {
     public const string Path = "/api/v1/identity";
 
@@ -15,18 +15,13 @@ public sealed class RefreshCookie(IHostEnvironment environment, TimeProvider clo
         return raw is { Length: 43 } ? raw : null;
     }
 
-    public void Write(HttpContext context, string raw, bool rememberMe, DateTime expiresAt)
+    public void Write(HttpContext context, string raw)
     {
         var options = new CookieOptions
         {
             Path = Path, Domain = null, HttpOnly = true, SameSite = SameSiteMode.Lax,
             Secure = !IsInsecureLocalDevelopment(context)
         };
-        if (rememberMe)
-        {
-            options.Expires = new DateTimeOffset(expiresAt, TimeSpan.Zero);
-            options.MaxAge = TimeSpan.FromSeconds(Math.Max(0, Math.Floor((options.Expires.Value - clock.GetUtcNow()).TotalSeconds)));
-        }
         context.Response.Cookies.Append(Name(context), raw, options);
     }
 

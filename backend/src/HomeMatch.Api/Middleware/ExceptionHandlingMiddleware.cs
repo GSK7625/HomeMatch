@@ -11,7 +11,6 @@ namespace HomeMatch.Api.Middleware;
 
 public class ExceptionHandlingMiddleware
 {
-    public const string TraceIdHeaderName = "X-Trace-Id";
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
@@ -54,7 +53,7 @@ public class ExceptionHandlingMiddleware
 
     private static string GetTraceId(HttpContext context)
     {
-        if (context.Items.TryGetValue(TraceIdHeaderName, out var itemTraceId) && itemTraceId is string idStr)
+        if (context.Items.TryGetValue(TraceIdMiddleware.TraceIdHeaderName, out var itemTraceId) && itemTraceId is string idStr)
         {
             return idStr;
         }
@@ -69,9 +68,9 @@ public class ExceptionHandlingMiddleware
             return Task.CompletedTask;
         }
 
-        if (!context.Response.Headers.ContainsKey(TraceIdHeaderName))
+        if (!context.Response.Headers.ContainsKey(TraceIdMiddleware.TraceIdHeaderName))
         {
-            context.Response.Headers.Append(TraceIdHeaderName, traceId);
+            context.Response.Headers.Append(TraceIdMiddleware.TraceIdHeaderName, traceId);
         }
 
         context.Response.ContentType = "application/json";

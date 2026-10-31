@@ -27,7 +27,7 @@ public class ExceptionHandlingMiddlewareTests
         // Assert
         Assert.Equal(500, context.Response.StatusCode);
         Assert.Equal("application/json", context.Response.ContentType);
-        Assert.True(context.Response.Headers.ContainsKey(ExceptionHandlingMiddleware.TraceIdHeaderName));
+        Assert.True(context.Response.Headers.ContainsKey(TraceIdMiddleware.TraceIdHeaderName));
 
         responseBodyStream.Seek(0, SeekOrigin.Begin);
         using var reader = new StreamReader(responseBodyStream);

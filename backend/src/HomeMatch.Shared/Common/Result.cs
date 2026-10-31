@@ -1,9 +1,14 @@
 namespace HomeMatch.Shared.Common;
 
-public record Error(string Code, string Message)
+public record ErrorDetail(string Field, string Message);
+
+public record Error(string Code, string Message, IReadOnlyCollection<ErrorDetail>? Details = null)
 {
     public static readonly Error None = new(string.Empty, string.Empty);
     public static readonly Error NullValue = new("Error.NullValue", "The specified result value is null.");
+
+    public static Error Validation(string code, string message, IReadOnlyCollection<ErrorDetail> details) =>
+        new(code, message, details);
 }
 
 public class Result

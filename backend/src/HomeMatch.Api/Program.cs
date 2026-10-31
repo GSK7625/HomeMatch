@@ -36,7 +36,7 @@ builder.Services.AddOptions<Microsoft.AspNetCore.Cors.Infrastructure.CorsOptions
             policy.WithOrigins(frontend.Value.AllowedOrigins)
                 .WithHeaders("Content-Type", "Authorization", "X-CSRF-TOKEN")
                 .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                .WithExposedHeaders("Retry-After", "X-Request-Id", "WWW-Authenticate")
+                .WithExposedHeaders("Retry-After", "X-Request-Id", "X-Trace-Id", "WWW-Authenticate")
                 .AllowCredentials();
         });
     });
@@ -62,6 +62,7 @@ if (args.Contains("--initialize-identity", StringComparer.Ordinal))
 
 // 4. HTTP Pipeline & Middlewares
 app.UseMiddleware<RequestIdMiddleware>();
+app.UseTraceId();
 app.UseCustomExceptionHandling();
 app.UseCors(FrontendCorsOptions.PolicyName);
 app.UseIdentityHttpSecurity();

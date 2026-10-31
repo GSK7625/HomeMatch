@@ -1,4 +1,11 @@
+using System.Diagnostics;
+using System.Net;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using HomeMatch.Shared.Common;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace HomeMatch.Api.Middleware;
 
@@ -6,6 +13,14 @@ public class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        // Intentionally do NOT set JsonIgnoreCondition.WhenWritingNull
+        // so that "data": null is explicitly output in the response JSON contract.
+    };
 
     public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
     {
@@ -19,29 +34,57 @@ public class ExceptionHandlingMiddleware
         {
             await _next(context);
         }
-        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (context.RequestAborted.IsCancellationRequested)
         {
-            // The client has left; do not turn request cancellation into a JSON 500 response.
+            var traceId = GetTraceId(context);
+            _logger.LogInformation(ex, "[{TraceId}] Request was cancelled by the client.", traceId);
             context.Abort();
+            if (!context.Response.HasStarted)
+            {
+                context.Response.StatusCode = 499; // Client Closed Request
+            }
         }
-        catch (Exception exception)
+        catch (Exception ex)
         {
-            _logger.LogError(exception, "An unhandled exception occurred. RequestId: {RequestId}", context.TraceIdentifier);
-
+            var traceId = GetTraceId(context);
+            _logger.LogError(ex, "[{TraceId}] An unhandled exception occurred: {Message}", traceId, ex.Message);
             if (context.Response.HasStarted)
             {
-                // Headers/body cannot be replaced safely; let the server terminate the response.
                 throw;
             }
-
-            context.Response.Clear();
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-
-            var response = ApiResponse<string>.Failure(
-                new Error("Server.InternalError", "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau."));
-
-            await context.Response.WriteAsJsonAsync(response, cancellationToken: context.RequestAborted);
+            await HandleExceptionAsync(context, traceId);
         }
+    }
+
+    private static string GetTraceId(HttpContext context)
+    {
+        if (context.Items.TryGetValue(TraceIdMiddleware.TraceIdHeaderName, out var itemTraceId) && itemTraceId is string idStr)
+        {
+            return idStr;
+        }
+
+        return Activity.Current?.Id ?? context.TraceIdentifier;
+    }
+
+    private static async Task HandleExceptionAsync(HttpContext context, string traceId)
+    {
+        if (context.Response.HasStarted)
+        {
+            return;
+        }
+
+        if (!context.Response.Headers.ContainsKey(TraceIdMiddleware.TraceIdHeaderName))
+        {
+            context.Response.Headers.Append(TraceIdMiddleware.TraceIdHeaderName, traceId);
+        }
+
+        context.Response.Clear();
+        context.Response.ContentType = "application/json";
+        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+
+        var error = new Error("Server.InternalError", "Đã xảy ra lỗi hệ thống không mong muốn. Vui lòng thử lại sau.");
+        var response = ApiResponse<object>.Failure(error);
+        await context.Response.WriteAsJsonAsync(response, JsonOptions, cancellationToken: CancellationToken.None);
     }
 }
 

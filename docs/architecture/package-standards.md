@@ -21,23 +21,23 @@ Các package hiện diện trực tiếp trong các file `.csproj` của reposit
 |---|---|---|---|
 | `Microsoft.AspNetCore.OpenApi` | `10.0.13` | `HomeMatch.Api` | OpenAPI engine cho .NET 10 |
 | `Scalar.AspNetCore` | `2.18.3` | `HomeMatch.Api` | Giao diện tài liệu API tương tác |
+| `Microsoft.EntityFrameworkCore.Design` | `10.0.14` | `HomeMatch.Api` (PrivateAssets=all) | EF Core Migrations tooling |
+| `Microsoft.EntityFrameworkCore` | `10.0.14` | 8 Business Modules | Core EF Core engine |
+| `Npgsql.EntityFrameworkCore.PostgreSQL` | `10.0.3` | 8 Business Modules | PostgreSQL Provider cho EF Core |
+| `Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite` | `10.0.3` | `HomeMatch.Modules.Listings` | PostGIS spatial queries cho EF Core |
 | `Microsoft.NET.Test.Sdk` | `18.11.0` | `UnitTests`, `IntegrationTests` | Test runner SDK |
 | `xunit` | `2.9.3` | `UnitTests`, `IntegrationTests` | XUnit testing framework |
 | `xunit.runner.visualstudio` | `4.0.1` | `UnitTests`, `IntegrationTests` | Visual Studio test runner adapter |
 | `coverlet.collector` | `10.1.0` | `UnitTests`, `IntegrationTests` | Thu thập code coverage |
 
-### 2.2 Packages Đã Được Phê Duyệt Sẵn Sàng Sử Dụng (Pre-Approved)
-Các package đã được kiến trúc phê duyệt và gán phiên bản cụ thể, sẵn sàng cài đặt khi triển khai các module `Identity`, `Properties`, `Listings`:
+### 2.2 Packages Đã Được Phê Duyệt Sàng Sẵn Sàng Sử Dụng (Pre-Approved)
+Các package đã được kiến trúc phê duyệt và gán phiên bản cụ thể, sẵn sàng cài đặt khi mở rộng nghiệp vụ:
 
 | Package | Phiên bản khuyến nghị | Module mục tiêu | Mục đích |
 |---|---|---|---|
-| `Npgsql.EntityFrameworkCore.PostgreSQL` | `10.0.0-preview.*` hoặc `9.0.x` | `Identity`, `Properties`, `Listings` | PostgreSQL Provider cho EF Core |
-| `Microsoft.EntityFrameworkCore` | `10.0.x` | Tầng `Infrastructure` của module | Core EF Core engine |
-| `Microsoft.EntityFrameworkCore.Design` | `10.0.x` | `HomeMatch.Api` (PrivateAssets=all) | EF Core Migrations tooling |
 | `Microsoft.AspNetCore.Authentication.JwtBearer` | `10.0.x` | `Identity`, `HomeMatch.Api` | Xác thực JWT Bearer tokens |
 | `System.IdentityModel.Tokens.Jwt` | `8.x` | `Identity` | Tạo và giải mã JWT token |
 | `NetTopologySuite` | `2.5.x` | `Listings` | Thao tác kiểu dữ liệu tọa độ địa lý |
-| `Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite` | Tương thích Npgsql | `Listings` | Hỗ trợ PostGIS spatial query trong EF Core |
 
 ### 2.3 Packages Đang Trong Diện Đề Xuất (Under Proposal)
 Các package hữu ích nhưng cần xem xét điều kiện môi trường trước khi áp dụng:

@@ -1,3 +1,5 @@
+> Identity lấy cấu trúc BIGINT và Users/UserTokens của bản thiết kế này làm chuẩn theo quyết định mới nhất. Xem [trạng thái ánh xạ và chuyển đổi](IDENTITY_SCHEMA_MAPPING.md).
+
 # TÀI LIỆU ĐẶC TẢ CƠ SỞ DỮ LIỆU HOMEMATCH (44 BẢNG - 10 PHÂN HỆ)
 **Hệ thống Hỗ trợ Tìm kiếm Thuê nhà và Quản lý Cho thuê (HomeMatch)**  
 *Tài liệu tra cứu: Phân hệ, Ý nghĩa từng bảng và Chi tiết tất cả các trường dữ liệu*  

@@ -164,9 +164,15 @@ Tài liệu này xác lập quy chuẩn kỹ thuật baseline cho toàn bộ Bac
 | **Thông báo sự kiện sang module khác** | Integration Event qua in-memory handler đơn giản trong cùng process |
 | **Gọi HTTP giữa các module** | **Nghiêm cấm** (tất cả chạy chung một monolith in-process) |
 
-### Nguyên tắc giao tiếp:
-- Shared Contracts do module cung cấp (producer) làm chủ interface; tuyệt đối không đưa Entity, DbContext hoặc `IQueryable` vào Shared Contracts.
-- **Luồng liên module:** Các tương tác nghiệp vụ (như kích hoạt hợp đồng tại Leasing dẫn đến tạo hóa đơn tại Billing) được gọi trực tiếp thông qua Shared Contract interface in-process.
+### Nguyên tắc giao tiếp & Cơ chế phục hồi khi không dùng Outbox:
+- **Shared Contracts:** Do module cung cấp (producer) làm chủ interface; tuyệt đối không đưa Entity, DbContext hoặc `IQueryable` vào Shared Contracts.
+- **Cơ chế phục hồi liên module (Recovery & Idempotency):**
+  - Khi không dùng Outbox, các thao tác liên module (ví dụ: Kích hoạt hợp đồng tại `Leasing` -> Lập hóa đơn tại `Billing`) được thực thi in-process qua Shared Contract kèm theo **Trạng thái chuyển tiếp (Pending State) và Khóa Idempotent**:
+    1. Module khởi tạo (`Leasing`) lưu hợp đồng ở trạng thái `PendingActivation` (chưa chuyển sang `Active`).
+    2. Gọi `IBillingModuleContract.CreateInitialInvoiceAsync(agreementId, idempotencyKey: agreementId)`.
+    3. Phía `Billing` sử dụng `idempotencyKey` để đảm bảo không tạo hóa đơn trùng nếu có retry.
+    4. Nếu gọi thành công: `Leasing` chuyển trạng thái sang `Active`.
+    5. Nếu gọi thất bại: Trả mã lỗi `500` hoặc `409` cho client và hợp đồng chuyển `ActivationFailed`; một tác vụ định kỳ (Reconciliation Job) sẽ quét các bản ghi pending để thử lại an toàn mà không sinh trùng hóa đơn.
 - **Favorites:** Thuộc phạm vi của module `Listings` trong giai đoạn MVP (không tách module riêng). Module `Listings` chỉ lưu `UserId` tham chiếu từ `Identity`.
 
 ---

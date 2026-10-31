@@ -16,7 +16,18 @@ public class TraceIdMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
+        string traceId;
+        if (context.Request.Headers.TryGetValue(TraceIdHeaderName, out var incomingTraceId)
+            && !string.IsNullOrWhiteSpace(incomingTraceId))
+        {
+            traceId = incomingTraceId.ToString();
+        }
+        else
+        {
+            traceId = Activity.Current?.Id ?? context.TraceIdentifier;
+        }
+
+        context.Items[TraceIdHeaderName] = traceId;
 
         context.Response.OnStarting(() =>
         {

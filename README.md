@@ -42,7 +42,7 @@ HomeMatch/
 │   │   │   └── HomeMatch.Api.csproj
 │   │   │
 │   │   ├── HomeMatch.Shared/       # Abstractions, Contracts, Common Results dùng chung
-│   │   │   ├── Abstractions/       # IModule, IDomainEvent, IEntity
+│   │   │   ├── Abstractions/       # IDomainEvent, IEntity
 │   │   │   ├── Contracts/          # DTOs / Events giao tiếp liên module
 │   │   │   ├── Common/             # Result<T>, Error, ApiResponse<T>
 │   │   │   └── HomeMatch.Shared.csproj

@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\HomeMatch.Shared\HomeMatch.Shared.csproj" />
+    <ProjectReference Include="..\..\src\HomeMatch.Api\HomeMatch.Api.csproj" />
   </ItemGroup>
 
 </Project>

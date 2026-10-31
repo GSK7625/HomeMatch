@@ -40,6 +40,7 @@ builder.Services
 var app = builder.Build();
 
 // 4. HTTP Pipeline & Middlewares
+app.UseTraceId();
 app.UseCustomExceptionHandling();
 
 if (app.Environment.IsDevelopment())

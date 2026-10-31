@@ -22,3 +22,17 @@ Thay vì dùng nhiều cơ sở dữ liệu vật lý (tốn tài nguyên) hoặ
 - Không lưu file nhị phân vào PostgreSQL.
 - Ảnh bất động sản, giấy tờ tùy thân được upload trực tiếp lên **Cloudflare R2**.
 - PostgreSQL chỉ lưu trữ URL và metadata của ảnh.
+
+## 4. Quy chuẩn Thiết kế Bảng & Dữ liệu
+- **Quy ước đặt tên:** Schema viết thường (`identity`, `properties`, v.v.); Tên bảng và tên cột dùng `snake_case`.
+- **Khóa chính (ID):** Sử dụng `UUID` (Guid) cho các thực thể nghiệp vụ độc lập.
+- **Thời gian:** Mọi mốc thời gian lưu theo chuẩn UTC, kiểu dữ liệu `timestamptz`.
+- **Tiền tệ:** Sử dụng kiểu `decimal`/`numeric` với precision và đơn vị xác định rõ ràng (VND).
+- **Ranh giới quan hệ liên module:** Giữa các module chỉ lưu khóa ngoại logic dưới dạng ID (`UUID`); nghiêm cấm định nghĩa Foreign Key, Navigation Property hoặc Cascade Delete xuyên schema.
+
+## 5. Quy tắc Migrations
+- Mỗi module tự quản lý migrations và snapshot trong project của mình.
+- Lịch sử migration được lưu trữ độc lập trong từng schema qua bảng `__EFMigrationsHistory`.
+- Không sửa đổi migration đã được áp dụng trên môi trường dùng chung.
+- Không tự động chạy migration production trong quá trình khởi động API (`Program.cs`).
+

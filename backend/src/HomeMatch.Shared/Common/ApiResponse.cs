@@ -19,3 +19,9 @@ public class ApiResponse<T>
         Error = error
     };
 }
+
+public static class ApiResponse
+{
+    public static ApiResponse<T> Success<T>(T data) => ApiResponse<T>.Success(data);
+    public static ApiResponse<T> Failure<T>(Error error) => ApiResponse<T>.Failure(error);
+}

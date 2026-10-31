@@ -16,11 +16,12 @@ HomeMatch được thiết kế theo mô hình **Modular Monolith**:
 ## 2. Nguyên tắc tổ chức Module
 Mỗi module là một project Class Library (.csproj) riêng biệt với cấu trúc Clean Architecture:
 - `Domain/`: Các thực thể (Entities), Value Objects, Enums, Domain Events. Không phụ thuộc vào thư viện bên ngoài.
-- `Application/`: Use cases, Commands, Queries (MediatR/CQRS), DTOs, Repository Interfaces.
+- `Application/`: Use cases, Commands, Queries (phân tách tường minh theo nghiệp vụ, không dùng MediatR mặc định), DTOs, Repository Interfaces.
 - `Infrastructure/`: Entity Framework Core DbContext (riêng cho schema của module), Repositories, Migrations, dịch vụ bên ngoài.
-- `Presentation/`: Các Endpoints (Minimal API hoặc Controller) đăng ký vào API chung.
+- `Presentation/`: Các Minimal API Endpoints đăng ký vào API chung qua Extension Methods.
 
 ## 3. Giao tiếp giữa các Module
 - **Tuyệt đối không:** Một module không tham chiếu trực tiếp DbContext hoặc Entity nội bộ của module khác.
-- **Truy vấn đồng bộ:** Giao tiếp qua Contracts / Interfaces được định nghĩa trong `HomeMatch.Shared/Contracts`.
-- **Bất đồng bộ (Event-Driven):** Sử dụng In-Memory Event Bus (MediatR Notifications) hoặc Outbox Pattern cho các sự kiện liên module (ví dụ: khi hợp đồng kích hoạt -> gửi thông báo và sinh hóa đơn đầu tiên).
+- **Truy vấn & Thực thi liên module:** Giao tiếp qua Contracts / Interfaces được định nghĩa trong `HomeMatch.Shared/Contracts`, thực thi in-process thông qua Dependency Injection.
+- **Sự kiện nội bộ & liên module:** Sử dụng Domain Events nội bộ module và In-Memory Integration Events đơn giản trong cùng process (không sử dụng Outbox Pattern hay gọi HTTP giữa các module).
+- **Chi tiết quy chuẩn:** Xem thêm tại [Bộ Quy Tắc Backend HomeMatch v1.0](backend-rules.md).

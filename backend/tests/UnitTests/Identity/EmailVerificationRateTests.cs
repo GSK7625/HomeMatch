@@ -1,3 +1,4 @@
+using HomeMatch.Modules.Identity.Application.Authentication;
 using System.Security.Cryptography;
 using HomeMatch.Modules.Identity.Infrastructure.Configuration;
 using HomeMatch.Modules.Identity.Presentation.EmailVerification;

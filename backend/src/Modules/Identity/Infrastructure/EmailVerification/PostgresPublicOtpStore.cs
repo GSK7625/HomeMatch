@@ -18,7 +18,10 @@ public sealed class PostgresPublicOtpStore(IdentityDbContext db, UserManager<Ide
     IPasswordHasher<IdentityAccount> hasher, LoginDummyCredential dummy, ITransactionalEmailSender sender,
     IOptions<EmailVerificationOptions> options, TimeProvider clock) : IPublicOtpStore
 {
-    public async Task<Result<PublicOtpResponse>> SendAsync(string email, string purpose, string? password, CancellationToken ct)
+    public Task<Result<PublicOtpResponse>> SendAsync(string email, string purpose, string? password, CancellationToken ct)
+        => ExecuteAsync(() => SendCoreAsync(email, purpose, password, ct));
+
+    private async Task<Result<PublicOtpResponse>> SendCoreAsync(string email, string purpose, string? password, CancellationToken ct)
     {
         if (!options.Value.Enabled || !sender.IsAvailable) return Result.Failure<PublicOtpResponse>(PublicOtpErrors.Unavailable);
         var id = Guid.NewGuid(); var now = PostgresTimestamp.UtcNow(clock);
@@ -79,7 +82,10 @@ public sealed class PostgresPublicOtpStore(IdentityDbContext db, UserManager<Ide
         return accepted;
     }
 
-    public async Task<Result<PublicOtpResponse>> VerifyAsync(Guid challengeId, string code, string purpose, CancellationToken ct)
+    public Task<Result<PublicOtpResponse>> VerifyAsync(Guid challengeId, string code, string purpose, CancellationToken ct)
+        => ExecuteAsync(() => VerifyCoreAsync(challengeId, code, purpose, ct));
+
+    private async Task<Result<PublicOtpResponse>> VerifyCoreAsync(Guid challengeId, string code, string purpose, CancellationToken ct)
     {
         if (!options.Value.Enabled) return Result.Failure<PublicOtpResponse>(PublicOtpErrors.Unavailable);
         var location = await db.PublicOtpChallenges.AsNoTracking().Where(x => x.Id == challengeId && x.Purpose == purpose)
@@ -121,7 +127,10 @@ public sealed class PostgresPublicOtpStore(IdentityDbContext db, UserManager<Ide
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return result;
     }
 
-    public async Task<Result<PublicOtpResponse>> ResetAsync(string token, string password, CancellationToken ct)
+    public Task<Result<PublicOtpResponse>> ResetAsync(string token, string password, CancellationToken ct)
+        => ExecuteAsync(() => ResetCoreAsync(token, password, ct));
+
+    private async Task<Result<PublicOtpResponse>> ResetCoreAsync(string token, string password, CancellationToken ct)
     {
         if (!options.Value.Enabled) return Result.Failure<PublicOtpResponse>(PublicOtpErrors.Unavailable);
         var hash = RefreshSecrets.TryHash(token);
@@ -145,6 +154,13 @@ public sealed class PostgresPublicOtpStore(IdentityDbContext db, UserManager<Ide
             .ExecuteUpdateAsync(u => u.SetProperty(x => x.Closed, true).SetProperty(x => x.ResetUsed, true), ct);
         challenge.ResetUsed = true;
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return Result.Success(new PublicOtpResponse("Reset"));
+    }
+
+    private static async Task<Result<PublicOtpResponse>> ExecuteAsync(Func<Task<Result<PublicOtpResponse>>> operation)
+    {
+        try { return await operation(); }
+        catch (Exception exception) when (IdentityDatabaseFailure.IsUnavailable(exception))
+        { return Result.Failure<PublicOtpResponse>(PublicOtpErrors.Unavailable); }
     }
 
     private static bool ValidAccount(IdentityAccount? a, PublicOtpChallenge c) => a is not null

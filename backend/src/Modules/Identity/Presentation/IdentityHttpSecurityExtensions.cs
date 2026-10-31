@@ -1,8 +1,6 @@
 using System.Threading.RateLimiting;
 using HomeMatch.Modules.Identity.Application.Authentication;
 using HomeMatch.Modules.Identity.Domain;
-using HomeMatch.Modules.Identity.Infrastructure.Authentication;
-using HomeMatch.Modules.Identity.Infrastructure.Configuration;
 using HomeMatch.Modules.Identity.Presentation.Authentication;
 using HomeMatch.Shared.Common;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -24,8 +22,6 @@ public static class IdentityHttpSecurityExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentIdentity, HttpCurrentIdentity>();
-        services.AddScoped<IAccessIdentityReader, DatabaseAccessIdentityReader>();
-        services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
         services.AddScoped<IdentityJwtEvents>();
         services.AddScoped<IdentityBrowserSecurity>();
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();

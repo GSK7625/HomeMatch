@@ -1,3 +1,6 @@
+using HomeMatch.Modules.Identity.Presentation.PublicOtp;
+using HomeMatch.Modules.Identity.Application.PublicOtp;
+using HomeMatch.Modules.Identity.Application.Authentication;
 using HomeMatch.Modules.Identity.Application.EmailVerification;
 using HomeMatch.Modules.Identity.Infrastructure.EmailVerification;
 using HomeMatch.Modules.Identity.Presentation.EmailVerification;
@@ -31,7 +34,6 @@ public static class IdentityModuleExtensions
 {
     public static IServiceCollection AddIdentityModule(this IServiceCollection services, IConfiguration configuration)
     {
-        // TODO: Register application use cases and their adapters as each feature is implemented.
         services.AddSingleton<IValidateOptions<JwtOptions>, JwtOptionsValidator>();
         services.AddSingleton<IValidateOptions<IdentitySessionOptions>, IdentitySessionOptionsValidator>();
         services.AddSingleton<IValidateOptions<IdentityDatabaseOptions>, IdentityDatabaseOptionsValidator>();
@@ -79,12 +81,12 @@ public static class IdentityModuleExtensions
         services.AddScoped<IPasswordValidator<IdentityAccount>, IdentityNewPasswordValidator>();
         services.AddScoped<IRegistrationStore, PostgresRegistrationStore>();
         services.AddScoped<RegisterAccountHandler>();
-        services.AddScoped<HomeMatch.Modules.Identity.Application.PublicOtp.IPublicOtpService, HomeMatch.Modules.Identity.Application.PublicOtp.PublicOtpService>();
-        services.AddScoped<HomeMatch.Modules.Identity.Application.PublicOtp.IPublicOtpStore, PostgresPublicOtpStore>();
-        services.AddScoped<HomeMatch.Modules.Identity.Application.PublicOtp.SendPublicOtpHandler>();
-        services.AddScoped<HomeMatch.Modules.Identity.Application.PublicOtp.VerifyPublicOtpHandler>();
-        services.AddScoped<HomeMatch.Modules.Identity.Application.PublicOtp.ResetPasswordHandler>();
-        services.AddSingleton<HomeMatch.Modules.Identity.Presentation.PublicOtp.PublicOtpLimiter>();
+        services.AddScoped<IPublicOtpService, PublicOtpService>();
+        services.AddScoped<IPublicOtpStore, PostgresPublicOtpStore>();
+        services.AddScoped<SendPublicOtpHandler>();
+        services.AddScoped<VerifyPublicOtpHandler>();
+        services.AddScoped<ResetPasswordHandler>();
+        services.AddSingleton<PublicOtpLimiter>();
         services.AddScoped<ILoginStore, PostgresLoginStore>();
         services.AddScoped<LoginHandler>();
         services.AddSingleton<LoginDummyCredential>();
@@ -110,6 +112,8 @@ public static class IdentityModuleExtensions
         services.AddScoped<RequestEmailVerificationHandler>();
         services.AddSingleton<EmailVerificationRequestReader>();
         services.AddSingleton<EmailVerificationRateLimiter>();
+        services.AddScoped<IAccessIdentityReader, DatabaseAccessIdentityReader>();
+        services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
         services.AddIdentityHttpSecurity();
         return services;
     }

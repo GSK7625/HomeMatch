@@ -1,4 +1,4 @@
-namespace HomeMatch.Modules.Identity.Infrastructure.Configuration;
+namespace HomeMatch.Modules.Identity.Application.Authentication;
 
 /// <summary>JWT settings; Secret is a base64-encoded, randomly generated signing key.</summary>
 public sealed class JwtOptions

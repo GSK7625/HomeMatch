@@ -1,9 +1,8 @@
+using HomeMatch.Modules.Identity.Application.Authentication;
 using System.Globalization;
 using System.Text.Json;
 using HomeMatch.Modules.Identity.Application.PublicOtp;
 using HomeMatch.Modules.Identity.Domain.Validation;
-using HomeMatch.Modules.Identity.Infrastructure.Configuration;
-using HomeMatch.Modules.Identity.Infrastructure.Persistence;
 using HomeMatch.Modules.Identity.Presentation.Http;
 using HomeMatch.Shared.Common;
 using Microsoft.AspNetCore.Builder;
@@ -65,14 +64,10 @@ public static class PublicOtpEndpoints
             IdentityJsonError.UnsupportedMediaType => IdentityHttpErrors.UnsupportedMediaType(),
             _ => IdentityHttpErrors.ValidationFailed()
         };
-        try
-        {
-            var result = action == "send" ? await service.SendAsync(input!.Email, purpose, input.Password, c.RequestAborted)
-                : action == "verify" ? await service.VerifyAsync(input!.Id, input.Code, purpose, c.RequestAborted)
-                : await service.ResetAsync(input!.Token, input.Password, c.RequestAborted);
-            return MapResult(c, result);
-        }
-        catch (Exception e) when (IdentityDatabaseFailure.IsUnavailable(e)) { return IdentityHttpErrors.DependencyUnavailable(); }
+        var result = action == "send" ? await service.SendAsync(input!.Email, purpose, input.Password, c.RequestAborted)
+            : action == "verify" ? await service.VerifyAsync(input!.Id, input.Code, purpose, c.RequestAborted)
+            : await service.ResetAsync(input!.Token, input.Password, c.RequestAborted);
+        return MapResult(c, result);
     }
     public static IResult MapResult(HttpContext context, Result<PublicOtpResponse> result)
     {

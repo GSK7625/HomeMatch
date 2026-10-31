@@ -1,3 +1,4 @@
+using HomeMatch.Modules.Identity.Application.Authentication;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
 

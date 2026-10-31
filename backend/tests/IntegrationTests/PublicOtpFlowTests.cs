@@ -25,6 +25,35 @@ public sealed class PublicOtpFlowTests(PostgresDatabaseFixture database) : IClas
     }
     private static async Task<JsonElement> Data(HttpResponseMessage response)
     { response.EnsureSuccessStatusCode(); return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("data"); }
+
+    [Theory]
+    [InlineData("registration/send-otp")]
+    [InlineData("forgot-password")]
+    [InlineData("registration/verify-otp")]
+    [InlineData("forgot-password/verify-otp")]
+    [InlineData("reset-password")]
+    public async Task UnavailableDatabaseReturnsDependencyFailureWithoutExposingProviderDetails(string route)
+    {
+        await using var factory = new ApiFactory(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Host=127.0.0.1;Port=1;Database=unavailable;Username=test;Timeout=1;Pooling=false"
+        });
+        using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://api.example.test") });
+        object input = route.Contains("verify-otp")
+            ? new { challengeId = Guid.NewGuid(), code = "123456" }
+            : route == "reset-password"
+                ? new { resetToken = HomeMatch.Modules.Identity.Infrastructure.Authentication.RefreshSecrets.Create().Raw, newPassword = "Password123" }
+                : route == "registration/send-otp"
+                    ? new { email = "test@example.test", password = "Password123" }
+                    : new { email = "test@example.test" };
+        using var response = await client.PostAsJsonAsync(Root + route, input);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(body.GetProperty("isSuccess").GetBoolean());
+        Assert.Equal("Server.DependencyUnavailable", body.GetProperty("error").GetProperty("code").GetString());
+        Assert.DoesNotContain("Npgsql", body.GetRawText());
+    }
+
     [Theory]
     [InlineData("normal")]
     [InlineData("locked")]

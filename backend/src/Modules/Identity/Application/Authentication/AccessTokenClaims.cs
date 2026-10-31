@@ -3,7 +3,7 @@ using System.Security.Claims;
 using HomeMatch.Modules.Identity.Application.Authentication;
 using HomeMatch.Modules.Identity.Domain;
 
-namespace HomeMatch.Modules.Identity.Infrastructure.Authentication;
+namespace HomeMatch.Modules.Identity.Application.Authentication;
 
 public static class AccessTokenClaims
 {

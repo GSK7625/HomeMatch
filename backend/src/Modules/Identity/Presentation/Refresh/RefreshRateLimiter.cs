@@ -1,5 +1,5 @@
+using HomeMatch.Modules.Identity.Application.Authentication;
 using HomeMatch.Modules.Identity.Application.Refresh;
-using HomeMatch.Modules.Identity.Infrastructure.Configuration;
 using HomeMatch.Modules.Identity.Presentation.Http;
 using Microsoft.Extensions.Options;
 

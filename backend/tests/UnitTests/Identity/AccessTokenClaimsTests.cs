@@ -1,3 +1,4 @@
+using HomeMatch.Modules.Identity.Application.Authentication;
 using System.Security.Claims;
 using HomeMatch.Modules.Identity.Infrastructure.Authentication;
 

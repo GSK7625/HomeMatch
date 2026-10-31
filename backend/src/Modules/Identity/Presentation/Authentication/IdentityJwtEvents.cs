@@ -1,7 +1,5 @@
 using System.Data.Common;
 using HomeMatch.Modules.Identity.Application.Authentication;
-using HomeMatch.Modules.Identity.Infrastructure.Configuration;
-using HomeMatch.Modules.Identity.Infrastructure.Authentication;
 using HomeMatch.Modules.Identity.Presentation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;

@@ -34,7 +34,7 @@ public class ExceptionHandlingMiddleware
         {
             await _next(context);
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException ex) when (context.RequestAborted.IsCancellationRequested)
         {
             var traceId = GetTraceId(context);
             _logger.LogInformation(ex, "[{TraceId}] Request was cancelled by the client.", traceId);

@@ -44,11 +44,15 @@ public class ExceptionHandlingMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_WhenOperationCanceledException_ShouldSetStatus499AndNotReturn500()
+    public async Task InvokeAsync_WhenClientCancelsRequest_ShouldSetStatus499AndNotReturn500()
     {
         // Arrange
         var context = new DefaultHttpContext();
-        RequestDelegate next = _ => throw new OperationCanceledException();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        context.RequestAborted = cts.Token;
+
+        RequestDelegate next = _ => throw new OperationCanceledException(cts.Token);
         var middleware = new ExceptionHandlingMiddleware(next, _logger);
 
         // Act
@@ -56,6 +60,26 @@ public class ExceptionHandlingMiddlewareTests
 
         // Assert
         Assert.Equal(499, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WhenInternalTimeoutOccursWithoutClientCancelling_ShouldReturn500()
+    {
+        // Arrange
+        var context = new DefaultHttpContext();
+        var responseBodyStream = new MemoryStream();
+        context.Response.Body = responseBodyStream;
+
+        // Client token is NOT cancelled, but downstream throws TaskCanceledException (e.g., DB query timeout)
+        RequestDelegate next = _ => throw new TaskCanceledException("Database internal timeout");
+        var middleware = new ExceptionHandlingMiddleware(next, _logger);
+
+        // Act
+        await middleware.InvokeAsync(context);
+
+        // Assert
+        Assert.Equal(500, context.Response.StatusCode);
+        Assert.Equal("application/json", context.Response.ContentType);
     }
 
     [Fact]

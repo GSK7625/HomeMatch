@@ -30,7 +30,7 @@ HomeMatch is a Monorepo comprising a Next.js 15 Frontend and an ASP.NET Core .NE
   - Shared components in `src/components/`, common logic in `src/lib/`, `src/hooks/`, `src/types/`.
 - `backend/`: ASP.NET Core (.NET 10) Modular Monolith.
   - `src/HomeMatch.Api/`: Entry point, routing, middleware, Swagger/Scalar docs.
-  - `src/HomeMatch.Shared/`: Shared contracts, common abstractions (`IModule`, `IDomainEvent`), and API response types (`ApiResponse<T>`, `Result<T>`).
+  - `src/HomeMatch.Shared/`: Shared contracts, common abstractions (`IDomainEvent`, `IEntity`), and API response types (`ApiResponse<T>`, `Result<T>`).
   - `src/Modules/`: 8 independent business modules (`Identity`, `Properties`, `Listings`, `Viewings`, `Messaging`, `Leasing`, `Billing`, `Notifications`).
   - `tests/`: `UnitTests/` and `IntegrationTests/`.
 - `infrastructure/`: Docker Compose (`compose.yaml`), Nginx reverse proxy configuration, and PostgreSQL initialization scripts.

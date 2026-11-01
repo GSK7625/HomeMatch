@@ -78,7 +78,7 @@ curl.exe http://localhost:5000/health
 
 Kết quả health cần có `"status":"Healthy"`. Health chỉ xác nhận host API đang chạy; để xác nhận database và SMTP, hãy làm các request thực tế bên dưới. Mở `http://localhost:5000/scalar/v1` và dùng đúng **cổng 5000** suốt quá trình test. Tài khoản đã tạo trên database test ở cổng 5207 vẫn có thể dùng vì hai backend trỏ cùng database; token JWT/CSRF cần lấy mới từ backend Docker.
 
-Database test trong tình huống này đã được áp migration `ConvertIdentityToBigInt`, nên không chạy lại script `HomeMatch_Database.sql` và không cần initialize lần nữa. Với database test **mới hoàn toàn, chưa có migration**, chạy image backend một lần với `--initialize-identity` và cùng network/cấu hình kết nối trước khi khởi động API; không trộn database đã tạo bằng SQL 44 bảng với chuỗi migration UUID.
+Database test phải bắt đầu trống và dùng migration duy nhất `20261101031824_InitialCreate`. Chạy image backend một lần với `--initialize-identity` và cùng network/cấu hình kết nối trước khi khởi động API. Không áp migration này lên database đã nạp `HomeMatch_Database.sql`: script đó tạo schema Identity theo bản thiết kế khác với model BIGINT hiện tại.
 
 ## 3. Quy tắc thao tác trên Scalar
 

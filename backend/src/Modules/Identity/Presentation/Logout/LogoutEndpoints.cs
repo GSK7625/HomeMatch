@@ -12,7 +12,7 @@ public static class LogoutEndpoints
 {
     public static async Task<IResult> CurrentAsync(HttpContext context, IdentityBrowserSecurity browser,
         IAntiforgery antiforgery, LogoutRequestReader reader, LogoutRateLimiter limiter,
-        ILogoutSessionService service, RefreshCookie cookie)
+        AuthService service, RefreshCookie cookie)
     {
         var failure = await browser.ValidateMutationAsync(context, antiforgery);
         if (failure is not null) return failure;
@@ -27,7 +27,7 @@ public static class LogoutEndpoints
     }
 
     public static async Task<IResult> AllAsync(HttpContext context, ICurrentIdentity current, LogoutRequestReader reader,
-        LogoutRateLimiter limiter, ILogoutSessionService service, RefreshCookie cookie)
+        LogoutRateLimiter limiter, AuthService service, RefreshCookie cookie)
     {
         if (current.Identity is not { } identity) return AuthenticationRequired(context);
         var retry = limiter.TryAll(ClientAddress(context), identity.UserId);

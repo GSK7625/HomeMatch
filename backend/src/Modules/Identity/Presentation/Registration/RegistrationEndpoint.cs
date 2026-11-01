@@ -1,3 +1,4 @@
+using HomeMatch.Modules.Identity.Application.Authentication;
 using HomeMatch.Modules.Identity.Application.PublicOtp;
 using HomeMatch.Modules.Identity.Presentation.PublicOtp;
 using System.Globalization;
@@ -11,7 +12,7 @@ namespace HomeMatch.Modules.Identity.Presentation.Registration;
 public static class RegistrationEndpoint
 {
     public static async Task<IResult> HandleAsync(HttpContext context, RegistrationRequestReader reader,
-        RegistrationRateLimiter limiter, RegisterAccountHandler handler, SendPublicOtpHandler otp)
+        RegistrationRateLimiter limiter, AuthService service, SendPublicOtpHandler otp)
     {
         var read = await reader.ReadAsync(context.Request, context.RequestAborted);
         var normalized = AccountInput.TryNormalizeEmail(read.Command?.Email, out _, out var emailKey) ? emailKey : null;
@@ -27,7 +28,7 @@ public static class RegistrationEndpoint
             RegistrationReadError.UnsupportedMediaType => IdentityHttpErrors.UnsupportedMediaType(),
             _ => IdentityHttpErrors.ValidationFailed()
         };
-        var outcome = await handler.HandleAsync(read.Command!, context.RequestAborted);
+        var outcome = await service.RegisterAsync(read.Command!, context.RequestAborted);
         if (outcome == RegistrationOutcome.Invalid) return IdentityHttpErrors.ValidationFailed();
         if (outcome != RegistrationOutcome.Accepted) return IdentityHttpErrors.DependencyUnavailable();
         var result = await otp.HandleAsync(normalized!, "Registration", read.Command!.Password, context.RequestAborted);

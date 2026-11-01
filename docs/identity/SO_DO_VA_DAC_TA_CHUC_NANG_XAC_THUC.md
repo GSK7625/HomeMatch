@@ -503,12 +503,13 @@ Khi triển khai cài đặt tài khoản, cập nhật phiên bản, sơ đồ 
 Đường dẫn dưới đây tương đối với repository HomeMatch:
 
 - Route: `backend/src/Modules/Identity/Presentation/IdentityEndpoints.cs`, `Presentation/PublicOtp/PublicOtpEndpoints.cs`.
-- OTP: `Application/PublicOtp/PublicOtpResponse.cs`, `Application/PublicOtp/SendPublicOtpHandler.cs`, `VerifyPublicOtpHandler.cs`, `ResetPasswordHandler.cs`, `Infrastructure/EmailVerification/PostgresPublicOtpStore.cs`, `Domain/Entities/PublicOtpChallenge.cs`.
-- Đăng ký/login: `Application/Registration`, `Application/Login`, `Infrastructure/Persistence/PostgresRegistrationStore.cs`, `PostgresLoginStore.cs`.
+- OTP: `Application/PublicOtp/PublicOtpContracts.cs`, `Application/PublicOtp/PublicOtpHandlers.cs`, `Infrastructure/EmailVerification/PostgresPublicOtpStore.cs`, `Domain/Entities/PublicOtpChallenge.cs`.
+- Đăng ký/login/refresh/logout: `Application/Authentication/AuthService.cs`, `Application/DTOs/AuthRequestDtos.cs`, `Infrastructure/Persistence/AuthStores.cs`.
 - Policy dữ liệu: `Application/Registration/NewPasswordPolicy.cs`, `Domain/Validation/AccountInput.cs`.
 - Role/quyền: `Domain/AccountRoles.cs`, `Presentation/Authentication/IdentityPolicies.cs`, `Presentation/IdentityHttpSecurityExtensions.cs`.
-- Phiên: `PostgresLogoutSessionService.cs`, `PostgresRefreshSessionService.cs`, `PostgresSessionRevocation.cs` trong `Infrastructure/Persistence`.
-- DB: `Infrastructure/Persistence/IdentityDbContext.cs`, `Configurations`, migration `20261031121117_ConvertIdentityToBigInt`; chi tiết tại [thiết kế dữ liệu](../database/DATABASE_DOCUMENTATION.md).
+- Phiên: các store trong `Infrastructure/Persistence/AuthStores.cs`; quy tắc thu hồi và chuẩn hóa thời gian ở `Infrastructure/Persistence/IdentityPersistenceHelpers.cs`.
+- DB: `Infrastructure/Persistence/IdentityDbContext.cs`, `Configurations`, migration duy nhất `20261101031824_InitialCreate`; chi tiết tại [thiết kế dữ liệu](../database/DATABASE_DOCUMENTATION.md).
 - Ranh giới lớp xác thực: `Application/Authentication/JwtOptions.cs`, `AccessTokenClaims.cs`; đăng ký implementation tại `IdentityModuleExtensions.cs`.
 - Kiểm thử luồng mới: `backend/tests/IntegrationTests/PublicOtpFlowTests.cs`.
 - Hướng dẫn API: [OTP đăng ký và quên mật khẩu](OTP_DANG_KY_VA_QUEN_MAT_KHAU.md).
+- Giải thích cấu trúc và đường đi của code: [Identity: kiến trúc, luồng code và ranh giới module](RANH_GIOI_MODULE_VA_LUONG_CODE.md).

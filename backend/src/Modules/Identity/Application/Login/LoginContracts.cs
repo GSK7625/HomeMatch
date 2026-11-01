@@ -2,11 +2,6 @@ using HomeMatch.Modules.Identity.Application.Authentication;
 
 namespace HomeMatch.Modules.Identity.Application.Login;
 
-public sealed record LoginCommand(string? Email, string? Password)
-{
-    public override string ToString() => "LoginCommand { [redacted] }";
-}
-
 public sealed record ValidatedLogin(string NormalizedEmail, string Password)
 {
     public override string ToString() => "ValidatedLogin { [redacted] }";

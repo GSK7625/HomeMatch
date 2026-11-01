@@ -11,7 +11,7 @@ public sealed record RefreshResult(RefreshOutcome Outcome, IssuedAccessToken? To
 }
 
 /// <summary>Atomic refresh use case; HTTP details and cookie access stay in Presentation.</summary>
-public interface IRefreshSessionService
+public interface IRefreshSessionStore
 {
     Task<RefreshResult> RefreshAsync(string? rawSecret, string clientAddress, CancellationToken cancellationToken);
 }

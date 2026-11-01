@@ -13,7 +13,7 @@ namespace HomeMatch.Modules.Identity.Presentation.Login;
 public static class LoginEndpoint
 {
     public static async Task<IResult> HandleAsync(HttpContext context, IdentityBrowserSecurity browser,
-        IAntiforgery antiforgery, LoginRequestReader reader, LoginRateLimiter limiter, LoginHandler handler, RefreshCookie cookie)
+        IAntiforgery antiforgery, LoginRequestReader reader, LoginRateLimiter limiter, AuthService service, RefreshCookie cookie)
     {
         var failure = await browser.ValidateMutationAsync(context, antiforgery);
         if (failure is not null) return failure;
@@ -32,7 +32,7 @@ public static class LoginEndpoint
             _ => IdentityHttpErrors.ValidationFailed()
         };
 
-        var result = await handler.HandleAsync(read.Value!, cookie.Read(context), context.RequestAborted);
+        var result = await service.LoginAsync(read.Value!, cookie.Read(context), context.RequestAborted);
         if (result.Outcome == LoginOutcome.Succeeded)
         {
             cookie.Write(context, result.RefreshSecret!);

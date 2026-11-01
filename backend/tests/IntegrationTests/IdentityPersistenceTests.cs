@@ -23,13 +23,8 @@ public class IdentityPersistenceTests(PostgresDatabaseFixture database)
         await using var scope = database.Services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         var applied = (await context.Database.GetAppliedMigrationsAsync()).ToArray();
-        Assert.Equal(9, applied.Length);
-        Assert.EndsWith("_InitialIdentity", applied[0]);
-        Assert.EndsWith("_AddAccountSessions", applied[1]);
-        Assert.EndsWith("_AddRefreshCredentials", applied[2]);
-        Assert.EndsWith("_AddRefreshRotation", applied[3]);
-        Assert.EndsWith("_AddEmailVerification", applied[4]);
-        Assert.EndsWith("_SimplifyLoginPolicy", applied[5]);
+        Assert.Single(applied);
+        Assert.EndsWith("_InitialCreate", applied[0]);
         Assert.False(context.Database.HasPendingModelChanges());
         Assert.All(context.Model.GetEntityTypes(), entity => Assert.Equal("identity", entity.GetSchema()));
 

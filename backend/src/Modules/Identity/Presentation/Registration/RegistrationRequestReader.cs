@@ -1,3 +1,4 @@
+using HomeMatch.Modules.Identity.Application.DTOs;
 using System.Text.Json;
 using HomeMatch.Modules.Identity.Application.Registration;
 using HomeMatch.Modules.Identity.Presentation.Http;
@@ -6,7 +7,7 @@ using Microsoft.AspNetCore.Http;
 namespace HomeMatch.Modules.Identity.Presentation.Registration;
 
 public enum RegistrationReadError { None, Invalid, TooLarge, UnsupportedMediaType }
-public sealed record RegistrationReadResult(RegisterAccountCommand? Command, RegistrationReadError Error);
+public sealed record RegistrationReadResult(RegistrationRequestDto? Command, RegistrationReadError Error);
 
 public sealed class RegistrationRequestReader
 {
@@ -14,7 +15,7 @@ public sealed class RegistrationRequestReader
 
     public async Task<RegistrationReadResult> ReadAsync(HttpRequest request, CancellationToken cancellationToken)
     {
-        var result = await IdentityJsonReader.ReadAsync<RegisterAccountCommand>(request, Parse, cancellationToken);
+        var result = await IdentityJsonReader.ReadAsync<RegistrationRequestDto>(request, Parse, cancellationToken);
         return new(result.Value, result.Error switch
         {
             IdentityJsonError.None => RegistrationReadError.None,
@@ -24,7 +25,7 @@ public sealed class RegistrationRequestReader
         });
     }
 
-    private static RegisterAccountCommand? Parse(JsonElement root)
+    private static RegistrationRequestDto? Parse(JsonElement root)
     {
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var property in root.EnumerateObject())
@@ -35,6 +36,6 @@ public sealed class RegistrationRequestReader
                 return null;
         }
         return values.Count == 4
-            ? new RegisterAccountCommand(values["email"], values["password"], values["fullName"], values["role"]) : null;
+            ? new RegistrationRequestDto(values["email"], values["password"], values["fullName"], values["role"]) : null;
     }
 }

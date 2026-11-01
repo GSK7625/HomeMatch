@@ -1,3 +1,4 @@
+using HomeMatch.Modules.Identity.Application.DTOs;
 using HomeMatch.Modules.Identity.Application.Authentication;
 using System.Security.Cryptography;
 using System.Text;
@@ -60,7 +61,7 @@ public class LoginPolicyTests
     public async Task LoginDoesNotApplyNewPasswordCreationRules(string password)
     {
         var store = new Store();
-        await new LoginHandler(store).HandleAsync(new LoginCommand(" User+tag@Example.test ", password), null, default);
+        await new AuthService(store, null!, null!, null!, null!).LoginAsync(new LoginRequestDto(" User+tag@Example.test ", password), null, default);
         Assert.Equal("USER+TAG@EXAMPLE.TEST", store.Last!.NormalizedEmail);
         Assert.Equal(password, store.Last.Password);
     }
@@ -73,7 +74,7 @@ public class LoginPolicyTests
     public async Task InvalidLoginInputCannotReachStore(string invalid)
     {
         var store = new Store();
-        var result = await new LoginHandler(store).HandleAsync(new LoginCommand(invalid == "email" ? "invalid" : "a@example.test",
+        var result = await new AuthService(store, null!, null!, null!, null!).LoginAsync(new LoginRequestDto(invalid == "email" ? "invalid" : "a@example.test",
             invalid == "password" ? null : invalid == "empty" ? "" : invalid == "length" ? new string('a', 129) : "old"), null, default);
         Assert.Equal(LoginOutcome.InvalidInput, result.Outcome);
         Assert.Null(store.Last);

@@ -24,7 +24,7 @@ public sealed class PostgresPublicOtpStore(IdentityDbContext db, UserManager<Ide
     private async Task<Result<PublicOtpResponse>> SendCoreAsync(string email, string purpose, string? password, CancellationToken ct)
     {
         if (!options.Value.Enabled || !sender.IsAvailable) return Result.Failure<PublicOtpResponse>(PublicOtpErrors.Unavailable);
-        var id = Guid.NewGuid(); var now = PostgresTimestamp.UtcNow(clock);
+        var id = Guid.NewGuid(); var now = PostgresTimestampHelper.UtcNow(clock);
         var code = RandomNumberGenerator.GetInt32(1_000_000).ToString("D6", CultureInfo.InvariantCulture);
         Result<PublicOtpResponse> accepted = Result.Success(new PublicOtpResponse("Submitted", id, now.AddMinutes(5), RetryAfterSeconds: 60));
         IdentityAccount? account;
@@ -94,7 +94,7 @@ public sealed class PostgresPublicOtpStore(IdentityDbContext db, UserManager<Ide
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var account = await LockAccountAsync(location.Value, ct);
         var challenge = await db.PublicOtpChallenges.SingleAsync(x => x.Id == challengeId, ct);
-        var now = PostgresTimestamp.UtcNow(clock);
+        var now = PostgresTimestampHelper.UtcNow(clock);
         var quota = await WindowAsync("publicverify:" + location.Value.ToString("N"), now, TimeSpan.FromMinutes(15), false, ct);
         if (quota.RetryAfter(now, 20) is { } retry) return Result.Failure<PublicOtpResponse>(new PublicOtpRateLimitError((int)Math.Ceiling(retry.TotalSeconds)));
         quota.Consume(now, 20);
@@ -140,7 +140,7 @@ public sealed class PostgresPublicOtpStore(IdentityDbContext db, UserManager<Ide
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var account = await LockAccountAsync(location.Value, ct);
         var challenge = await db.PublicOtpChallenges.SingleAsync(x => x.ResetTokenHash == hash, ct);
-        var now = PostgresTimestamp.UtcNow(clock);
+        var now = PostgresTimestampHelper.UtcNow(clock);
         if (!ValidAccount(account, challenge) || !account!.EmailConfirmed || challenge.ResetUsed || challenge.ResetExpiresAt is null || challenge.ResetExpiresAt <= now)
             return Result.Failure<PublicOtpResponse>(PublicOtpErrors.Invalid);
         if (!await db.CredentialTokens.AnyAsync(token => token.UserId == account.Id && token.TokenHash == hash
@@ -149,7 +149,7 @@ public sealed class PostgresPublicOtpStore(IdentityDbContext db, UserManager<Ide
         account.PasswordHash = hasher.HashPassword(account, password);
         account.SecurityStamp = Guid.NewGuid().ToString("N"); account.ConcurrencyStamp = Guid.NewGuid().ToString("N");
         account.SecurityVersion = checked(account.SecurityVersion + 1); account.UpdatedAt = now;
-        await PostgresSessionRevocation.RevokeAccountAsync(db, account.Id, now, ct);
+        await SessionRevocationHelper.RevokeAccountAsync(db, account.Id, now, ct);
         await db.PublicOtpChallenges.Where(x => x.UserId == account.Id)
             .ExecuteUpdateAsync(u => u.SetProperty(x => x.Closed, true).SetProperty(x => x.ResetUsed, true), ct);
         challenge.ResetUsed = true;
@@ -159,7 +159,7 @@ public sealed class PostgresPublicOtpStore(IdentityDbContext db, UserManager<Ide
     private static async Task<Result<PublicOtpResponse>> ExecuteAsync(Func<Task<Result<PublicOtpResponse>>> operation)
     {
         try { return await operation(); }
-        catch (Exception exception) when (IdentityDatabaseFailure.IsUnavailable(exception))
+        catch (Exception exception) when (DatabaseFailureHelper.IsUnavailable(exception))
         { return Result.Failure<PublicOtpResponse>(PublicOtpErrors.Unavailable); }
     }
 

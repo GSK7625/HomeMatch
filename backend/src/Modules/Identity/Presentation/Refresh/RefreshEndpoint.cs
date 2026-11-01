@@ -12,7 +12,7 @@ namespace HomeMatch.Modules.Identity.Presentation.Refresh;
 public static class RefreshEndpoint
 {
     public static async Task<IResult> HandleAsync(HttpContext context, IdentityBrowserSecurity browser,
-        IAntiforgery antiforgery, RefreshRequestReader reader, IRefreshSessionService service,
+        IAntiforgery antiforgery, RefreshRequestReader reader, AuthService service,
         IRefreshRequestQuota quota, RefreshCookie cookie)
     {
         var failure = await browser.ValidateMutationAsync(context, antiforgery);

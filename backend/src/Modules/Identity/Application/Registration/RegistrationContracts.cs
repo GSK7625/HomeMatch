@@ -1,6 +1,5 @@
 namespace HomeMatch.Modules.Identity.Application.Registration;
 
-public sealed record RegisterAccountCommand(string? Email, string? Password, string? FullName, string? Role);
 public sealed record ValidatedRegistration(string Email, string NormalizedEmail, string Password, string FullName, string Role);
 
 public enum RegistrationOutcome { Accepted, Invalid, Unavailable }

@@ -1,5 +1,5 @@
-using System.Globalization;
 using HomeMatch.Modules.Identity.Application.Authentication;
+using HomeMatch.Modules.Identity.Application.DTOs;
 using HomeMatch.Modules.Identity.Application.Login;
 using HomeMatch.Modules.Identity.Domain.Validation;
 using HomeMatch.Modules.Identity.Presentation.Authentication;
@@ -7,32 +7,33 @@ using HomeMatch.Modules.Identity.Presentation.Http;
 using HomeMatch.Shared.Common;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http;
+using System.Globalization;
 
 namespace HomeMatch.Modules.Identity.Presentation.Login;
 
 public static class LoginEndpoint
 {
     public static async Task<IResult> HandleAsync(HttpContext context, IdentityBrowserSecurity browser,
-        IAntiforgery antiforgery, LoginRequestReader reader, LoginRateLimiter limiter, AuthService service, RefreshCookie cookie)
+        IAntiforgery antiforgery, IdentityQuotas limiter, AuthService service, RefreshCookie cookie,
+        IdentityBody<LoginRequestDto> body)
     {
         var failure = await browser.ValidateMutationAsync(context, antiforgery);
         if (failure is not null) return failure;
-        var read = await reader.ReadAsync(context.Request, context.RequestAborted);
-        var email = AccountInput.TryNormalizeEmail(read.Value?.Email, out _, out var normalized) ? normalized : null;
-        var retry = limiter.TryAcquire(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", email);
+        var email = AccountInput.TryNormalizeEmail(body.Value?.Email, out _, out var normalized) ? normalized : null;
+        var retry = limiter.TryLogin(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", email);
         if (retry is not null)
         {
             context.Response.Headers.RetryAfter = Math.Max(1, (int)Math.Ceiling(retry.Value.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
             return IdentityHttpErrors.RateLimited();
         }
-        if (read.Error != IdentityJsonError.None) return read.Error switch
+        if (body.Error != IdentityJsonError.None) return body.Error switch
         {
             IdentityJsonError.TooLarge => IdentityHttpErrors.RequestTooLarge(),
             IdentityJsonError.UnsupportedMediaType => IdentityHttpErrors.UnsupportedMediaType(),
             _ => IdentityHttpErrors.ValidationFailed()
         };
 
-        var result = await service.LoginAsync(read.Value!, cookie.Read(context), context.RequestAborted);
+        var result = await service.LoginAsync(body.Value!, cookie.Read(context), context.RequestAborted);
         if (result.Outcome == LoginOutcome.Succeeded)
         {
             cookie.Write(context, result.RefreshSecret!);

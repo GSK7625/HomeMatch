@@ -48,6 +48,26 @@ Quy trình thực tế để vạch ranh giới:
 
 `Domain/Entities` bên trong Identity **không phải các bounded context mới**. `AccountSession` và `RefreshCredential` là hai thực thể của cùng ngữ cảnh Identity vì quy tắc xác thực phiên của chúng gắn với nhau. Nếu tách một module cho từng bảng, một lần refresh sẽ phải gọi xuyên nhiều module chỉ để hoàn tất một transaction bảo mật; ranh giới đó làm nghiệp vụ khó hiểu hơn.
 
+Sơ đồ dưới đây đặt **nguồn sự thật** cạnh từng ngữ cảnh. Mũi tên đứt nét biểu thị nhu cầu trao đổi khi các nghiệp vụ dự kiến được xây dựng; hiện chỉ có mũi tên liền Identity → Notifications hoạt động qua contract gửi email.
+
+```mermaid
+flowchart LR
+    I["Identity<br/>Tài khoản, quyền, phiên, OTP"]
+    N["Notifications<br/>Vận chuyển email"]
+    P["Properties<br/>Nhà và phòng - dự kiến"]
+    L["Listings<br/>Tin đăng - dự kiến"]
+    V["Viewings<br/>Lịch xem - dự kiến"]
+    M["Messaging<br/>Hội thoại - dự kiến"]
+    C["Leasing<br/>Hợp đồng - dự kiến"]
+    B["Billing<br/>Hóa đơn - dự kiến"]
+    I -->|Contract gửi email đã có| N
+    M -.->|Hỏi định danh người tham gia| I
+    L -.->|Hỏi trạng thái phòng| P
+    V -.->|Hỏi trạng thái tin| L
+    C -.->|Hỏi dữ liệu phòng| P
+    B -.->|Hỏi điều khoản hợp đồng| C
+```
+
 ## 2. Vì sao thư mục chia thành bốn tầng?
 
 ```text
@@ -65,17 +85,29 @@ backend/src/
 
 `Presentation` nhận request, quyết định HTTP status/cookie và gọi `Application`. `Application` xác định cần làm gì, phụ thuộc interface như `ILoginStore`, `IRegistrationStore`, `IPublicOtpStore`. `Infrastructure` triển khai các interface và truy cập PostgreSQL hoặc nhà cung cấp email. `Domain` giữ quy tắc trạng thái, tránh phụ thuộc HTTP/EF/SMTP. Một file nhỏ không tự động là “rác”: tách tầng giúp không đưa SQL hoặc cookie vào quy tắc nghiệp vụ. Ngược lại, nhiều file cùng một trách nhiệm đã được gộp: `AuthStores.cs`, `PublicOtpHandlers.cs`, `PublicOtpContracts.cs` và `PostgresEmailVerificationStore.cs`.
 
+Sơ đồ này chỉ ra **ai gọi ai ở runtime** và nơi dữ liệu được giữ; các mũi tên không có nghĩa tầng Domain biết HTTP hoặc PostgreSQL.
+
+```mermaid
+flowchart LR
+    Host["HomeMatch.Api<br/>Ghép module và middleware"] --> HTTP["Presentation<br/>Route, JSON, cookie, quota"]
+    HTTP --> UseCase["Application<br/>AuthService, OTP handler, DTO"]
+    UseCase --> Port["Application<br/>Store interface"]
+    Port -.->|DI chọn implementation| Adapter["Infrastructure<br/>PostgreSQL store"]
+    Adapter --> Rules["Domain<br/>Trạng thái và quy tắc"]
+    Adapter --> DB[(PostgreSQL schema identity)]
+```
+
 Thư mục trong tài liệu kiến trúc tổng thể có thể là cấu trúc **dự kiến**. Các module `Properties`, `Listings`, `Viewings`, `Messaging`, `Leasing`, `Billing` hiện chưa có đầy đủ bốn tầng nghiệp vụ; không nên suy ra API đã tồn tại chỉ vì có project hoặc SQL thiết kế.
 
 ## 3. Điểm khởi động và cách một request đi qua các tầng
 
 [Program.cs](../../backend/src/HomeMatch.Api/Program.cs#L46) gọi `AddIdentityModule` cùng `AddNotificationsModule`, để đăng ký dịch vụ vào một container DI. [Program.cs](../../backend/src/HomeMatch.Api/Program.cs#L104) ánh xạ endpoint các module vào cùng ứng dụng ASP.NET. Các lời gọi `Map...Endpoints` chỉ đăng ký route; chúng **không phải** lời gọi nghiệp vụ giữa các module.
 
-[IdentityModuleExtensions.cs](../../backend/src/Modules/Identity/IdentityModuleExtensions.cs#L35) nối interface với implementation: `ILoginStore`/`IRegistrationStore` với lớp PostgreSQL, `IRefreshSessionStore`/`ILogoutSessionStore` với lớp quản lý phiên, `IPublicOtpStore` với store OTP và `IEmailVerificationStore` với store xác minh email. File này cũng đăng ký `AuthService`, reader, rate limiter, cookie và JWT. [IdentityEndpoints.cs](../../backend/src/Modules/Identity/Presentation/IdentityEndpoints.cs#L20) khai báo các route đăng ký, đăng nhập, refresh, logout, OTP, xác minh email và `/me` dưới `/api/v1/identity`.
+[IdentityModuleExtensions.cs](../../backend/src/Modules/Identity/IdentityModuleExtensions.cs#L35) nối interface với implementation: `ILoginStore`/`IRegistrationStore` với lớp PostgreSQL, `IRefreshSessionStore`/`ILogoutSessionStore` với lớp quản lý phiên, `IPublicOtpStore` với store OTP và `IEmailVerificationStore` với store xác minh email. File này cũng đăng ký `AuthService`, `IdentityQuotas`, cookie và JWT. [IdentityEndpoints.cs](../../backend/src/Modules/Identity/Presentation/IdentityEndpoints.cs#L20) khai báo các route đăng ký, đăng nhập, refresh, logout, OTP, xác minh email và `/me` dưới `/api/v1/identity`.
 
 ```mermaid
 flowchart LR
-    Client[Client] --> Endpoint[Presentation: Endpoint / Reader / Cookie]
+    Client[Client] --> Endpoint[Presentation: IdentityBody model binding / Endpoint / Cookie]
     Endpoint --> App[Application: AuthService hoặc OTP Handler]
     App --> Contract[Application: Store interface]
     Contract --> Store[Infrastructure: PostgreSQL store]
@@ -83,11 +115,53 @@ flowchart LR
     Store --> Db[(Schema identity)]
 ```
 
-**Đăng nhập:** [LoginEndpoint.cs](../../backend/src/Modules/Identity/Presentation/Login/LoginEndpoint.cs#L13) kiểm tra yêu cầu HTTP/CSRF, đọc JSON, áp rate limit và gọi `AuthService.LoginAsync`. [AuthService.cs](../../backend/src/Modules/Identity/Application/Authentication/AuthService.cs#L14) chuẩn hóa email và kiểm tra dữ liệu, rồi gọi `ILoginStore`. [AuthStores.cs](../../backend/src/Modules/Identity/Infrastructure/Persistence/AuthStores.cs#L23) xác minh mật khẩu/trạng thái/email, tạo phiên và refresh credential trong transaction, cấp access token; endpoint ghi refresh cookie và trả response. Tham số request nằm ở [AuthRequestDtos.cs](../../backend/src/Modules/Identity/Application/DTOs/AuthRequestDtos.cs).
+**Đăng nhập:** [LoginEndpoint.cs](../../backend/src/Modules/Identity/Presentation/Login/LoginEndpoint.cs#L13) nhận `IdentityBody<LoginRequestDto>` đã được framework bind, kiểm tra HTTP/CSRF, áp rate limit và gọi `AuthService.LoginAsync`. [AuthService.cs](../../backend/src/Modules/Identity/Application/Authentication/AuthService.cs#L14) chuẩn hóa email và kiểm tra dữ liệu, rồi gọi `ILoginStore`. [AuthStores.cs](../../backend/src/Modules/Identity/Infrastructure/Persistence/AuthStores.cs#L23) xác minh mật khẩu/trạng thái/email, tạo phiên và refresh credential trong transaction, cấp access token; endpoint ghi refresh cookie và trả response. DTO nằm ở [AuthRequestDtos.cs](../../backend/src/Modules/Identity/Application/DTOs/AuthRequestDtos.cs).
+
+Đọc sơ đồ từ trên xuống: endpoint chịu trách nhiệm HTTP; `AuthService` kiểm tra đầu vào; store quyết định trạng thái tài khoản và ghi phiên trong transaction. Nhánh lỗi có thể kết thúc sớm ở từng bước.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant E as LoginEndpoint
+    participant B as IdentityBody BindAsync
+    participant Q as IdentityQuotas
+    participant A as AuthService
+    participant S as PostgresLoginStore
+    participant DB as PostgreSQL identity
+    Client->>B: POST auth/login và JSON
+    B-->>E: IdentityBody LoginRequestDto hoặc lỗi JSON
+    E->>E: Kiểm tra Origin và CSRF
+    E->>Q: Kiểm tra IP và email
+    Q-->>E: Cho phép hoặc 429
+    E->>A: LoginAsync DTO
+    A->>A: Chuẩn hóa email và kiểm tra input
+    A->>S: AuthenticateAndStartSessionAsync
+    S->>DB: Khóa account, kiểm tra, ghi session và refresh
+    DB-->>S: Commit
+    S-->>E: Access token và refresh secret
+    E-->>Client: 200, access token và refresh cookie
+```
 
 **Đăng ký:** [RegistrationEndpoint.cs](../../backend/src/Modules/Identity/Presentation/Registration/RegistrationEndpoint.cs#L12) đọc yêu cầu và áp rate limit. [AuthService.RegisterAsync](../../backend/src/Modules/Identity/Application/Authentication/AuthService.cs#L27) kiểm tra email, tên, vai trò và policy mật khẩu. `PostgresRegistrationStore` trong [AuthStores.cs](../../backend/src/Modules/Identity/Infrastructure/Persistence/AuthStores.cs#L96) ghi account/profile. Sau đó endpoint gọi `SendPublicOtpHandler` để yêu cầu OTP; account có thể đã được ghi dù bước gửi email thất bại. Login chỉ thành công sau khi email được xác minh.
 
 **Refresh và logout:** [RefreshEndpoint.cs](../../backend/src/Modules/Identity/Presentation/Refresh/RefreshEndpoint.cs#L12) và [LogoutEndpoints.cs](../../backend/src/Modules/Identity/Presentation/Logout/LogoutEndpoints.cs#L11) xử lý HTTP/cookie. `AuthService` chuyển thao tác đến các store trong [AuthStores.cs](../../backend/src/Modules/Identity/Infrastructure/Persistence/AuthStores.cs#L145). Store khóa bản ghi, kiểm tra trạng thái và commit transaction. Quy tắc thu hồi phiên dùng chung nằm ở [IdentityPersistenceHelpers.cs](../../backend/src/Modules/Identity/Infrastructure/Persistence/IdentityPersistenceHelpers.cs). Tách nó khỏi endpoint để cookie không quyết định trạng thái database.
+
+**Model binding và DTO:** [IdentityBody.cs](../../backend/src/Modules/Identity/Presentation/Http/IdentityBody.cs) triển khai `BindAsync` của Minimal API. Framework tự gọi phương thức này khi thấy tham số `IdentityBody<T>` trong endpoint; endpoint không đọc `Request.Body`. `System.Text.Json` tạo `LoginRequestDto`, `RegistrationRequestDto`, `VerifyEmailRequest` hoặc `PublicOtpBody` với cấu hình strict. Binder giữ giới hạn 16 KiB, từ chối JSON sai, trường lạ/trùng và trả thông tin lỗi để endpoint ánh xạ sang `ApiResponse` hiện có. Refresh, logout và resend-verification dùng `IdentityBody<EmptyIdentityRequest>` để chỉ nhận body rỗng hoặc `{}`. [PublicOtpEndpoints.cs](../../backend/src/Modules/Identity/Presentation/PublicOtp/PublicOtpEndpoints.cs) kiểm tra bộ trường bắt buộc theo từng `purpose`/`action` sau khi model đã được bind. Binder chạy **trước** handler; handler vẫn kiểm tra CSRF, quota và lỗi binding theo thứ tự nghiệp vụ hiện tại.
+
+**Giới hạn lượt gọi:** [IdentityHttpSecurityExtensions.cs](../../backend/src/Modules/Identity/Presentation/IdentityHttpSecurityExtensions.cs) khai báo chính sách ASP.NET Core cho các route chỉ cần quota theo IP hoặc người dùng: CSRF, `/me`, gửi lại và xác minh email. [IdentityEndpoints.cs](../../backend/src/Modules/Identity/Presentation/IdentityEndpoints.cs) gắn chính sách vào route; khi bị từ chối, `OnRejected` trả HTTP 429 cùng mã `Identity.RateLimitExceeded`. Các route login, đăng ký, refresh, logout và Public OTP cần xét đồng thời IP với email, phiên hoặc user. [IdentityQuotas.cs](../../backend/src/Modules/Identity/Presentation/Http/IdentityQuotas.cs) chứa một `IdentityQuotas` dùng chung cho các route đó; `AtomicRequestQuota` khóa lúc kiểm tra và tăng cả hai quota, nên yêu cầu bị chặn bởi quota đối tượng không tiêu hao thêm quota IP. Khóa được băm HMAC, không lưu email dạng rõ. `IRefreshRequestQuota` trỏ tới **cùng instance** `IdentityQuotas` để endpoint refresh và store dùng một bộ đếm. Các quota trong bộ nhớ chỉ chính xác trong một instance API; khi chạy nhiều instance cần bộ đếm phân tán nếu muốn hạn mức toàn cụm. Quota/cooldown lưu trong PostgreSQL của OTP là lớp kiểm soát nghiệp vụ khác và vẫn được giữ.
+
+```mermaid
+flowchart TD
+    Request["Request Identity"] --> Route{"Route cần loại quota nào?"}
+    Route -->|CSRF, me, resend, verify email| Framework["ASP.NET Core RateLimiter<br/>IP hoặc user"]
+    Route -->|Login, register, refresh, logout, Public OTP| Combined["IdentityQuotas<br/>IP và đối tượng cùng lúc"]
+    Framework --> FResult{"Còn lượt?"}
+    Combined --> CResult{"Cả hai còn lượt?"}
+    FResult -->|Không| Reject["429 và mã Identity.RateLimitExceeded"]
+    CResult -->|Không| Reject
+    FResult -->|Có| Continue["Tiếp tục xử lý nghiệp vụ"]
+    CResult -->|Có, tăng cả hai| Continue
+```
 
 ## 4. Giao tiếp thật giữa Identity và Notifications
 
@@ -147,6 +221,18 @@ Nếu sau này Properties thay đổi trạng thái phòng và Listings cần c�
 ### 4.5 Bản đồ giao tiếp theo hành trình thuê phòng
 
 Bảng dưới đây giúp hình dung luồng **dự kiến** khi các module còn lại được triển khai. Nó không khẳng định contract, event hoặc endpoint tương ứng đã có trong code. Mũi tên chỉ bên khởi phát nhu cầu; cột “nguồn sự thật” cho biết module nào quyết định dữ liệu.
+
+```mermaid
+flowchart LR
+    User["Người dùng"] -.->|Dự kiến đặt lịch| V["Viewings<br/>Sở hữu lịch hẹn"]
+    V -.->|Đọc tin| L["Listings<br/>Sở hữu tin đăng"]
+    L -.->|Đọc phòng| P["Properties<br/>Sở hữu nhà và phòng"]
+    User -.->|Dự kiến ký thuê| C["Leasing<br/>Sở hữu hợp đồng"]
+    C -.->|Đọc phòng| P
+    C -.->|Đọc định danh| I["Identity<br/>Sở hữu tài khoản"]
+    B["Billing<br/>Sở hữu hóa đơn"] -.->|Đọc hợp đồng| C
+    I -->|Đã có contract gửi email| N["Notifications<br/>Sở hữu vận chuyển email"]
+```
 
 | Nhu cầu | Bên cần thông tin → nguồn sự thật | Giao tiếp phù hợp để xem xét | Trạng thái |
 |---|---|---|---|

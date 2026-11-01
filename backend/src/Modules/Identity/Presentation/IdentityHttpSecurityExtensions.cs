@@ -83,6 +83,20 @@ public static class IdentityHttpSecurityExtensions
                     PermitLimit = 120, Window = TimeSpan.FromMinutes(1),
                     QueueLimit = 0, AutoReplenishment = true
                 }));
+            options.AddPolicy("Identity.EmailSend", context => RateLimitPartition.GetFixedWindowLimiter(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 30, Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0, AutoReplenishment = true
+                }));
+            options.AddPolicy("Identity.EmailVerify", context => RateLimitPartition.GetFixedWindowLimiter(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 120, Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0, AutoReplenishment = true
+                }));
             options.OnRejected = async (context, cancellationToken) =>
             {
                 context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;

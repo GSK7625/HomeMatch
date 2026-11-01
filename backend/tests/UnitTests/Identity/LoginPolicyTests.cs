@@ -6,7 +6,7 @@ using HomeMatch.Modules.Identity.Application.Login;
 using HomeMatch.Modules.Identity.Domain.Entities;
 using HomeMatch.Modules.Identity.Infrastructure.Authentication;
 using HomeMatch.Modules.Identity.Infrastructure.Configuration;
-using HomeMatch.Modules.Identity.Presentation.Login;
+using HomeMatch.Modules.Identity.Presentation.Http;
 using Microsoft.Extensions.Options;
 
 namespace HomeMatch.UnitTests.Identity;
@@ -90,15 +90,15 @@ public class LoginPolicyTests
     public async Task LoginQuotasAreAtomicForConcurrentRequestsAndResetAfterOneMinute()
     {
         var clock = new Clock();
-        var limiter = new LoginRateLimiter(Options.Create(new JwtOptions
+        var limiter = new IdentityQuotas(Options.Create(new JwtOptions
             { Secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)) }), clock);
         var results = await Task.WhenAll(Enumerable.Range(0, 30).Select(index =>
-            Task.Run(() => limiter.TryAcquire("ip-" + index, "EMAIL@EXAMPLE.TEST"))));
+            Task.Run(() => limiter.TryLogin("ip-" + index, "EMAIL@EXAMPLE.TEST"))));
         Assert.Equal(5, results.Count(value => value is null));
-        Assert.Equal(TimeSpan.FromMinutes(1), limiter.TryAcquire("other-ip", "EMAIL@EXAMPLE.TEST"));
+        Assert.Equal(TimeSpan.FromMinutes(1), limiter.TryLogin("other-ip", "EMAIL@EXAMPLE.TEST"));
         clock.Now = clock.Now.AddMinutes(1);
-        Assert.Null(limiter.TryAcquire("other-ip", "EMAIL@EXAMPLE.TEST"));
-        for (var index = 0; index < 9; index++) Assert.Null(limiter.TryAcquire("other-ip", "different-" + index));
-        Assert.Equal(TimeSpan.FromMinutes(1), limiter.TryAcquire("other-ip", "final"));
+        Assert.Null(limiter.TryLogin("other-ip", "EMAIL@EXAMPLE.TEST"));
+        for (var index = 0; index < 9; index++) Assert.Null(limiter.TryLogin("other-ip", "different-" + index));
+        Assert.Equal(TimeSpan.FromMinutes(1), limiter.TryLogin("other-ip", "final"));
     }
 }

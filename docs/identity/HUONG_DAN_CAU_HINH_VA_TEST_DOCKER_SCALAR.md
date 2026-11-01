@@ -84,7 +84,7 @@ Database test phải bắt đầu trống và dùng migration duy nhất `202611
 
 Trong trang Scalar, bấm vào dòng endpoint, nhập **Request Body → JSON (Raw)**, bấm **Send** và đọc **status + Body phản hồi**. Các tên trường JSON phân biệt chữ hoa/thường. Đối với login/refresh/logout, request cần cookie CSRF và header `X-CSRF-TOKEN`. Trong bảng Headers, **cột bên trái là tên**, cột bên phải là giá trị; đừng để tên là `Key`. Không đưa request token vào Body.
 
-Nếu endpoint không hiện sẵn ô Body, mở **Open API Client** hoặc tab **Raw** của Request Body để nhập JSON. `Content-Type` cần là `application/json`. Scalar có thể không suy luận đầy đủ body vì backend đọc JSON thủ công.
+Nếu endpoint không hiện sẵn ô Body, mở **Open API Client** hoặc tab **Raw** của Request Body để nhập JSON. `Content-Type` cần là `application/json`. Các route xác thực nhận `IdentityBody<T>` bằng model binding tùy biến để giữ quy tắc JSON nghiêm ngặt; Scalar có thể không suy luận đầy đủ schema body từ kiểu tham số này.
 
 ## 4. Test đăng ký → OTP → đăng nhập
 

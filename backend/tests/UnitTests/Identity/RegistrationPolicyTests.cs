@@ -4,7 +4,7 @@ using HomeMatch.Modules.Identity.Application.Registration;
 using HomeMatch.Modules.Identity.Domain.Entities;
 using HomeMatch.Modules.Identity.Domain.Validation;
 using HomeMatch.Modules.Identity.Infrastructure.Configuration;
-using HomeMatch.Modules.Identity.Presentation.Registration;
+using HomeMatch.Modules.Identity.Presentation.Http;
 using Microsoft.Extensions.Options;
 
 namespace HomeMatch.UnitTests.Identity;
@@ -84,7 +84,7 @@ public class RegistrationPolicyTests
         public override DateTimeOffset GetUtcNow() => Now;
     }
 
-    private static RegistrationRateLimiter Limiter(Clock clock) => new(Options.Create(new JwtOptions
+    private static IdentityQuotas Limiter(Clock clock) => new(Options.Create(new JwtOptions
         { Secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)) }), clock);
 
     [Fact]
@@ -92,16 +92,16 @@ public class RegistrationPolicyTests
     {
         var clock = new Clock();
         var limiter = Limiter(clock);
-        for (var index = 0; index < 3; index++) Assert.Null(limiter.TryAcquire("first-ip", "SAME@EXAMPLE.TEST"));
-        Assert.Equal(TimeSpan.FromHours(1), limiter.TryAcquire("second-ip", "SAME@EXAMPLE.TEST"));
+        for (var index = 0; index < 3; index++) Assert.Null(limiter.TryRegistration("first-ip", "SAME@EXAMPLE.TEST"));
+        Assert.Equal(TimeSpan.FromHours(1), limiter.TryRegistration("second-ip", "SAME@EXAMPLE.TEST"));
         // Email rejection must not spend the second IP's permits.
-        for (var index = 0; index < 5; index++) Assert.Null(limiter.TryAcquire("second-ip", "OTHER-" + index));
-        Assert.Equal(TimeSpan.FromMinutes(15), limiter.TryAcquire("second-ip", "ANOTHER"));
-        Assert.Equal(TimeSpan.FromHours(1), limiter.TryAcquire("second-ip", "SAME@EXAMPLE.TEST"));
+        for (var index = 0; index < 5; index++) Assert.Null(limiter.TryRegistration("second-ip", "OTHER-" + index));
+        Assert.Equal(TimeSpan.FromMinutes(15), limiter.TryRegistration("second-ip", "ANOTHER"));
+        Assert.Equal(TimeSpan.FromHours(1), limiter.TryRegistration("second-ip", "SAME@EXAMPLE.TEST"));
         clock.Now = clock.Now.AddMinutes(15);
-        Assert.Equal(TimeSpan.FromMinutes(45), limiter.TryAcquire("second-ip", "SAME@EXAMPLE.TEST"));
+        Assert.Equal(TimeSpan.FromMinutes(45), limiter.TryRegistration("second-ip", "SAME@EXAMPLE.TEST"));
         clock.Now = clock.Now.AddMinutes(45);
-        Assert.Null(limiter.TryAcquire("second-ip", "SAME@EXAMPLE.TEST"));
+        Assert.Null(limiter.TryRegistration("second-ip", "SAME@EXAMPLE.TEST"));
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public class RegistrationPolicyTests
     {
         var limiter = Limiter(new Clock());
         var results = await Task.WhenAll(Enumerable.Range(0, 30)
-            .Select(index => Task.Run(() => limiter.TryAcquire("ip-" + index, "SAME@EXAMPLE.TEST"))));
+            .Select(index => Task.Run(() => limiter.TryRegistration("ip-" + index, "SAME@EXAMPLE.TEST"))));
         Assert.Equal(3, results.Count(result => result is null));
     }
 }

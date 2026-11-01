@@ -3,7 +3,7 @@ using HomeMatch.Modules.Identity.Domain.Entities;
 using HomeMatch.Modules.Identity.Application.Authentication;
 using HomeMatch.Modules.Identity.Infrastructure.Authentication;
 using HomeMatch.Modules.Identity.Infrastructure.Configuration;
-using HomeMatch.Modules.Identity.Presentation.Refresh;
+using HomeMatch.Modules.Identity.Presentation.Http;
 using Microsoft.Extensions.Options;
 
 namespace HomeMatch.UnitTests.Identity;
@@ -81,7 +81,7 @@ public class RefreshRotationTests
     public async Task RefreshSessionQuotaIsAtomicAcrossIpsAndExpiresWithoutChangingOtherSessions()
     {
         var clock = new Clock();
-        var limiter = new RefreshRateLimiter(Options.Create(new JwtOptions
+        var limiter = new IdentityQuotas(Options.Create(new JwtOptions
             { Secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)) }), clock);
         var session = Guid.NewGuid();
         var results = await Task.WhenAll(Enumerable.Range(0, 100)
@@ -96,7 +96,7 @@ public class RefreshRotationTests
     [Fact]
     public void RefreshIpQuotaAlsoCoversUnknownTokens()
     {
-        var limiter = new RefreshRateLimiter(Options.Create(new JwtOptions
+        var limiter = new IdentityQuotas(Options.Create(new JwtOptions
             { Secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)) }), new Clock());
         for (var index = 0; index < 120; index++) Assert.Null(limiter.TryAcquire("same", null));
         Assert.NotNull(limiter.TryAcquire("same", Guid.NewGuid()));

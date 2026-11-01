@@ -39,9 +39,11 @@ public static class IdentityEndpoints
             .WithName("Identity.LogoutAll");
 
         group.MapPost("/auth/resend-verification", EmailVerificationEndpoints.RequestAsync)
-            .RequireAuthorization(IdentityPolicies.Authenticated).WithName("Identity.RequestEmailVerification");
+            .RequireAuthorization(IdentityPolicies.Authenticated)
+            .RequireRateLimiting("Identity.EmailSend").WithName("Identity.RequestEmailVerification");
         group.MapPost("/auth/verify-email", EmailVerificationEndpoints.VerifyAsync)
-            .RequireAuthorization(IdentityPolicies.Authenticated).WithName("Identity.VerifyEmail");
+            .RequireAuthorization(IdentityPolicies.Authenticated)
+            .RequireRateLimiting("Identity.EmailVerify").WithName("Identity.VerifyEmail");
 
         group.MapGet("/me", (ICurrentIdentity current) =>
                 current.Identity is { } identity

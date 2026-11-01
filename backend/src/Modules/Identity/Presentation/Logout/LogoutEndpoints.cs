@@ -1,24 +1,23 @@
-using System.Globalization;
 using HomeMatch.Modules.Identity.Application.Authentication;
 using HomeMatch.Modules.Identity.Application.Logout;
 using HomeMatch.Modules.Identity.Presentation.Authentication;
 using HomeMatch.Modules.Identity.Presentation.Http;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http;
+using System.Globalization;
 
 namespace HomeMatch.Modules.Identity.Presentation.Logout;
 
 public static class LogoutEndpoints
 {
     public static async Task<IResult> CurrentAsync(HttpContext context, IdentityBrowserSecurity browser,
-        IAntiforgery antiforgery, LogoutRequestReader reader, LogoutRateLimiter limiter,
-        AuthService service, RefreshCookie cookie)
+        IAntiforgery antiforgery, IdentityQuotas limiter,
+        AuthService service, RefreshCookie cookie, IdentityBody<EmptyIdentityRequest> body)
     {
         var failure = await browser.ValidateMutationAsync(context, antiforgery);
         if (failure is not null) return failure;
-        var retry = limiter.TryCurrent(ClientAddress(context));
+        var retry = limiter.TryLogoutCurrent(ClientAddress(context));
         if (retry is not null) return RateLimited(context, retry.Value);
-        var body = await reader.ReadAsync(context.Request, context.RequestAborted);
         if (body.Error != IdentityJsonError.None) return BodyFailure(body.Error);
         var result = await service.LogoutCurrentAsync(cookie.Read(context), context.RequestAborted);
         if (result.Outcome == LogoutOutcome.Unavailable) return IdentityHttpErrors.DependencyUnavailable();
@@ -26,13 +25,12 @@ public static class LogoutEndpoints
         return Results.NoContent();
     }
 
-    public static async Task<IResult> AllAsync(HttpContext context, ICurrentIdentity current, LogoutRequestReader reader,
-        LogoutRateLimiter limiter, AuthService service, RefreshCookie cookie)
+    public static async Task<IResult> AllAsync(HttpContext context, ICurrentIdentity current,
+        IdentityQuotas limiter, AuthService service, RefreshCookie cookie, IdentityBody<EmptyIdentityRequest> body)
     {
         if (current.Identity is not { } identity) return AuthenticationRequired(context);
-        var retry = limiter.TryAll(ClientAddress(context), identity.UserId);
+        var retry = limiter.TryLogoutAll(ClientAddress(context), identity.UserId);
         if (retry is not null) return RateLimited(context, retry.Value);
-        var body = await reader.ReadAsync(context.Request, context.RequestAborted);
         if (body.Error != IdentityJsonError.None) return BodyFailure(body.Error);
         var result = await service.LogoutAllAsync(new LogoutAllSubject(identity.UserId, identity.SessionId, identity.Role),
             cookie.Read(context), context.RequestAborted);

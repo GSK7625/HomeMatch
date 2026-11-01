@@ -1,9 +1,37 @@
 using HomeMatch.Modules.Identity.Application.Authentication;
+using HomeMatch.Modules.Identity.Application.Refresh;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Options;
 
 namespace HomeMatch.Modules.Identity.Presentation.Http;
+
+/// <summary>Per-instance quotas for routes that need an atomic IP and subject decision.</summary>
+public sealed class IdentityQuotas(IOptions<JwtOptions> options, TimeProvider clock) : IRefreshRequestQuota
+{
+    private readonly AtomicRequestQuota _login = new(options, clock, "HomeMatch.Identity.LoginQuota.v1",
+        10, TimeSpan.FromMinutes(1), 5, TimeSpan.FromMinutes(1));
+    private readonly AtomicRequestQuota _registration = new(options, clock, "HomeMatch.Identity.RegistrationQuota.v1",
+        5, TimeSpan.FromMinutes(15), 3, TimeSpan.FromHours(1));
+    private readonly AtomicRequestQuota _refresh = new(options, clock, "HomeMatch.Identity.RefreshQuota.v1",
+        120, TimeSpan.FromMinutes(1), 30, TimeSpan.FromMinutes(1));
+    private readonly AtomicRequestQuota _logoutCurrent = new(options, clock, "HomeMatch.Identity.LogoutQuota.v1",
+        30, TimeSpan.FromMinutes(1), 1, TimeSpan.FromMinutes(1));
+    private readonly AtomicRequestQuota _logoutAll = new(options, clock, "HomeMatch.Identity.LogoutAllQuota.v1",
+        120, TimeSpan.FromMinutes(1), 5, TimeSpan.FromMinutes(15));
+    private readonly AtomicRequestQuota _otpSend = new(options, clock, "public-otp-send",
+        30, TimeSpan.FromMinutes(1), 5, TimeSpan.FromMinutes(15));
+    private readonly AtomicRequestQuota _otpVerify = new(options, clock, "public-otp-verify",
+        60, TimeSpan.FromMinutes(1), 20, TimeSpan.FromMinutes(15));
+
+    public TimeSpan? TryLogin(string ip, string? email) => _login.TryAcquire(ip, email);
+    public TimeSpan? TryRegistration(string ip, string? email) => _registration.TryAcquire(ip, email);
+    public TimeSpan? TryAcquire(string ip, Guid? sessionId) => _refresh.TryAcquire(ip, sessionId?.ToString("D"));
+    public TimeSpan? TryLogoutCurrent(string ip) => _logoutCurrent.TryAcquire(ip, null);
+    public TimeSpan? TryLogoutAll(string ip, long userId) => _logoutAll.TryAcquire(ip, userId.ToString("D"));
+    public TimeSpan? TryPublicOtp(string ip, string? subject, bool sending)
+        => (sending ? _otpSend : _otpVerify).TryAcquire(ip, subject);
+}
 
 /// <summary>One-instance atomic acquisition of independent IP/subject windows; keys contain no plaintext identity.</summary>
 internal sealed class AtomicRequestQuota(IOptions<JwtOptions> options, TimeProvider clock, string purpose,

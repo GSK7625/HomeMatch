@@ -1,4 +1,5 @@
 using HomeMatch.Modules.Identity.Presentation.PublicOtp;
+using HomeMatch.Modules.Identity.Presentation.Http;
 using HomeMatch.Modules.Identity.Application.PublicOtp;
 using HomeMatch.Modules.Identity.Application.Authentication;
 using HomeMatch.Modules.Identity.Application.EmailVerification;
@@ -84,21 +85,14 @@ public static class IdentityModuleExtensions
         services.AddScoped<SendPublicOtpHandler>();
         services.AddScoped<VerifyPublicOtpHandler>();
         services.AddScoped<ResetPasswordHandler>();
-        services.AddSingleton<PublicOtpLimiter>();
         services.AddScoped<ILoginStore, PostgresLoginStore>();
         services.AddSingleton<LoginDummyCredential>();
         services.AddHostedService<LoginSecurityStartupCheck>();
-        services.AddSingleton<LoginRequestReader>();
-        services.AddSingleton<LoginRateLimiter>();
+        services.AddSingleton<IdentityQuotas>();
         services.AddScoped<RefreshCookie>();
         services.AddScoped<IRefreshSessionStore, PostgresRefreshSessionStore>();
-        services.AddSingleton<IRefreshRequestQuota, RefreshRateLimiter>();
-        services.AddSingleton<RefreshRequestReader>();
+        services.AddSingleton<IRefreshRequestQuota>(provider => provider.GetRequiredService<IdentityQuotas>());
         services.AddScoped<ILogoutSessionStore, PostgresLogoutSessionStore>();
-        services.AddSingleton<LogoutRequestReader>();
-        services.AddSingleton<LogoutRateLimiter>();
-        services.AddSingleton<RegistrationRequestReader>();
-        services.AddSingleton<RegistrationRateLimiter>();
 
         services.AddSingleton<IValidateOptions<EmailVerificationOptions>, EmailVerificationOptionsValidator>();
         services.AddOptions<EmailVerificationOptions>().Bind(configuration.GetSection(EmailVerificationOptions.SectionName))
@@ -107,8 +101,6 @@ public static class IdentityModuleExtensions
         services.AddScoped<IEmailVerificationStore, PostgresEmailVerificationStore>();
         services.AddScoped<IEmailVerificationDelivery, TransactionalVerificationDelivery>();
         services.AddScoped<RequestEmailVerificationHandler>();
-        services.AddSingleton<EmailVerificationRequestReader>();
-        services.AddSingleton<EmailVerificationRateLimiter>();
         services.AddScoped<IAccessIdentityReader, DatabaseAccessIdentityReader>();
         services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
         services.AddIdentityHttpSecurity();

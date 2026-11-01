@@ -1,34 +1,32 @@
-using System.Globalization;
 using HomeMatch.Modules.Identity.Application.Authentication;
 using HomeMatch.Modules.Identity.Application.EmailVerification;
 using HomeMatch.Modules.Identity.Presentation.Http;
 using HomeMatch.Shared.Common;
 using Microsoft.AspNetCore.Http;
+using System.Globalization;
 
 namespace HomeMatch.Modules.Identity.Presentation.EmailVerification;
 
 public static class EmailVerificationEndpoints
 {
     public static async Task<IResult> RequestAsync(HttpContext context, ICurrentIdentity current,
-        EmailVerificationRequestReader reader, EmailVerificationRateLimiter limiter, RequestEmailVerificationHandler handler)
+        RequestEmailVerificationHandler handler, IdentityBody<EmptyIdentityRequest> body)
     {
         if (current.Identity is not { } identity) return AuthenticationRequired(context);
-        if (limiter.TrySend(Address(context)) is { } retry) return RateLimited(context, retry);
-        var body = await reader.ReadSendAsync(context.Request, context.RequestAborted);
         if (body.Error != IdentityJsonError.None) return BodyFailure(body.Error);
         var result = await handler.HandleAsync(new(identity.UserId, identity.SessionId, identity.Role), context.RequestAborted);
         return Map(context, result);
     }
 
     public static async Task<IResult> VerifyAsync(HttpContext context, ICurrentIdentity current,
-        EmailVerificationRequestReader reader, EmailVerificationRateLimiter limiter, IEmailVerificationStore store)
+        IEmailVerificationStore store, IdentityBody<VerifyEmailRequest> body)
     {
         if (current.Identity is not { } identity) return AuthenticationRequired(context);
-        if (limiter.TryVerify(Address(context)) is { } retry) return RateLimited(context, retry);
-        var body = await reader.ReadVerifyAsync(context.Request, context.RequestAborted);
         if (body.Error != IdentityJsonError.None) return BodyFailure(body.Error);
+        if (body.Value!.ChallengeId == Guid.Empty || body.Value.Code is not { Length: 6 } code
+            || !code.All(char.IsAsciiDigit)) return IdentityHttpErrors.ValidationFailed();
         var result = await store.VerifyAsync(new(identity.UserId, identity.SessionId, identity.Role),
-            body.Value!.ChallengeId, body.Value.Code, context.RequestAborted);
+            body.Value.ChallengeId, code, context.RequestAborted);
         return Map(context, result);
     }
 
@@ -44,7 +42,6 @@ public static class EmailVerificationEndpoints
         _ => IdentityHttpErrors.DependencyUnavailable()
     };
 
-    private static string Address(HttpContext context) => context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     private static IResult AuthenticationRequired(HttpContext context)
     {
         context.Response.Headers.WWWAuthenticate = "Bearer";

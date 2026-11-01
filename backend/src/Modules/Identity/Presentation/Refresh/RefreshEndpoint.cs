@@ -1,4 +1,3 @@
-using System.Globalization;
 using HomeMatch.Modules.Identity.Application.Authentication;
 using HomeMatch.Modules.Identity.Application.Refresh;
 using HomeMatch.Modules.Identity.Presentation.Authentication;
@@ -6,24 +5,24 @@ using HomeMatch.Modules.Identity.Presentation.Http;
 using HomeMatch.Shared.Common;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http;
+using System.Globalization;
 
 namespace HomeMatch.Modules.Identity.Presentation.Refresh;
 
 public static class RefreshEndpoint
 {
     public static async Task<IResult> HandleAsync(HttpContext context, IdentityBrowserSecurity browser,
-        IAntiforgery antiforgery, RefreshRequestReader reader, AuthService service,
-        IRefreshRequestQuota quota, RefreshCookie cookie)
+        IAntiforgery antiforgery, AuthService service,
+        IRefreshRequestQuota quota, RefreshCookie cookie, IdentityBody<EmptyIdentityRequest> body)
     {
         var failure = await browser.ValidateMutationAsync(context, antiforgery);
         if (failure is not null) return failure;
-        var read = await reader.ReadAsync(context.Request, context.RequestAborted);
         var client = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        if (read.Error != IdentityJsonError.None)
+        if (body.Error != IdentityJsonError.None)
         {
             var retry = quota.TryAcquire(client, null);
             if (retry is not null) return RateLimited(context, retry.Value);
-            return read.Error switch
+            return body.Error switch
             {
                 IdentityJsonError.TooLarge => IdentityHttpErrors.RequestTooLarge(),
                 IdentityJsonError.UnsupportedMediaType => IdentityHttpErrors.UnsupportedMediaType(),

@@ -29,6 +29,12 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:5000
+      - Jwt__Secret=${Jwt__Secret:-}
+      - Jwt__Issuer=${Jwt__Issuer:-HomeMatch}
+      - Jwt__Audience=${Jwt__Audience:-HomeMatchApp}
+      - Jwt__ExpirationMinutes=${Jwt__ExpirationMinutes:-15}
+      - Jwt__ClockSkewSeconds=${Jwt__ClockSkewSeconds:-30}
+      - Cors__AllowedOrigins__0=${Cors__AllowedOrigins__0:-http://localhost:3000}
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=${POSTGRES_DB:-homematch_db};Username=${POSTGRES_USER:-homematch_user};Password=${POSTGRES_PASSWORD:-homematch_password};
     ports:
       - "${API_PORT:-5000}:5000"

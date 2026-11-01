@@ -42,3 +42,7 @@ docker-compose.override.yml
 # Logs
 logs/
 *.log
+
+# Python-generated cache for documentation diagrams
+__pycache__/
+*.pyc

@@ -1,8 +1,18 @@
--- Enable PostGIS and UUID extensions
-CREATE EXTENSION IF NOT EXISTS postgis;
+-- ==========================================================================================
+-- 01-INIT-SCHEMAS.SQL: KÍCH HOẠT EXTENSIONS & KHỞI TẠO 10 SCHEMAS (MODULAR MONOLITH)
+-- ==========================================================================================
+
+-- 1. EXTENSIONS
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Modular Monolith: One Database, Multiple Schemas
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'postgis') THEN
+        CREATE EXTENSION IF NOT EXISTS postgis;
+    END IF;
+END $$;
+
+-- 2. SCHEMAS
 CREATE SCHEMA IF NOT EXISTS identity;
 CREATE SCHEMA IF NOT EXISTS properties;
 CREATE SCHEMA IF NOT EXISTS listings;
@@ -11,13 +21,8 @@ CREATE SCHEMA IF NOT EXISTS messaging;
 CREATE SCHEMA IF NOT EXISTS leasing;
 CREATE SCHEMA IF NOT EXISTS billing;
 CREATE SCHEMA IF NOT EXISTS notifications;
+CREATE SCHEMA IF NOT EXISTS admin;
+CREATE SCHEMA IF NOT EXISTS monetization;
 
--- Comment on schemas for clarity
-COMMENT ON SCHEMA identity IS 'Manages users, authentication, roles and permissions';
-COMMENT ON SCHEMA properties IS 'Manages buildings, rooms and facilities';
-COMMENT ON SCHEMA listings IS 'Manages rental listings, search and PostGIS geospatial queries';
-COMMENT ON SCHEMA viewings IS 'Manages room viewing appointments and schedules';
-COMMENT ON SCHEMA messaging IS 'Manages chat messages and direct conversations';
-COMMENT ON SCHEMA leasing IS 'Manages rental contracts, lease terms and tenant records';
-COMMENT ON SCHEMA billing IS 'Manages recurring rent bills, utility invoices and payment status';
-COMMENT ON SCHEMA notifications IS 'Manages user notifications (push, in-app, email)';
+-- Cấu hình search_path toàn cục cho database
+ALTER DATABASE homematch_db SET search_path TO "$user", public, identity, properties, listings, viewings, messaging, leasing, billing, notifications, admin, monetization;

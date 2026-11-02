@@ -53,6 +53,22 @@ export interface LoginResponse {
 // Listing / Property types
 export type RoomStatus = "Còn trống" | "Đã thuê" | "Tạm ngừng";
 
+export interface NearbyPOI {
+  name: string;
+  distance: string;
+  type: "school" | "transit" | "market" | "hospital";
+}
+
+export interface TenantReview {
+  id: string;
+  author: string;
+  role: string;
+  rating: number;
+  date: string;
+  content: string;
+  avatar?: string;
+}
+
 export interface PropertyListing {
   id: string;
   title: string;
@@ -72,6 +88,13 @@ export interface PropertyListing {
   landlordName: string;
   landlordPhone: string;
   landlordAvatar?: string;
+  isVerifiedLandlord?: boolean;
+  rating?: number;
+  reviewCount?: number;
+  discountTag?: string;
+  tags?: string[];
+  nearbyPOIs?: NearbyPOI[];
+  reviews?: TenantReview[];
   electricityPrice: number; // VND/kWh
   waterPrice: number; // VND/m3
   serviceFee: number; // VND/month

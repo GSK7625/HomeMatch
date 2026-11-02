@@ -22,6 +22,7 @@ import {
   Menu,
   X,
   Sparkles,
+  Phone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -197,6 +198,25 @@ export function Navbar() {
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">
+            {/* Commercial Hotline */}
+            <a
+              href="tel:19008899"
+              className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+              title="Tổng đài hỗ trợ HomeMatch"
+            >
+              <Phone className="w-3.5 h-3.5 text-blue-600" />
+              <span>1900 8899</span>
+            </a>
+
+            {/* Post Listing CTA Button */}
+            <Link
+              href="/landlord/listings"
+              className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-sm shadow-blue-500/20 transition-all"
+            >
+              <Building2 className="w-3.5 h-3.5" />
+              <span>Đăng tin miễn phí</span>
+            </Link>
+
             {/* Messages Chat Icon */}
             <Link
               href="/messages"

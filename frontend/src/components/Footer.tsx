@@ -1,49 +1,107 @@
 import React from "react";
 import Link from "next/link";
-import { Home, ShieldCheck, Mail, Phone, MapPin } from "lucide-react";
+import { Home, ShieldCheck, Mail, Phone, MapPin, Award, CheckCircle2, Lock } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="bg-slate-900 text-slate-400 text-sm mt-auto border-t border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-          {/* Col 1 */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black">
-                <Home className="w-4 h-4" />
-              </div>
-              <span className="text-white font-extrabold text-lg tracking-tight">HomeMatch</span>
+    <footer className="bg-slate-950 text-slate-400 text-sm mt-auto border-t border-slate-800/80">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+        {/* Top Trust Banner */}
+        <div className="pb-10 mb-10 border-b border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-900/50 text-blue-400 border border-blue-800/50 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-5 h-5" />
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Hệ thống hỗ trợ tìm kiếm thuê nhà và quản lý cho thuê thông minh, kết nối trực tiếp
-              người thuê và chủ nhà, minh bạch chi phí và an tâm vận hành.
-            </p>
-            <div className="flex items-center gap-2 text-xs text-emerald-400">
-              <ShieldCheck className="w-4 h-4" />
-              <span>Bảo mật JWT, RBAC & SSL/TLS chuẩn Cloudflare</span>
+            <div>
+              <h4 className="text-white font-bold text-xs">Xác Thực 100% Thực Địa</h4>
+              <p className="text-[11px] text-slate-400">Kiểm tra thông tin & pháp lý</p>
             </div>
           </div>
 
-          {/* Col 2 */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-900/50 text-emerald-400 border border-emerald-800/50 flex items-center justify-center shrink-0">
+              <Award className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-white font-bold text-xs">0đ Phí Dịch Vụ Môi Giới</h4>
+              <p className="text-[11px] text-slate-400">Kết nối trực tiếp chủ trọ</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-900/50 text-amber-400 border border-amber-800/50 flex items-center justify-center shrink-0">
+              <Lock className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-white font-bold text-xs">Bảo Vệ Tiền Đặt Cọc</h4>
+              <p className="text-[11px] text-slate-400">Hợp đồng điện tử minh bạch</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-900/50 text-indigo-400 border border-indigo-800/50 flex items-center justify-center shrink-0">
+              <Phone className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-white font-bold text-xs">Tổng Đài Hỗ Trợ 24/7</h4>
+              <p className="text-[11px] text-slate-400">Hotline 1900 8899 (Miễn cước)</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Links Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-10">
+          {/* Col 1 & 2: Brand & Legal Info */}
+          <div className="md:col-span-2 space-y-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-lg shadow-md">
+                <Home className="w-5 h-5" />
+              </div>
+              <span className="text-white font-black text-xl tracking-tight">HomeMatch</span>
+            </div>
+
+            <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
+              <strong className="text-slate-300">CÔNG TY CỔ PHẦN CÔNG NGHỆ BẤT ĐỘNG SẢN HOMEMATCH VIỆT NAM</strong>
+              <br />
+              Nền tảng số hóa kết nối trực tiếp Người thuê và Chủ nhà trọ hàng đầu Việt Nam.
+              Giấy phép hoạt động sàn giao dịch số: 0109887766 do Sở Kế hoạch & Đầu tư TP. Hà Nội cấp.
+            </p>
+
+            <div className="space-y-1.5 text-xs text-slate-400 pt-1">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span>Trụ sở chính: Tòa nhà Discovery Complex, 302 Cầu Giấy, Hà Nội</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Phone className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span>Hotline CSKH: 1900 8899 • Khiếu nại: 024 7300 8899</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span>Email: hotro@homematch.id.vn • hopdong@homematch.id.vn</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Col 3: Dành cho người thuê */}
           <div>
-            <h4 className="text-white font-semibold text-xs uppercase tracking-wider mb-4">
+            <h4 className="text-white font-bold text-xs uppercase tracking-wider mb-4">
               Dành cho người thuê
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
                 <Link href="/listings" className="hover:text-white transition-colors">
-                  Tìm kiếm phòng trọ & Căn hộ
+                  Khám phá phòng trọ & Căn hộ
                 </Link>
               </li>
               <li>
                 <Link href="/compare" className="hover:text-white transition-colors">
-                  So sánh phòng đối chiếu
+                  So sánh phòng đối chiếu (tối đa 3)
                 </Link>
               </li>
               <li>
                 <Link href="/tenant/viewings" className="hover:text-white transition-colors">
-                  Lịch xem phòng đã hẹn
+                  Quản lý lịch hẹn xem phòng
                 </Link>
               </li>
               <li>
@@ -51,12 +109,17 @@ export function Footer() {
                   Hợp đồng & Hóa đơn điện nước
                 </Link>
               </li>
+              <li>
+                <Link href="/tenant/favorites" className="hover:text-white transition-colors">
+                  Danh sách phòng yêu thích
+                </Link>
+              </li>
             </ul>
           </div>
 
-          {/* Col 3 */}
+          {/* Col 4: Dành cho chủ nhà */}
           <div>
-            <h4 className="text-white font-semibold text-xs uppercase tracking-wider mb-4">
+            <h4 className="text-white font-bold text-xs uppercase tracking-wider mb-4">
               Dành cho chủ nhà
             </h4>
             <ul className="space-y-2 text-xs">
@@ -77,7 +140,7 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/landlord/utilities" className="hover:text-white transition-colors">
-                  Tính tiền điện nước tự động
+                  Ghi chỉ số & Tính tiền điện nước
                 </Link>
               </li>
               <li>
@@ -88,34 +151,45 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Col 4 */}
+          {/* Col 5: Khu vực & Trường ĐH Hot */}
           <div>
-            <h4 className="text-white font-semibold text-xs uppercase tracking-wider mb-4">
-              Liên hệ & Hỗ trợ
+            <h4 className="text-white font-bold text-xs uppercase tracking-wider mb-4">
+              Khu vực sinh viên
             </h4>
-            <ul className="space-y-2.5 text-xs">
-              <li className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-blue-400" />
-                <span>support@homematch.id.vn</span>
+            <ul className="space-y-2 text-xs">
+              <li>
+                <Link href="/listings?city=Hà%20Nội&district=Cầu%20Giấy" className="hover:text-white transition-colors">
+                  Trọ gần ĐH Quốc Gia Hà Nội
+                </Link>
               </li>
-              <li className="flex items-center gap-2">
-                <Phone className="w-3.5 h-3.5 text-blue-400" />
-                <span>Hotline: 1900 8899 (8:00 - 21:00)</span>
+              <li>
+                <Link href="/listings?city=Hà%20Nội&district=Hai%20Bà%20Trưng" className="hover:text-white transition-colors">
+                  Trọ Bách - Kinh - Xây
+                </Link>
               </li>
-              <li className="flex items-start gap-2">
-                <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
-                <span>Hà Nội & TP. Hồ Chí Minh, Việt Nam</span>
+              <li>
+                <Link href="/listings?city=Hồ%20Chí%20Minh&district=Bình%20Thạnh" className="hover:text-white transition-colors">
+                  Trọ gần ĐH HUTECH & UEF
+                </Link>
+              </li>
+              <li>
+                <Link href="/listings?city=Hồ%20Chí%20Minh&district=Quận%201" className="hover:text-white transition-colors">
+                  Căn hộ dịch vụ Quận 1
+                </Link>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-          <p>© 2026 HomeMatch Platform. Hệ thống hỗ trợ tìm kiếm thuê nhà & quản lý cho thuê.</p>
-          <div className="flex gap-4">
-            <span className="text-slate-500">Next.js 15 App Router</span>
-            <span className="text-slate-600">•</span>
-            <span className="text-slate-500">ASP.NET Core .NET 10 Modular Monolith</span>
+        {/* Bottom Copyright & Tech Standards */}
+        <div className="pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+          <p>© 2026 HomeMatch Platform. Toàn bộ bản quyền thuộc về HomeMatch Vietnam.</p>
+          <div className="flex items-center gap-3 text-slate-500 text-[11px]">
+            <span>Quy chế hoạt động</span>
+            <span>•</span>
+            <span>Chính sách bảo mật</span>
+            <span>•</span>
+            <span>Giải quyết tranh chấp</span>
           </div>
         </div>
       </div>

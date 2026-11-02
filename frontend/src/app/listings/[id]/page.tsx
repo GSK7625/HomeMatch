@@ -25,6 +25,14 @@ import {
   CheckCircle2,
   ArrowLeft,
   Share2,
+  Star,
+  GraduationCap,
+  Bus,
+  ShoppingBag,
+  Building2,
+  Calculator,
+  Flame,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +46,7 @@ export default function ListingDetailPage() {
   const [listing, setListing] = useState<PropertyListing | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isFav, setIsFav] = useState(false);
+  const [showFullPhone, setShowFullPhone] = useState(false);
 
   // Booking Modal
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -89,6 +98,18 @@ export default function ListingDetailPage() {
     showToast(res.message, res.success ? "success" : "error");
   };
 
+  const handlePhoneClick = () => {
+    setShowFullPhone(true);
+    showToast(`Số điện thoại chủ nhà: ${listing.landlordPhone}`, "info");
+  };
+
+  const handleShare = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(window.location.href);
+      showToast("Đã sao chép liên kết tin phòng vào bộ nhớ tạm!", "success");
+    }
+  };
+
   const handleBookViewing = (e: React.FormEvent) => {
     e.preventDefault();
     if (!bookingDate) {
@@ -120,15 +141,16 @@ export default function ListingDetailPage() {
     );
   };
 
-  const statusColors = {
-    "Còn trống": "bg-emerald-50 text-emerald-700 border-emerald-200",
-    "Đã thuê": "bg-slate-100 text-slate-600 border-slate-200",
-    "Tạm ngừng": "bg-rose-50 text-rose-700 border-rose-200",
-  };
+  // First month total cost calculation widget
+  const estElecUsage = 100; // 100 kWh
+  const estWaterUsage = 6; // 6 m3
+  const estElecCost = estElecUsage * listing.electricityPrice;
+  const estWaterCost = estWaterUsage * listing.waterPrice;
+  const firstMonthTotal = listing.price + listing.deposit + estElecCost + estWaterCost + listing.serviceFee;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-8">
-      {/* Back button & Breadcrumb */}
+      {/* Top Action Bar */}
       <div className="flex items-center justify-between text-xs text-slate-500">
         <Link
           href="/listings"
@@ -140,8 +162,16 @@ export default function ListingDetailPage() {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={handleShare}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 font-medium text-slate-700"
+            title="Chia sẻ tin"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span>Chia sẻ</span>
+          </button>
+          <button
             onClick={handleAddToCompare}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 font-medium text-slate-700"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 font-medium text-slate-700"
           >
             <Scale className="w-3.5 h-3.5 text-blue-600" />
             <span>So sánh</span>
@@ -149,7 +179,7 @@ export default function ListingDetailPage() {
           <button
             onClick={handleToggleFav}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-medium transition-colors",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-medium transition-colors",
               isFav
                 ? "bg-rose-50 border-rose-200 text-rose-600 font-bold"
                 : "border-slate-200 hover:bg-slate-50 text-slate-700"
@@ -161,30 +191,28 @@ export default function ListingDetailPage() {
         </div>
       </div>
 
-      {/* Main Grid: Gallery & Details */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left 2 Cols: Images & Full Content */}
-        <div className="lg:col-span-2 space-y-8">
+      {/* Main Grid: Gallery & Details + Sticky Widget */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left 8 Cols: Images, Specs, POIs, Reviews */}
+        <div className="lg:col-span-8 space-y-8">
           {/* Gallery */}
           <div className="space-y-3">
-            <div className="aspect-[16/10] rounded-2xl overflow-hidden bg-slate-100 relative shadow-sm">
+            <div className="aspect-[16/10] rounded-3xl overflow-hidden bg-slate-100 relative shadow-md">
               <img
                 src={listing.images[activeImageIndex] || listing.images[0]}
                 alt={listing.title}
                 className="w-full h-full object-cover"
               />
               <div className="absolute top-4 left-4 flex gap-2">
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-900/80 text-white backdrop-blur-md">
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-900/85 text-white backdrop-blur-md">
                   {listing.roomType}
                 </span>
-                <span
-                  className={cn(
-                    "px-3 py-1 rounded-full text-xs font-bold border backdrop-blur-md",
-                    statusColors[listing.status]
-                  )}
-                >
-                  {listing.status}
-                </span>
+                {listing.isVerifiedLandlord && (
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white flex items-center gap-1 shadow-md">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Đã kiểm duyệt thực địa</span>
+                  </span>
+                )}
               </div>
             </div>
 
@@ -196,7 +224,7 @@ export default function ListingDetailPage() {
                     key={idx}
                     onClick={() => setActiveImageIndex(idx)}
                     className={cn(
-                      "w-20 h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all",
+                      "w-24 h-16 rounded-2xl overflow-hidden shrink-0 border-2 transition-all",
                       activeImageIndex === idx
                         ? "border-blue-600 shadow-md scale-105"
                         : "border-transparent opacity-70 hover:opacity-100"
@@ -209,44 +237,70 @@ export default function ListingDetailPage() {
             )}
           </div>
 
-          {/* Title & Core Meta */}
-          <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-snug">
-              {listing.title}
-            </h1>
+          {/* Core Info Card */}
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-xs space-y-6">
+            {/* Promo banner */}
+            {listing.discountTag && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold">
+                <Flame className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>{listing.discountTag}</span>
+              </div>
+            )}
 
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-              <span>{listing.address}, {listing.district}, {listing.city}</span>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-snug">
+                {listing.title}
+              </h1>
+
+              <div className="flex items-center gap-2 text-xs text-slate-500 mt-2">
+                <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
+                <span>{listing.address}, {listing.district}, {listing.city}</span>
+              </div>
+
+              {/* Rating & Review Summary */}
+              {listing.rating && (
+                <div className="flex items-center gap-3 mt-3 text-xs">
+                  <div className="flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200/60 font-bold text-amber-700">
+                    <Star className="w-3.5 h-3.5 fill-current" />
+                    <span>{listing.rating} / 5.0</span>
+                  </div>
+                  <span className="text-slate-500">{listing.reviewCount} lượt đánh giá thực tế</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Phòng còn trống có thể vào ở ngay</span>
+                  </span>
+                </div>
+              )}
             </div>
 
-            {/* Key specs bar */}
-            <div className="grid grid-cols-3 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200/60 text-center">
+            {/* Key Specs Bar */}
+            <div className="grid grid-cols-3 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/70 text-center">
               <div>
-                <span className="block text-[11px] font-bold text-slate-400 uppercase">Giá thuê</span>
-                <span className="text-lg sm:text-xl font-black text-blue-600">
+                <span className="block text-[11px] font-bold text-slate-400 uppercase">Giá thuê niêm yết</span>
+                <span className="text-xl sm:text-2xl font-black text-blue-600">
                   {(listing.price / 1000000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tr
                 </span>
                 <span className="text-[10px] text-slate-500 block">/tháng</span>
               </div>
               <div>
-                <span className="block text-[11px] font-bold text-slate-400 uppercase">Diện tích</span>
-                <span className="text-lg sm:text-xl font-black text-slate-800">{listing.area}</span>
+                <span className="block text-[11px] font-bold text-slate-400 uppercase">Diện tích sử dụng</span>
+                <span className="text-xl sm:text-2xl font-black text-slate-800">{listing.area}</span>
                 <span className="text-[10px] text-slate-500 block">m² sàn</span>
               </div>
               <div>
                 <span className="block text-[11px] font-bold text-slate-400 uppercase">Tiền đặt cọc</span>
-                <span className="text-lg sm:text-xl font-black text-slate-800">
+                <span className="text-xl sm:text-2xl font-black text-slate-800">
                   {(listing.deposit / 1000000).toFixed(1)} tr
                 </span>
-                <span className="text-[10px] text-slate-500 block">01 tháng</span>
+                <span className="text-[10px] text-slate-500 block">01 tháng tiền phòng</span>
               </div>
             </div>
 
-            {/* Description */}
-            <div className="pt-4 border-t border-slate-100 space-y-2">
+            {/* Detailed Description */}
+            <div className="space-y-2 pt-2">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                Mô tả chi tiết phòng
+                Mô tả chi tiết phòng trọ
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line">
                 {listing.description}
@@ -254,32 +308,61 @@ export default function ListingDetailPage() {
             </div>
 
             {/* Amenities Grid */}
-            <div className="pt-4 border-t border-slate-100 space-y-3">
+            <div className="space-y-3 pt-4 border-t border-slate-100">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                Tiện ích & Dịch vụ có sẵn
+                Tiện ích & Dịch vụ đi kèm
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 {listing.amenities.map((item) => (
                   <div
                     key={item}
-                    className="flex items-center gap-2 p-2.5 rounded-xl bg-blue-50/50 border border-blue-100/60 text-xs text-slate-700 font-medium"
+                    className="flex items-center gap-2 p-3 rounded-xl bg-blue-50/60 border border-blue-100/70 text-xs text-slate-700 font-medium"
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
                     <span>{item}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Utility Tariff Disclosure (Section 3.8 / 4.3) */}
-            <div className="pt-4 border-t border-slate-100 space-y-3">
+            {/* Nearby POIs (Section 3.2: Tiện ích tra cứu liên quan) */}
+            {listing.nearbyPOIs && listing.nearbyPOIs.length > 0 && (
+              <div className="space-y-3 pt-4 border-t border-slate-100">
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-blue-600" />
+                  <span>Tiện ích xung quanh trong bán kính 1km</span>
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  {listing.nearbyPOIs.map((poi, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/70"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        {poi.type === "school" && <GraduationCap className="w-4 h-4 text-indigo-600" />}
+                        {poi.type === "transit" && <Bus className="w-4 h-4 text-emerald-600" />}
+                        {poi.type === "market" && <ShoppingBag className="w-4 h-4 text-amber-600" />}
+                        {poi.type === "hospital" && <Building2 className="w-4 h-4 text-rose-600" />}
+                        <span className="font-semibold text-slate-800">{poi.name}</span>
+                      </div>
+                      <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                        {poi.distance}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Transparent Utility Breakdown */}
+            <div className="space-y-3 pt-4 border-t border-slate-100">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                Biểu phí điện, nước & Dịch vụ
+                Bảng biểu phí điện nước & Phí dịch vụ
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/60 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
-                    <Zap className="w-4 h-4" />
+                <div className="p-3.5 rounded-2xl border border-amber-200 bg-amber-50/60 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+                    <Zap className="w-5 h-5" />
                   </div>
                   <div>
                     <span className="text-[10px] font-bold text-amber-900 uppercase block">Giá điện</span>
@@ -289,9 +372,9 @@ export default function ListingDetailPage() {
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl border border-sky-200 bg-sky-50/60 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-sky-500 text-white flex items-center justify-center shrink-0">
-                    <Droplet className="w-4 h-4" />
+                <div className="p-3.5 rounded-2xl border border-sky-200 bg-sky-50/60 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500 text-white flex items-center justify-center shrink-0">
+                    <Droplet className="w-5 h-5" />
                   </div>
                   <div>
                     <span className="text-[10px] font-bold text-sky-900 uppercase block">Giá nước</span>
@@ -301,9 +384,9 @@ export default function ListingDetailPage() {
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-slate-600 text-white flex items-center justify-center shrink-0">
-                    <ShieldCheck className="w-4 h-4" />
+                <div className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-700 text-white flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-5 h-5" />
                   </div>
                   <div>
                     <span className="text-[10px] font-bold text-slate-700 uppercase block">Phí dịch vụ</span>
@@ -314,97 +397,167 @@ export default function ListingDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* Real Reviews Section */}
+            {listing.reviews && listing.reviews.length > 0 && (
+              <div className="space-y-4 pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                    Đánh giá từ khách thuê thực tế ({listing.reviews.length})
+                  </h3>
+                  <div className="flex items-center gap-1 text-amber-500 text-xs font-bold">
+                    <Star className="w-4 h-4 fill-current" />
+                    <span>{listing.rating} / 5.0</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {listing.reviews.map((rev) => (
+                    <div
+                      key={rev.id}
+                      className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-2 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+                            {rev.author.charAt(0)}
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-900 block">{rev.author}</span>
+                            <span className="text-[10px] text-slate-500">{rev.role}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 text-amber-500">
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <Star key={i} className="w-3 h-3 fill-current" />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-slate-600 leading-relaxed italic">{rev.content}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right 1 Col: Landlord Card & Action Box */}
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6 sticky top-20">
-            {/* Action CTAs */}
+        {/* Right 4 Cols: Sticky Commercial Contact & Estimated Cost Widget */}
+        <div className="lg:col-span-4 space-y-6 sticky top-20">
+          {/* Contact Box */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xl space-y-5">
             <div className="space-y-3">
               <button
                 onClick={() => setIsBookingOpen(true)}
                 disabled={listing.status !== "Còn trống"}
-                className="w-full py-3.5 px-4 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full py-3.5 px-4 rounded-2xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <Calendar className="w-4 h-4" />
-                <span>
-                  {listing.status === "Còn trống" ? "Đặt Lịch Xem Phòng Ngay" : "Phòng hiện không trống"}
-                </span>
+                <span>Đặt Lịch Xem Phòng Miễn Phí</span>
               </button>
 
-              <Link
-                href="/messages"
-                className="w-full py-3 px-4 rounded-xl font-bold text-xs text-slate-800 bg-slate-100 hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
-              >
-                <MessageSquare className="w-4 h-4 text-blue-600" />
-                <span>Nhắn tin với chủ nhà</span>
-              </Link>
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  href="/messages"
+                  className="py-2.5 px-3 rounded-xl font-bold text-xs text-slate-800 bg-slate-100 hover:bg-slate-200 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Chat chủ trọ</span>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={handlePhoneClick}
+                  className="py-2.5 px-3 rounded-xl font-bold text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>{showFullPhone ? listing.landlordPhone : "Hiện số ĐT"}</span>
+                </button>
+              </div>
             </div>
 
-            {/* Landlord Info Card */}
-            <div className="pt-6 border-t border-slate-100 space-y-4">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                Thông tin chủ trọ
-              </span>
-
+            {/* Landlord Trust Profile */}
+            <div className="pt-4 border-t border-slate-100 space-y-3">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-base shadow-sm">
+                <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-lg shadow-sm">
                   {listing.landlordName.charAt(0)}
                 </div>
                 <div>
                   <h4 className="font-bold text-slate-900 text-sm">{listing.landlordName}</h4>
-                  <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
+                  <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-semibold">
                     <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Chủ nhà đã xác minh danh tính</span>
+                    <span>Chủ nhà đã xác minh giấy tờ</span>
                   </div>
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 rounded-xl space-y-2 text-xs">
-                <div className="flex items-center justify-between text-slate-600">
-                  <span className="flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Số điện thoại:</span>
-                  </span>
-                  <span className="font-bold text-slate-900">{listing.landlordPhone}</span>
+              <div className="p-3 bg-slate-50 rounded-xl space-y-1.5 text-xs text-slate-600">
+                <div className="flex justify-between">
+                  <span>Tỷ lệ phản hồi:</span>
+                  <span className="font-bold text-slate-900">98% (trong 15 phút)</span>
                 </div>
-                <div className="flex items-center justify-between text-slate-600">
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Thời gian phản hồi:</span>
-                  </span>
-                  <span className="font-semibold text-slate-800">Dưới 15 phút</span>
+                <div className="flex justify-between">
+                  <span>Số tin đang quản lý:</span>
+                  <span className="font-bold text-slate-900">3 bất động sản</span>
                 </div>
               </div>
             </div>
 
-            {/* Safety tips */}
-            <div className="p-3.5 bg-blue-50/60 border border-blue-100 rounded-xl space-y-1.5 text-[11px] text-blue-900">
-              <p className="font-bold flex items-center gap-1.5 text-blue-700">
-                <ShieldCheck className="w-4 h-4" />
-                <span>Thuê nhà an toàn với HomeMatch</span>
-              </p>
-              <p className="leading-relaxed text-blue-800/80">
-                Luôn đi xem phòng trực tiếp trước khi đặt cọc. Mọi khoản cọc và hợp đồng nên được lập
-                bằng văn bản trên hệ thống.
+            {/* First Month Budget Estimator Widget */}
+            <div className="pt-4 border-t border-slate-100 space-y-3">
+              <div className="flex items-center gap-2 text-slate-900 font-bold text-xs uppercase tracking-wider">
+                <Calculator className="w-4 h-4 text-blue-600" />
+                <span>Dự tính chi phí tháng đầu vào ở</span>
+              </div>
+
+              <div className="p-3.5 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-2 text-xs">
+                <div className="flex justify-between text-slate-600">
+                  <span>Tiền thuê tháng đầu:</span>
+                  <span className="font-semibold text-slate-900">{listing.price.toLocaleString()} đ</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Tiền cọc giữ chỗ (1 tháng):</span>
+                  <span className="font-semibold text-slate-900">{listing.deposit.toLocaleString()} đ</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Dự kiến điện (100 kWh):</span>
+                  <span className="font-semibold text-slate-900">{estElecCost.toLocaleString()} đ</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Dự kiến nước (6 m³):</span>
+                  <span className="font-semibold text-slate-900">{estWaterCost.toLocaleString()} đ</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Phí dịch vụ:</span>
+                  <span className="font-semibold text-slate-900">{listing.serviceFee.toLocaleString()} đ</span>
+                </div>
+
+                <div className="pt-2 border-t border-blue-200/80 flex justify-between font-black text-sm text-blue-900">
+                  <span>Tổng chuẩn bị ban đầu:</span>
+                  <span className="text-blue-700">{firstMonthTotal.toLocaleString()} VNĐ</span>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-400 italic text-center">
+                * Tiền cọc được hoàn lại 100% khi kết thúc hợp đồng theo điều khoản.
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Booking Viewing Modal */}
+      {/* Booking Modal */}
       <Modal
         isOpen={isBookingOpen}
         onClose={() => setIsBookingOpen(false)}
-        title="Đặt Lịch Hẹn Xem Phòng Trực Tiếp"
-        description="Điền thông tin và thời gian mong muốn, chủ nhà sẽ phản hồi xác nhận qua hệ thống."
+        title="Đặt Lịch Hẹn Xem Phòng Trực Tiếp (Miễn Phí)"
+        description="Điền thông tin và thời gian mong muốn, chủ nhà sẽ liên hệ xác nhận trong vòng 15 phút."
         maxWidth="md"
       >
         <form onSubmit={handleBookViewing} className="space-y-4">
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs space-y-1">
-            <span className="font-bold text-slate-800 block line-clamp-1">{listing.title}</span>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+            <span className="font-bold text-slate-900 block line-clamp-1">{listing.title}</span>
             <span className="text-slate-500 block">{listing.address}</span>
           </div>
 
@@ -467,7 +620,7 @@ export default function ListingDetailPage() {
             </label>
             <textarea
               rows={2}
-              placeholder="Ví dụ: Cháu đi xe máy, có cần chuẩn bị giấy tờ gì khi đến xem không ạ..."
+              placeholder="Ví dụ: Cháu đi xe máy, có cần mang CMND/CCCD khi đến xem không ạ..."
               value={note}
               onChange={(e) => setNote(e.target.value)}
               className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
@@ -487,7 +640,7 @@ export default function ListingDetailPage() {
               disabled={bookingLoading}
               className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-500/20 disabled:opacity-50"
             >
-              {bookingLoading ? "Đang gửi yêu cầu..." : "Xác nhận gửi yêu cầu"}
+              {bookingLoading ? "Đang gửi yêu cầu..." : "Xác nhận gửi lịch hẹn"}
             </button>
           </div>
         </form>

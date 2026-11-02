@@ -458,6 +458,81 @@ function ListingsContent() {
             </div>
           )}
 
+          {/* Commercial Quick Filter Chips */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+            <span className="text-slate-400 font-semibold text-[11px] whitespace-nowrap">Lọc nhanh:</span>
+            <button
+              onClick={() => {
+                setPriceRange("3to5");
+                setPage(1);
+              }}
+              className={cn(
+                "px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap",
+                priceRange === "3to5"
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+              )}
+            >
+              💵 3 - 5 triệu/tháng
+            </button>
+            <button
+              onClick={() => {
+                toggleAmenity("Máy giặt riêng");
+                setPage(1);
+              }}
+              className={cn(
+                "px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap",
+                selectedAmenities.includes("Máy giặt riêng")
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+              )}
+            >
+              🧺 Máy giặt riêng
+            </button>
+            <button
+              onClick={() => {
+                toggleAmenity("Ban công");
+                setPage(1);
+              }}
+              className={cn(
+                "px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap",
+                selectedAmenities.includes("Ban công")
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+              )}
+            >
+              🌿 Ban công thoáng
+            </button>
+            <button
+              onClick={() => {
+                toggleAmenity("Nuôi thú cưng");
+                setPage(1);
+              }}
+              className={cn(
+                "px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap",
+                selectedAmenities.includes("Nuôi thú cưng")
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+              )}
+            >
+              🐾 Cho nuôi pet
+            </button>
+            <button
+              onClick={() => {
+                toggleType("Căn hộ dịch vụ");
+                setPage(1);
+              }}
+              className={cn(
+                "px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap",
+                selectedTypes.includes("Căn hộ dịch vụ")
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+              )}
+            >
+              ✨ Căn hộ dịch vụ
+            </button>
+          </div>
+
           {/* Results Summary & Sorting */}
           <div className="flex items-center justify-between flex-wrap gap-4 pb-2">
             <div>

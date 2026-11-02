@@ -175,52 +175,67 @@ export function Navbar() {
             </nav>
 
             {/* Right Action Icons & CTA */}
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              {/* Compare Quick Icon Badge */}
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+              {/* Compare Quick Button */}
               <Link
                 href="/compare"
                 className={cn(
-                  "relative p-2 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition-colors",
-                  pathname === "/compare" && "bg-blue-50 text-blue-600"
+                  "flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
+                  pathname === "/compare"
+                    ? "text-blue-600 bg-blue-50/80 shadow-xs"
+                    : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
                 )}
                 title="So sánh phòng đối chiếu"
               >
-                <Scale className="w-4 h-4" />
-                {compareCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-                    {compareCount}
-                  </span>
-                )}
+                <div className="relative flex items-center">
+                  <Scale className="w-4 h-4 shrink-0" />
+                  {compareCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2 w-3.5 h-3.5 rounded-full bg-blue-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                      {compareCount}
+                    </span>
+                  )}
+                </div>
+                <span className="hidden sm:inline whitespace-nowrap">So sánh</span>
               </Link>
 
-              {/* Favorites Quick Icon Badge */}
+              {/* Favorites Quick Button */}
               <Link
                 href="/tenant/favorites"
                 className={cn(
-                  "relative p-2 rounded-xl text-slate-600 hover:text-rose-600 hover:bg-slate-100 transition-colors",
-                  pathname === "/tenant/favorites" && "bg-rose-50 text-rose-600"
+                  "flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
+                  pathname === "/tenant/favorites"
+                    ? "text-rose-600 bg-rose-50/80 shadow-xs"
+                    : "text-slate-600 hover:text-rose-600 hover:bg-slate-100/80"
                 )}
                 title="Danh sách phòng đã lưu"
               >
-                <Heart className="w-4 h-4" />
-                {favCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-                    {favCount}
-                  </span>
-                )}
+                <div className="relative flex items-center">
+                  <Heart className="w-4 h-4 shrink-0" />
+                  {favCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2 w-3.5 h-3.5 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                      {favCount}
+                    </span>
+                  )}
+                </div>
+                <span className="hidden sm:inline whitespace-nowrap">Yêu thích</span>
               </Link>
 
-              {/* Messages Quick Icon */}
+              {/* Messages Quick Button */}
               <Link
                 href="/messages"
                 className={cn(
-                  "relative p-2 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition-colors",
-                  pathname === "/messages" && "bg-blue-50 text-blue-600"
+                  "flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
+                  pathname === "/messages"
+                    ? "text-blue-600 bg-blue-50/80 shadow-xs"
+                    : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
                 )}
                 title="Hộp thư tin nhắn"
               >
-                <MessageSquare className="w-4 h-4" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
+                <div className="relative flex items-center">
+                  <MessageSquare className="w-4 h-4 shrink-0" />
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
+                </div>
+                <span className="hidden sm:inline whitespace-nowrap">Tin nhắn</span>
               </Link>
 
               <div className="h-6 w-px bg-slate-200 hidden sm:block" />

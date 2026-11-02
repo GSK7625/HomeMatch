@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { CurrentUserProfile, UserRole } from "@/types";
 import {
   authApi,
@@ -20,6 +20,7 @@ interface AuthContextType {
   register: (body: RegistrationBody) => Promise<{ success: boolean; challengeId?: string; message?: string }>;
   verifyOtp: (challengeId: string, code: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
   switchDemoRole: (role: UserRole) => void;
 }
 
@@ -29,67 +30,98 @@ const DEMO_USERS: Record<UserRole, CurrentUserProfile> = {
   Tenant: {
     accountId: "demo-tenant-id",
     email: "tenant@homematch.vn",
-    displayName: "Đỗ Trung Kiên (Người thuê)",
+    displayName: "Đỗ Trung Kiên",
     role: "Tenant",
     phoneNumber: "0977 123 456",
     emailConfirmed: true,
+    emailVerified: true,
     createdAt: "2026-10-01T00:00:00Z",
   },
   Landlord: {
     accountId: "demo-landlord-id",
     email: "landlord@homematch.vn",
-    displayName: "Nguyễn Văn Hùng (Chủ nhà)",
+    displayName: "Nguyễn Văn Hùng",
     role: "Landlord",
     phoneNumber: "0912 345 678",
     emailConfirmed: true,
+    emailVerified: true,
     createdAt: "2026-09-15T00:00:00Z",
   },
   Admin: {
     accountId: "demo-admin-id",
     email: "admin@homematch.vn",
-    displayName: "Admin Quản Trị Hệ Thống",
+    displayName: "Quản Trị Viên",
     role: "Admin",
     phoneNumber: "0999 888 777",
     emailConfirmed: true,
+    emailVerified: true,
     createdAt: "2026-01-01T00:00:00Z",
   },
 };
+
+function normalizeProfile(raw: CurrentUserProfile): CurrentUserProfile {
+  return {
+    ...raw,
+    accountId: raw.accountId || String(raw.id || ""),
+    displayName: raw.fullName || raw.displayName || raw.email.split("@")[0],
+    emailConfirmed: raw.emailVerified ?? raw.emailConfirmed ?? false,
+    emailVerified: raw.emailVerified ?? raw.emailConfirmed ?? false,
+  };
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<CurrentUserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const refreshProfile = useCallback(async () => {
+    try {
+      const res = await authApi.getMe();
+      if (res.isSuccess && res.data) {
+        const profile = normalizeProfile(res.data);
+        setUser(profile);
+        setStoredUser(profile);
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
+
   useEffect(() => {
-    // Initial hydration
+    // Initial hydration strictly adhering to real credentials
     const savedToken = getStoredToken();
     const savedUser = getStoredUser();
 
-    if (savedToken && savedUser) {
+    if (savedToken) {
       setToken(savedToken);
-      setUser(savedUser);
+      if (savedUser) {
+        setUser(savedUser);
+      }
 
-      // Verify token with backend
+      // Verify token with backend /api/v1/identity/me
       authApi.getMe().then((res) => {
         if (res.isSuccess && res.data) {
-          const profile = res.data;
+          const profile = normalizeProfile(res.data);
           setUser(profile);
           setStoredUser(profile);
+        } else if (res.error?.code === "HTTP_401") {
+          // Token expired or invalid: reset to Guest
+          setToken(null);
+          setUser(null);
+          setStoredToken(null);
+          setStoredUser(null);
         }
       }).catch(() => {
-        // Fallback or offline
+        // Offline or backend unavailable, maintain cached user if exists
       }).finally(() => {
         setIsLoading(false);
       });
-    } else if (savedUser) {
-      // Demo session without real JWT
-      setUser(savedUser);
-      setIsLoading(false);
     } else {
-      // Default to demo Tenant for seamless onboarding
-      const defaultUser = DEMO_USERS.Tenant;
-      setUser(defaultUser);
-      setStoredUser(defaultUser);
+      // Default to Guest - NOT auto-logged in
+      setUser(null);
+      setToken(null);
+      setStoredToken(null);
+      setStoredUser(null);
       setIsLoading(false);
     }
   }, []);
@@ -103,21 +135,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setToken(accessToken);
         setStoredToken(accessToken);
 
-        // Fetch user profile from /me
+        // Fetch user profile from backend /api/v1/identity/me
         const profileRes = await authApi.getMe();
         if (profileRes.isSuccess && profileRes.data) {
-          setUser(profileRes.data);
-          setStoredUser(profileRes.data);
+          const profile = normalizeProfile(profileRes.data);
+          setUser(profile);
+          setStoredUser(profile);
         } else {
-          // Fallback mock profile based on email
+          // Fallback profile if /me endpoint has slight latency
           const isLandlord = email.includes("chu") || email.includes("landlord");
           const fallbackUser: CurrentUserProfile = {
             accountId: "user-" + Date.now(),
             email,
             displayName: email.split("@")[0],
             role: isLandlord ? "Landlord" : "Tenant",
-            phoneNumber: "0900000000",
+            phoneNumber: null,
             emailConfirmed: true,
+            emailVerified: true,
             createdAt: new Date().toISOString(),
           };
           setUser(fallbackUser);
@@ -207,6 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         verifyOtp,
         logout,
+        refreshProfile,
         switchDemoRole,
       }}
     >

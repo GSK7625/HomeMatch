@@ -1,20 +1,20 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useToast } from "@/components/Toast";
-import { User, Lock, Bell, ShieldCheck, CheckCircle2, Save } from "lucide-react";
+import { User, Lock, Bell, ShieldCheck, CheckCircle2, AlertCircle, Save, Calendar, Hash } from "lucide-react";
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { showToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<"profile" | "password" | "notifications">("profile");
 
   // Profile Form State
-  const [displayName, setDisplayName] = useState(user?.displayName || "Đỗ Trung Kiên");
-  const [email] = useState(user?.email || "tenant@homematch.vn");
-  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "0977 123 456");
+  const [displayName, setDisplayName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
 
   // Password Form State
   const [currentPassword, setCurrentPassword] = useState("");
@@ -26,9 +26,39 @@ export default function SettingsPage() {
   const [viewingNotif, setViewingNotif] = useState(true);
   const [billNotif, setBillNotif] = useState(true);
 
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.displayName || user.fullName || "");
+      setPhoneNumber(user.phoneNumber || "");
+    }
+  }, [user]);
+
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+          <User className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900">Yêu Cầu Đăng Nhập</h2>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+          Bạn cần đăng nhập bằng tài khoản HomeMatch để xem và quản lý thông tin hồ sơ cá nhân và cài đặt bảo mật.
+        </p>
+        <div className="pt-2">
+          <Link
+            href="/auth/login?redirect=/settings"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all"
+          >
+            <span>Đăng nhập ngay</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const handleUpdateProfile = (e: React.FormEvent) => {
     e.preventDefault();
     showToast("Cập nhật thông tin hồ sơ tài khoản thành công!", "success");
+    if (refreshProfile) refreshProfile();
   };
 
   const handleChangePassword = (e: React.FormEvent) => {
@@ -55,9 +85,13 @@ export default function SettingsPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-6">
       <div className="pb-4 border-b border-slate-200">
+        <div className="flex items-center gap-2 text-blue-600 text-xs font-bold uppercase tracking-wider mb-1">
+          <ShieldCheck className="w-4 h-4" />
+          <span>Tài Khoản & Danh Tính (Identity)</span>
+        </div>
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">Cài Đặt Tài Khoản & Bảo Mật</h1>
         <p className="text-xs text-slate-500 mt-1">
-          Quản lý thông tin cá nhân, cập nhật mật khẩu đăng nhập và tùy chọn thông báo tài khoản.
+          Quản lý thông tin tài khoản được lưu trữ an toàn trong module Identity của hệ thống HomeMatch.
         </p>
       </div>
 
@@ -102,7 +136,27 @@ export default function SettingsPage() {
 
       {/* Tab 1: Profile */}
       {activeTab === "profile" && (
-        <form onSubmit={handleUpdateProfile} className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
+        <form onSubmit={handleUpdateProfile} className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-5 shadow-xs">
+          {/* Identity ID summary card */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+            <div>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Mã Tài Khoản:</span>
+              <span className="font-mono font-bold text-slate-800">{user.accountId || user.id || "N/A"}</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Vai Trò Hệ Thống:</span>
+              <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">
+                {user.role === "Landlord" ? "Chủ nhà (Landlord)" : user.role === "Admin" ? "Quản trị viên (Admin)" : "Người thuê (Tenant)"}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Ngày Tham Gia:</span>
+              <span className="font-medium text-slate-700">
+                {user.createdAt ? new Date(user.createdAt).toLocaleDateString("vi-VN") : "Gần đây"}
+              </span>
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
               Họ và tên hiển thị
@@ -112,7 +166,7 @@ export default function SettingsPage() {
               required
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+              className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
           </div>
 
@@ -123,13 +177,20 @@ export default function SettingsPage() {
             <input
               type="email"
               disabled
-              value={email}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed"
+              value={user.email}
+              className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed"
             />
-            <span className="text-[10px] text-emerald-600 font-medium mt-1 flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3" />
-              <span>Email đã được xác thực bảo mật</span>
-            </span>
+            {user.emailConfirmed ? (
+              <span className="text-[11px] text-emerald-600 font-medium mt-1 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Email đã được xác thực mã OTP bảo mật</span>
+              </span>
+            ) : (
+              <span className="text-[11px] text-amber-600 font-medium mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>Email chưa được xác thực</span>
+              </span>
+            )}
           </div>
 
           <div>
@@ -138,21 +199,10 @@ export default function SettingsPage() {
             </label>
             <input
               type="tel"
+              placeholder="0912 345 678"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Vai trò trong hệ thống
-            </label>
-            <input
-              type="text"
-              disabled
-              value={user?.role || "Tenant (Người thuê)"}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed font-bold"
+              className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
           </div>
 
@@ -181,7 +231,7 @@ export default function SettingsPage() {
               placeholder="••••••••"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+              className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
           </div>
 
@@ -195,7 +245,7 @@ export default function SettingsPage() {
               placeholder="Tối thiểu 8 ký tự"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+              className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
           </div>
 
@@ -209,7 +259,7 @@ export default function SettingsPage() {
               placeholder="Nhập lại mật khẩu mới"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+              className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
           </div>
 
@@ -229,7 +279,7 @@ export default function SettingsPage() {
       {activeTab === "notifications" && (
         <form onSubmit={handleSaveNotifications} className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
           <div className="space-y-4">
-            <label className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer">
+            <label className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer">
               <div>
                 <span className="font-bold text-xs text-slate-900 block">Thông báo qua Email</span>
                 <span className="text-[11px] text-slate-500">
@@ -244,7 +294,7 @@ export default function SettingsPage() {
               />
             </label>
 
-            <label className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer">
+            <label className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer">
               <div>
                 <span className="font-bold text-xs text-slate-900 block">Thông báo Lịch xem phòng</span>
                 <span className="text-[11px] text-slate-500">
@@ -259,7 +309,7 @@ export default function SettingsPage() {
               />
             </label>
 
-            <label className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer">
+            <label className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer">
               <div>
                 <span className="font-bold text-xs text-slate-900 block">Nhắc nhở hạn nộp tiền phòng & Điện nước</span>
                 <span className="text-[11px] text-slate-500">

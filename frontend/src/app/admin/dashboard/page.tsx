@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { useAuth } from "@/features/auth/AuthContext";
 import { listingService, adminService } from "@/lib/services";
 import { PropertyListing, SystemReport } from "@/types";
 import { useToast } from "@/components/Toast";
@@ -30,6 +32,7 @@ interface DemoAccount {
 }
 
 export default function AdminDashboardPage() {
+  const { user, role } = useAuth();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<"listings" | "users" | "reports">("listings");
   const [listings, setListings] = useState<PropertyListing[]>([]);
@@ -115,6 +118,28 @@ export default function AdminDashboardPage() {
     loadData();
     showToast(`Đã ghi nhận kết quả xử lý báo cáo: ${resolution}`, "success");
   };
+
+  if (!user || role !== "Admin") {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto shadow-xs">
+          <ShieldCheck className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900">Khu Vực Dành Riêng Cho Quản Trị Viên</h2>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+          Bạn cần đăng nhập với tài khoản có quyền Quản trị viên (Admin) để truy cập cổng thông tin quản lý toàn hệ thống.
+        </p>
+        <div className="pt-2">
+          <Link
+            href="/auth/login?redirect=/admin/dashboard"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all"
+          >
+            <span>Đăng nhập quyền Admin</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-6">

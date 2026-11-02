@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { leasingService, listingService } from "@/lib/services";
 import { LeaseContract, PropertyListing } from "@/types";
 import { useAuth } from "@/features/auth/AuthContext";
@@ -90,6 +91,28 @@ export default function LandlordContractsPage() {
     loadData();
     showToast("Tạo và lưu hợp đồng thuê nhà thành công!", "success");
   };
+
+  if (!user || user.role === "Tenant") {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+          <FileText className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900">Quản Lý Hợp Đồng Cho Thuê</h2>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+          Vui lòng đăng nhập với tài khoản <strong>Chủ nhà (Landlord)</strong> để tạo và quản lý hợp đồng thuê nhà với khách.
+        </p>
+        <div className="pt-2">
+          <Link
+            href="/auth/login?redirect=/landlord/contracts"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all"
+          >
+            <span>Đăng nhập tài khoản Chủ nhà</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-6">

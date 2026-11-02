@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useAuth } from "@/features/auth/AuthContext";
 import { messagingService } from "@/lib/services";
 import { ChatConversation, ChatMessage } from "@/types";
@@ -43,8 +44,8 @@ export default function MessagesPage() {
     e.preventDefault();
     if (!inputText.trim() || !activeConvId || !activeConv) return;
 
-    const senderId = user?.accountId || "current-user";
-    const senderName = user?.displayName || "Đỗ Trung Kiên";
+    const senderId = user?.accountId || String(user?.id || "current-user");
+    const senderName = user?.displayName || user?.fullName || "Bạn";
 
     const newMsg = messagingService.sendMessage(
       activeConvId,
@@ -71,6 +72,28 @@ export default function MessagesPage() {
       loadConversations();
     }, 1500);
   };
+
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+          <MessageSquare className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900">Hộp Thư Trực Tiếp</h2>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+          Vui lòng đăng nhập để trao đổi tin nhắn trực tiếp giữa Người thuê và Chủ nhà.
+        </p>
+        <div className="pt-2">
+          <Link
+            href="/auth/login?redirect=/messages"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all"
+          >
+            <span>Đăng nhập để xem tin nhắn</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 flex flex-col">

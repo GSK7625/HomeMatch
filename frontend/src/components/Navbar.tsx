@@ -37,7 +37,7 @@ interface NavItem {
 
 export function Navbar() {
   const pathname = usePathname();
-  const { user, role, logout, switchDemoRole } = useAuth();
+  const { user, role, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [favCount, setFavCount] = useState(0);
@@ -52,6 +52,12 @@ export function Navbar() {
     const interval = setInterval(updateCounters, 1500);
     return () => clearInterval(interval);
   }, []);
+
+  // Guest navigation
+  const guestNav: NavItem[] = [
+    { label: "Khám phá phòng", href: "/listings", icon: Search },
+    { label: "So sánh phòng", href: "/compare", icon: Scale },
+  ];
 
   // Tenant / Public navigation
   const tenantNav: NavItem[] = [
@@ -75,7 +81,14 @@ export function Navbar() {
     { label: "Khám phá sàn tin", href: "/listings", icon: Search },
   ];
 
-  const currentNav = role === "Landlord" ? landlordNav : role === "Admin" ? adminNav : tenantNav;
+  const currentNav =
+    role === "Landlord"
+      ? landlordNav
+      : role === "Admin"
+      ? adminNav
+      : role === "Tenant"
+      ? tenantNav
+      : guestNav;
 
   return (
     <header className="sticky top-0 z-40 bg-white shadow-xs">
@@ -258,33 +271,7 @@ export function Navbar() {
                         </span>
                       </div>
 
-                      {/* Subtle Demo Role Switcher tucked inside menu for testing without cluttering UI */}
-                      <div className="p-2 border-b border-slate-100 bg-slate-50/60">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-2 mb-1">
-                          Chuyển vai trò thử nghiệm:
-                        </span>
-                        <div className="grid grid-cols-3 gap-1">
-                          {(["Tenant", "Landlord", "Admin"] as const).map((r) => (
-                            <button
-                              key={r}
-                              type="button"
-                              onClick={() => {
-                                switchDemoRole(r);
-                                setUserDropdownOpen(false);
-                              }}
-                              className={cn(
-                                "py-1 px-1.5 text-[10px] rounded-lg font-bold transition-colors text-center",
-                                role === r
-                                  ? "bg-blue-600 text-white shadow-xs"
-                                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
-                              )}
-                            >
-                              {r === "Tenant" ? "Người thuê" : r === "Landlord" ? "Chủ nhà" : "Admin"}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
+                      {/* User Dropdown Profile Menu */}
                       <Link
                         href="/settings"
                         onClick={() => setUserDropdownOpen(false)}
@@ -337,23 +324,34 @@ export function Navbar() {
           {/* Mobile Drawer */}
           {mobileMenuOpen && (
             <div className="lg:hidden border-t border-slate-100 py-3 space-y-1 animate-in fade-in">
-              <div className="px-3 py-2 flex items-center justify-between bg-slate-50 rounded-xl mb-2">
-                <span className="text-xs font-bold text-slate-600">Đổi vai trò:</span>
-                <div className="flex gap-1">
-                  {(["Tenant", "Landlord", "Admin"] as const).map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => switchDemoRole(r)}
-                      className={cn(
-                        "px-2.5 py-1 text-[11px] rounded-lg font-bold",
-                        role === r ? "bg-blue-600 text-white" : "bg-white text-slate-600 border border-slate-200"
-                      )}
-                    >
-                      {r === "Tenant" ? "Người thuê" : r === "Landlord" ? "Chủ nhà" : "Admin"}
-                    </button>
-                  ))}
+              {user ? (
+                <div className="px-3 py-2.5 bg-slate-50 rounded-xl mb-2 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">{user.displayName}</p>
+                    <p className="text-[10px] text-slate-500">{user.email}</p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700">
+                    {role === "Landlord" ? "Chủ nhà" : role === "Admin" ? "Admin" : "Người thuê"}
+                  </span>
                 </div>
-              </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 p-1 mb-2">
+                  <Link
+                    href="/auth/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="py-2 text-center text-xs font-bold text-slate-700 bg-slate-100 rounded-xl"
+                  >
+                    Đăng nhập
+                  </Link>
+                  <Link
+                    href="/auth/register"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="py-2 text-center text-xs font-bold text-white bg-blue-600 rounded-xl"
+                  >
+                    Đăng ký
+                  </Link>
+                </div>
+              )}
 
               {currentNav.map((item) => {
                 const Icon = item.icon;
@@ -370,16 +368,20 @@ export function Navbar() {
                 );
               })}
 
-              <div className="pt-2 border-t border-slate-100">
-                <Link
-                  href="/landlord/listings"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-blue-600 shadow-sm"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  <span>Đăng tin cho thuê miễn phí</span>
-                </Link>
-              </div>
+              {user && (
+                <div className="pt-2 border-t border-slate-100">
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      logout();
+                    }}
+                    className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Đăng xuất</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

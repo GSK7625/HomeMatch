@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useAuth } from "@/features/auth/AuthContext";
 import { viewingService } from "@/lib/services";
 import { ViewingAppointment } from "@/types";
 import { useToast } from "@/components/Toast";
@@ -19,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export default function TenantViewingsPage() {
+  const { user } = useAuth();
   const { showToast } = useToast();
   const [appointments, setAppointments] = useState<ViewingAppointment[]>([]);
 
@@ -44,6 +46,28 @@ export default function TenantViewingsPage() {
     "Đã hoàn thành": "bg-blue-50 text-blue-700 border-blue-200",
     "Đã hủy": "bg-rose-50 text-rose-700 border-rose-200",
   };
+
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+          <Calendar className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900">Yêu Cầu Đăng Nhập</h2>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+          Vui lòng đăng nhập để xem và quản lý các lịch hẹn xem phòng trực tiếp của bạn.
+        </p>
+        <div className="pt-2">
+          <Link
+            href="/auth/login?redirect=/tenant/viewings"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all"
+          >
+            <span>Đăng nhập ngay</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-6">

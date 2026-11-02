@@ -52,10 +52,17 @@ export default function ListingDetailPage() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [bookingDate, setBookingDate] = useState("");
   const [bookingTime, setBookingTime] = useState("10:00");
-  const [tenantName, setTenantName] = useState(user?.displayName || "Đỗ Trung Kiên");
-  const [tenantPhone, setTenantPhone] = useState(user?.phoneNumber || "0977 123 456");
+  const [tenantName, setTenantName] = useState(user?.displayName || "");
+  const [tenantPhone, setTenantPhone] = useState(user?.phoneNumber || "");
   const [note, setNote] = useState("");
   const [bookingLoading, setBookingLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      if (!tenantName) setTenantName(user.displayName || user.fullName || "");
+      if (!tenantPhone) setTenantPhone(user.phoneNumber || "");
+    }
+  }, [user]);
 
   useEffect(() => {
     if (id) {

@@ -28,16 +28,20 @@ export interface HealthCheck {
 export type UserRole = "Tenant" | "Landlord" | "Admin";
 
 export interface CurrentUserProfile {
-  accountId: string;
+  id?: number | string;
+  accountId?: string;
   email: string;
+  fullName?: string;
   firstName?: string;
   lastName?: string;
   displayName: string;
   role: UserRole;
-  phoneNumber?: string;
+  phoneNumber?: string | null;
   avatarUrl?: string;
-  emailConfirmed: boolean;
+  emailConfirmed?: boolean;
+  emailVerified?: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface AuthTokens {

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useAuth } from "@/features/auth/AuthContext";
 import { listingService, leasingService, billingService, viewingService } from "@/lib/services";
 import { LeaseContract, MonthlyBill, PropertyListing } from "@/types";
 import {
@@ -21,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export default function LandlordDashboardPage() {
+  const { user, role } = useAuth();
   const [listings, setListings] = useState<PropertyListing[]>([]);
   const [contracts, setContracts] = useState<LeaseContract[]>([]);
   const [bills, setBills] = useState<MonthlyBill[]>([]);
@@ -32,6 +34,50 @@ export default function LandlordDashboardPage() {
     setContracts(leasingService.getAll());
     setBills(billingService.getAll());
   }, []);
+
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+          <Building2 className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900">Kênh Quản Lý Dành Cho Chủ Nhà</h2>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+          Vui lòng đăng nhập với tài khoản Chủ nhà để quản lý phòng trọ, theo dõi dòng tiền và phát hành hóa đơn.
+        </p>
+        <div className="pt-2">
+          <Link
+            href="/auth/login?redirect=/landlord/dashboard"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all"
+          >
+            <span>Đăng nhập tài khoản Chủ nhà</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (role === "Tenant") {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto shadow-xs">
+          <Building2 className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900">Yêu Cầu Quyền Chủ Nhà</h2>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+          Tài khoản của bạn hiện đang mang vai trò <strong>Người thuê (Tenant)</strong>. Để sử dụng các tính năng dành cho chủ nhà, vui lòng đăng ký tài khoản với vai trò Chủ nhà (Landlord).
+        </p>
+        <div className="pt-2">
+          <Link
+            href="/auth/register"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all"
+          >
+            <span>Đăng ký tài khoản Chủ nhà</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // Compute metrics (Section 3.9)
   const totalRooms = listings.length;

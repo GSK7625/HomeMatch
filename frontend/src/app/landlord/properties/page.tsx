@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useAuth } from "@/features/auth/AuthContext";
 import { listingService } from "@/lib/services";
 import { PropertyListing, RoomStatus } from "@/types";
 import { useToast } from "@/components/Toast";
@@ -22,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export default function LandlordPropertiesPage() {
+  const { user, role } = useAuth();
   const { showToast } = useToast();
   const [rooms, setRooms] = useState<PropertyListing[]>([]);
   const [editingRoom, setEditingRoom] = useState<PropertyListing | null>(null);
@@ -33,6 +35,28 @@ export default function LandlordPropertiesPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  if (!user || role === "Tenant") {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+          <Home className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900">Quản Lý Căn & Phòng Cho Thuê</h2>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+          Vui lòng đăng nhập với tài khoản <strong>Chủ nhà (Landlord)</strong> để quản lý danh sách phòng và trạng thái cho thuê.
+        </p>
+        <div className="pt-2">
+          <Link
+            href="/auth/login?redirect=/landlord/properties"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all"
+          >
+            <span>Đăng nhập tài khoản Chủ nhà</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const handleStatusChange = (id: string, newStatus: RoomStatus) => {
     listingService.update(id, { status: newStatus });

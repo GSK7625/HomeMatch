@@ -72,6 +72,28 @@ export default function TenantDashboardPage() {
     showToast("Thanh toán thành công! Công nợ kỳ này đã được cập nhật.", "success");
   };
 
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+          <FileText className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900">Yêu Cầu Đăng Nhập</h2>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+          Vui lòng đăng nhập tài khoản Người thuê để xem hợp đồng thuê nhà, hóa đơn điện nước và tiến trình thuê phòng của bạn.
+        </p>
+        <div className="pt-2">
+          <Link
+            href="/auth/login?redirect=/tenant/dashboard"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all"
+          >
+            <span>Đăng nhập tài khoản Người thuê</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-8">
       {/* Welcome Banner */}
@@ -81,7 +103,7 @@ export default function TenantDashboardPage() {
             Cổng Thông Tin Người Thuê
           </span>
           <h1 className="text-2xl sm:text-3xl font-black">
-            Xin chào, {user?.displayName || "Đỗ Trung Kiên"}!
+            Xin chào, {user.displayName}!
           </h1>
           <p className="text-xs sm:text-sm text-blue-100/80 mt-1">
             Theo dõi hợp đồng, thanh toán hóa đơn điện nước và tiến trình tìm kiếm phòng của bạn.

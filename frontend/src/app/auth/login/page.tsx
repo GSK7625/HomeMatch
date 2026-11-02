@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useToast } from "@/components/Toast";
-import { Home, Mail, Lock, LogIn, ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Home, Mail, Lock, LogIn } from "lucide-react";
 
 function LoginForm() {
   const router = useRouter();
@@ -39,12 +39,6 @@ function LoginForm() {
     } else {
       setErrorMessage(res.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
     }
-  };
-
-  const handleFillAccount = (testEmail: string, testPass: string) => {
-    setEmail(testEmail);
-    setPassword(testPass);
-    showToast(`Đã điền tài khoản mẫu: ${testEmail}`, "info");
   };
 
   return (
@@ -141,31 +135,6 @@ function LoginForm() {
           </button>
         </form>
 
-        {/* Quick Fill Test Accounts for Testing Backend Authentication */}
-        <div className="mt-8 pt-6 border-t border-slate-100">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-2.5">
-            Gợi ý tài khoản kiểm thử hệ thống:
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleFillAccount("tenant@homematch.vn", "Password123!")}
-              className="p-2 text-center rounded-xl bg-slate-50 hover:bg-blue-50 hover:border-blue-200 border border-slate-200 transition-all"
-            >
-              <span className="block text-xs font-bold text-slate-800">Khách thuê mẫu</span>
-              <span className="block text-[10px] text-slate-500">tenant@homematch.vn</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleFillAccount("landlord@homematch.vn", "Password123!")}
-              className="p-2 text-center rounded-xl bg-slate-50 hover:bg-blue-50 hover:border-blue-200 border border-slate-200 transition-all"
-            >
-              <span className="block text-xs font-bold text-slate-800">Chủ nhà mẫu</span>
-              <span className="block text-[10px] text-slate-500">landlord@homematch.vn</span>
-            </button>
-          </div>
-        </div>
-
         {/* Link to Register */}
         <p className="mt-6 text-center text-xs text-slate-600">
           Chưa có tài khoản?{" "}
@@ -173,12 +142,6 @@ function LoginForm() {
             Đăng ký ngay
           </Link>
         </p>
-      </div>
-
-      {/* Security badge */}
-      <div className="flex items-center justify-center gap-2 mt-4 text-[11px] text-slate-400">
-        <ShieldCheck className="w-4 h-4 text-emerald-500" />
-        <span>Bảo vệ với ASP.NET Core JWT & Anti-CSRF Token</span>
       </div>
     </div>
   );

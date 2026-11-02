@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Home, ShieldCheck, Mail, Phone, MapPin, Award, CheckCircle2, Lock } from "lucide-react";
+import { Home, ShieldCheck, Award, CheckCircle2, Lock, HelpCircle } from "lucide-react";
 
 export function Footer() {
   return (
@@ -40,18 +40,18 @@ export function Footer() {
 
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-900/50 text-indigo-400 border border-indigo-800/50 flex items-center justify-center shrink-0">
-              <Phone className="w-5 h-5" />
+              <HelpCircle className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="text-white font-bold text-xs">Tổng Đài Hỗ Trợ 24/7</h4>
-              <p className="text-[11px] text-slate-400">Hotline 1900 8899 (Miễn cước)</p>
+              <h4 className="text-white font-bold text-xs">Hỗ Trợ Người Dùng</h4>
+              <p className="text-[11px] text-slate-400">Đồng hành & hỗ trợ trực tuyến</p>
             </div>
           </div>
         </div>
 
         {/* Links Grid */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-10">
-          {/* Col 1 & 2: Brand & Legal Info */}
+          {/* Col 1 & 2: Brand & Overview Info */}
           <div className="md:col-span-2 space-y-4">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-lg shadow-md">
@@ -61,24 +61,17 @@ export function Footer() {
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
-              <strong className="text-slate-300">CÔNG TY CỔ PHẦN CÔNG NGHỆ BẤT ĐỘNG SẢN HOMEMATCH VIỆT NAM</strong>
-              <br />
-              Nền tảng số hóa kết nối trực tiếp Người thuê và Chủ nhà trọ hàng đầu Việt Nam.
-              Giấy phép hoạt động sàn giao dịch số: 0109887766 do Sở Kế hoạch & Đầu tư TP. Hà Nội cấp.
+              Nền tảng kết nối trực tiếp giữa người thuê và chủ nhà trọ, giúp quá trình tìm phòng, so sánh tiện ích và quản lý hợp đồng hóa đơn trở nên minh bạch và thuận tiện.
             </p>
 
             <div className="space-y-1.5 text-xs text-slate-400 pt-1">
               <div className="flex items-center gap-2">
-                <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span>Trụ sở chính: Tòa nhà Discovery Complex, 302 Cầu Giấy, Hà Nội</span>
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span>Tin đăng phòng xác thực trực tiếp</span>
               </div>
               <div className="flex items-center gap-2">
-                <Phone className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span>Hotline CSKH: 1900 8899 • Khiếu nại: 024 7300 8899</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span>Email: hotro@homematch.id.vn • hopdong@homematch.id.vn</span>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>Không thu phí trung gian người thuê</span>
               </div>
             </div>
           </div>
@@ -183,7 +176,7 @@ export function Footer() {
 
         {/* Bottom Copyright & Tech Standards */}
         <div className="pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-          <p>© 2026 HomeMatch Platform. Toàn bộ bản quyền thuộc về HomeMatch Vietnam.</p>
+          <p>© 2026 HomeMatch. Nền tảng kết nối người thuê và chủ nhà.</p>
           <div className="flex items-center gap-3 text-slate-500 text-[11px]">
             <span>Quy chế hoạt động</span>
             <span>•</span>

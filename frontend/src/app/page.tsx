@@ -470,18 +470,19 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <div className="flex items-center gap-1 text-amber-500">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Star key={i} className="w-4 h-4 fill-current" />
-              ))}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between h-full">
+            <div className="space-y-3 flex-1 flex flex-col">
+              <div className="flex items-center gap-1 text-amber-500">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Star key={i} className="w-4 h-4 fill-current" />
+                ))}
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed italic flex-1">
+                "Tìm phòng qua HomeMatch rất an tâm vì thông tin và hình ảnh sát thực tế. Đặt lịch xem phòng nhanh chóng, trực tiếp với chủ trọ mà không lo bị môi giới lừa cọc."
+              </p>
             </div>
-            <p className="text-xs text-slate-600 leading-relaxed italic">
-              "Tìm phòng qua HomeMatch rất yên tâm vì phòng có đúng như trên ảnh. Đặt lịch xem phòng lúc 2h chiều
-              thì 2h15 chú chủ nhà đã xác nhận. Không lo bị môi giới lừa cọc."
-            </p>
-            <div className="flex items-center gap-3 pt-2 border-t border-slate-100">
-              <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+            <div className="flex items-center gap-3 pt-4 border-t border-slate-100 mt-4">
+              <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
                 K
               </div>
               <div>
@@ -491,18 +492,19 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <div className="flex items-center gap-1 text-amber-500">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Star key={i} className="w-4 h-4 fill-current" />
-              ))}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between h-full">
+            <div className="space-y-3 flex-1 flex flex-col">
+              <div className="flex items-center gap-1 text-amber-500">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Star key={i} className="w-4 h-4 fill-current" />
+                ))}
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed italic flex-1">
+                "Quản lý phòng trọ và hóa đơn điện nước tiện lợi hơn hẳn. Cuối tháng hệ thống tự động tổng hợp số liệu và gửi hóa đơn, theo dõi công nợ rất rõ ràng và chuẩn xác."
+              </p>
             </div>
-            <p className="text-xs text-slate-600 leading-relaxed italic">
-              "Trước đây ghi sổ tiền điện nước rất mệt mỏi và hay nhầm lẫn. Từ khi dùng tính năng ghi số tự động của HomeMatch,
-              cuối tháng bấm 1 nút là ra hóa đơn gửi khách, theo dõi ai chưa đóng rất rõ ràng."
-            </p>
-            <div className="flex items-center gap-3 pt-2 border-t border-slate-100">
-              <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
+            <div className="flex items-center gap-3 pt-4 border-t border-slate-100 mt-4">
+              <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
                 H
               </div>
               <div>
@@ -512,18 +514,19 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <div className="flex items-center gap-1 text-amber-500">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Star key={i} className="w-4 h-4 fill-current" />
-              ))}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between h-full">
+            <div className="space-y-3 flex-1 flex flex-col">
+              <div className="flex items-center gap-1 text-amber-500">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Star key={i} className="w-4 h-4 fill-current" />
+                ))}
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed italic flex-1">
+                "Tính năng so sánh phòng cực kỳ hữu ích! Mình đối chiếu dễ dàng chi tiết giá điện, nước, diện tích và tiện ích giữa các phòng gần trường trước khi đặt cọc giữ chỗ."
+              </p>
             </div>
-            <p className="text-xs text-slate-600 leading-relaxed italic">
-              "Tính năng so sánh tối đa 3 phòng cực kỳ tiện lợi! Mình so sánh được chi tiết giá điện, nước, diện tích và
-              tiện ích giữa 2 phòng ở Đống Đa trước khi quyết định ký hợp đồng."
-            </p>
-            <div className="flex items-center gap-3 pt-2 border-t border-slate-100">
-              <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
+            <div className="flex items-center gap-3 pt-4 border-t border-slate-100 mt-4">
+              <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
                 T
               </div>
               <div>

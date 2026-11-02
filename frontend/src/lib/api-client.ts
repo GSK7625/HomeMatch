@@ -1,6 +1,6 @@
 import { ApiResponse, CurrentUserProfile, HealthCheck, SystemStatus } from "@/types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5207";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 let csrfTokenCache: string | null = null;
 let csrfPromise: Promise<string | null> | null = null;
@@ -42,10 +42,19 @@ export function setStoredUser(user: CurrentUserProfile | null) {
   }
 }
 
+export function clearCsrfToken(): void {
+  csrfTokenCache = null;
+  csrfPromise = null;
+}
+
 /**
  * Fetch or reuse CSRF Request Token from ASP.NET Core Identity
  */
-export async function getCsrfToken(): Promise<string | null> {
+export async function getCsrfToken(forceRefresh = false): Promise<string | null> {
+  if (forceRefresh) {
+    csrfTokenCache = null;
+    csrfPromise = null;
+  }
   if (csrfTokenCache) return csrfTokenCache;
   if (csrfPromise) return csrfPromise;
 
@@ -85,7 +94,8 @@ export async function getCsrfToken(): Promise<string | null> {
  */
 export async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  isRetry = false
 ): Promise<ApiResponse<T>> {
   const url = endpoint.startsWith("http") ? endpoint : `${API_BASE}${endpoint}`;
   const headers = new Headers(options.headers || {});
@@ -103,7 +113,7 @@ export async function apiRequest<T>(
   // Attach CSRF Token for mutating requests if available
   const method = (options.method || "GET").toUpperCase();
   if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-    const csrf = await getCsrfToken();
+    const csrf = await getCsrfToken(isRetry);
     if (csrf) {
       headers.set("X-CSRF-TOKEN", csrf);
     }
@@ -117,6 +127,17 @@ export async function apiRequest<T>(
     });
 
     const data = await res.json().catch(() => null);
+
+    // If CSRF token is invalid/stale, auto-refresh and retry once
+    if (
+      !isRetry &&
+      res.status === 403 &&
+      data?.error?.code === "Identity.CsrfInvalid" &&
+      ["POST", "PUT", "PATCH", "DELETE"].includes(method)
+    ) {
+      clearCsrfToken();
+      return apiRequest<T>(endpoint, options, true);
+    }
 
     if (!res.ok) {
       return {
@@ -193,6 +214,7 @@ export interface IssuedAccessToken {
 
 export const authApi = {
   getCsrf: getCsrfToken,
+  clearCsrf: clearCsrfToken,
 
   register: async (payload: RegistrationBody) => {
     // Only pass exact 4 fields required by backend Identity RegistrationRequestDto

@@ -53,29 +53,29 @@ export function Navbar() {
 
   // Guest navigation
   const guestNav: NavItem[] = [
-    { label: "Khám phá phòng", href: "/listings", icon: Search },
+    { label: "Tìm phòng", href: "/listings", icon: Search },
   ];
 
   // Tenant / Public navigation
   const tenantNav: NavItem[] = [
-    { label: "Khám phá phòng", href: "/listings", icon: Search },
-    { label: "Lịch xem phòng", href: "/tenant/viewings", icon: Calendar },
-    { label: "Hợp đồng & Hóa đơn", href: "/tenant/dashboard", icon: FileText },
+    { label: "Tìm phòng", href: "/listings", icon: Search },
+    { label: "Lịch xem", href: "/tenant/viewings", icon: Calendar },
+    { label: "Hợp đồng", href: "/tenant/dashboard", icon: FileText },
   ];
 
   // Landlord dedicated navigation
   const landlordNav: NavItem[] = [
-    { label: "Tổng quan tài chính", href: "/landlord/dashboard", icon: Building2 },
-    { label: "Quản lý phòng", href: "/landlord/properties", icon: Home },
-    { label: "Quản lý tin đăng", href: "/landlord/listings", icon: FileText },
-    { label: "Hợp đồng & Khách", href: "/landlord/contracts", icon: FileText },
-    { label: "Điện nước & Thu nợ", href: "/landlord/utilities", icon: Zap },
+    { label: "Tổng quan", href: "/landlord/dashboard", icon: Building2 },
+    { label: "Phòng trọ", href: "/landlord/properties", icon: Home },
+    { label: "Tin đăng", href: "/landlord/listings", icon: FileText },
+    { label: "Hợp đồng", href: "/landlord/contracts", icon: FileText },
+    { label: "Điện nước", href: "/landlord/utilities", icon: Zap },
   ];
 
   // Admin navigation
   const adminNav: NavItem[] = [
-    { label: "Dashboard Quản trị", href: "/admin/dashboard", icon: ShieldCheck },
-    { label: "Khám phá sàn tin", href: "/listings", icon: Search },
+    { label: "Quản trị", href: "/admin/dashboard", icon: ShieldCheck },
+    { label: "Sàn tin", href: "/listings", icon: Search },
   ];
 
   const currentNav =
@@ -89,27 +89,27 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-white/95 backdrop-blur-md shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-4">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 gap-3 sm:gap-4">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-xl shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform">
-              <Home className="w-5 h-5" />
+          <Link href="/" className="flex items-center gap-2 shrink-0 group">
+            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-lg shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform">
+              <Home className="w-4.5 h-4.5" />
             </div>
             <div className="flex flex-col">
-              <span className="font-black text-xl tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors whitespace-nowrap">
+              <span className="font-black text-lg tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors whitespace-nowrap">
                 HomeMatch
               </span>
-              <span className="text-[9px] text-blue-600 font-bold tracking-wider uppercase -mt-1 whitespace-nowrap">
-                Sàn Thuê Nhà & Quản Lý Trọ
+              <span className="text-[9px] text-blue-600 font-bold tracking-wider uppercase -mt-1 hidden sm:inline whitespace-nowrap">
+                Sàn Thuê & Quản Lý Trọ
               </span>
             </div>
           </Link>
 
-          {/* Right Action Cluster: Nav Links (Khám phá phòng) + Quick Action Buttons + CTA */}
-          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-            {/* Main Navigation Links (placed right next to the quick action buttons) */}
-            <nav className="hidden lg:flex items-center gap-1 sm:gap-1.5">
+          {/* Right Action Cluster: Nav Links + Quick Action Buttons + CTA + Profile */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Main Navigation Links */}
+            <nav className="hidden lg:flex items-center gap-1">
               {currentNav.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
@@ -118,7 +118,7 @@ export function Navbar() {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
+                      "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
                       isActive
                         ? "text-blue-600 bg-blue-50/80 shadow-xs"
                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
@@ -131,103 +131,96 @@ export function Navbar() {
               })}
             </nav>
 
-            {/* Compare Quick Button */}
-            <Link
-              href="/compare"
-              className={cn(
-                "flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
-                pathname === "/compare"
-                  ? "text-blue-600 bg-blue-50/80 shadow-xs"
-                  : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
-              )}
-              title="So sánh phòng đối chiếu"
-            >
-              <div className="relative flex items-center">
+            {/* Compare Quick Button - Only for Tenant / Guest */}
+            {role !== "Landlord" && role !== "Admin" && (
+              <Link
+                href="/compare"
+                className={cn(
+                  "flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
+                  pathname === "/compare"
+                    ? "text-blue-600 bg-blue-50/80 shadow-xs"
+                    : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
+                )}
+                title="So sánh phòng đối chiếu"
+              >
                 <Scale className="w-4 h-4 shrink-0" />
                 {compareCount > 0 && (
-                  <span className="absolute -top-1.5 -right-2 w-3.5 h-3.5 rounded-full bg-blue-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
                     {compareCount}
                   </span>
                 )}
-              </div>
-              <span className="hidden sm:inline whitespace-nowrap">So sánh</span>
-            </Link>
+              </Link>
+            )}
 
-            {/* Favorites Quick Button */}
-            <Link
-              href="/tenant/favorites"
-              className={cn(
-                "flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
-                pathname === "/tenant/favorites"
-                  ? "text-rose-600 bg-rose-50/80 shadow-xs"
-                  : "text-slate-600 hover:text-rose-600 hover:bg-slate-100/80"
-              )}
-              title="Danh sách phòng đã lưu"
-            >
-              <div className="relative flex items-center">
+            {/* Favorites Quick Button - Only for Tenant / Guest */}
+            {role !== "Landlord" && role !== "Admin" && (
+              <Link
+                href="/tenant/favorites"
+                className={cn(
+                  "flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
+                  pathname === "/tenant/favorites"
+                    ? "text-rose-600 bg-rose-50/80 shadow-xs"
+                    : "text-slate-600 hover:text-rose-600 hover:bg-slate-100/80"
+                )}
+                title="Danh sách phòng đã lưu"
+              >
                 <Heart className="w-4 h-4 shrink-0" />
                 {favCount > 0 && (
-                  <span className="absolute -top-1.5 -right-2 w-3.5 h-3.5 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
                     {favCount}
                   </span>
                 )}
-              </div>
-              <span className="hidden sm:inline whitespace-nowrap">Yêu thích</span>
-            </Link>
+              </Link>
+            )}
 
             {/* Messages Quick Button */}
             <Link
               href="/messages"
               className={cn(
-                "flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
+                "flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
                 pathname === "/messages"
                   ? "text-blue-600 bg-blue-50/80 shadow-xs"
                   : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
               )}
               title="Hộp thư tin nhắn"
             >
-              <div className="relative flex items-center">
-                <MessageSquare className="w-4 h-4 shrink-0" />
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
-              </div>
-              <span className="hidden sm:inline whitespace-nowrap">Tin nhắn</span>
+              <MessageSquare className="w-4 h-4 shrink-0" />
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
             </Link>
 
-            <div className="h-6 w-px bg-slate-200 hidden sm:block mx-1" />
+            <div className="h-5 w-px bg-slate-200 hidden sm:block mx-0.5" />
 
-            {/* Standout Commercial CTA Button: Clean Blue Theme (No Purple Gradient) */}
+            {/* Standout Commercial CTA Button */}
             {role === "Landlord" ? (
               <Link
                 href="/landlord/listings"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all whitespace-nowrap"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all whitespace-nowrap shrink-0"
               >
-                <PlusCircle className="w-4 h-4 shrink-0" />
-                <span className="whitespace-nowrap">Đăng tin mới</span>
+                <PlusCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>Đăng tin</span>
               </Link>
-            ) : (
+            ) : !user ? (
               <Link
                 href="/landlord/dashboard"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-blue-700 bg-blue-50/90 hover:bg-blue-100 border border-blue-200/90 shadow-2xs transition-all whitespace-nowrap"
+                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50/90 hover:bg-blue-100 border border-blue-200/90 shadow-2xs transition-all whitespace-nowrap shrink-0"
               >
-                <Building2 className="w-4 h-4 shrink-0 text-blue-600" />
-                <span className="whitespace-nowrap">Kênh Chủ Nhà</span>
+                <Building2 className="w-3.5 h-3.5 shrink-0 text-blue-600" />
+                <span>Kênh Chủ Nhà</span>
               </Link>
-            )}
+            ) : null}
 
             {/* User Profile Menu or High-Contrast Auth Buttons */}
             {user ? (
-              <div className="relative">
+              <div className="relative shrink-0">
                 <button
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition-colors"
+                  className="flex items-center gap-1.5 p-1 rounded-xl hover:bg-slate-100 text-slate-700 transition-colors shrink-0"
+                  title={user.displayName}
                 >
                   <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
                     {user.displayName.charAt(0).toUpperCase()}
                   </div>
-                  <span className="text-xs font-bold text-slate-800 hidden xl:inline max-w-[120px] truncate whitespace-nowrap">
-                    {user.displayName}
-                  </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 </button>
 
                 {userDropdownOpen && (
@@ -239,6 +232,7 @@ export function Navbar() {
                         {role === "Landlord" ? "Tài khoản Chủ nhà" : role === "Admin" ? "Quản trị viên" : "Tài khoản Người thuê"}
                       </span>
                     </div>
+
 
                     {/* User Dropdown Profile Menu */}
                     <Link

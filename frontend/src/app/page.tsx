@@ -26,6 +26,7 @@ import {
   PhoneCall,
   Clock,
   Award,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -112,8 +113,8 @@ export default function HomePage() {
           </p>
 
           {/* Search Box with Tabs */}
-          <div className="mt-8 pt-2">
-            <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-2xl text-slate-800 border border-white/20 text-left">
+          <div className="mt-8 pt-2 max-w-4xl mx-auto">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl text-slate-800 border border-white/20 text-left">
               {/* Category tabs */}
               <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 border-b border-slate-100 scrollbar-none">
                 {[
@@ -139,54 +140,58 @@ export default function HomePage() {
               </div>
 
               {/* Main inputs */}
-              <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <form
+                onSubmit={handleSearchSubmit}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-row lg:items-end gap-3"
+              >
                 {/* Keyword */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                <div className="sm:col-span-2 lg:flex-1 min-w-0">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                     Từ khóa tìm kiếm
                   </label>
                   <div className="relative">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="text"
                       placeholder="Gần ĐH Bách Khoa, Cầu Giấy..."
                       value={keyword}
                       onChange={(e) => setKeyword(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="w-full h-10 pl-9 pr-3 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all placeholder:font-normal placeholder:text-slate-400"
                     />
                   </div>
                 </div>
 
                 {/* City */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                <div className="sm:col-span-1 lg:w-48 shrink-0">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                     Tỉnh / Thành phố
                   </label>
                   <div className="relative">
-                    <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <select
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="w-full h-10 pl-9 pr-8 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer appearance-none"
                     >
                       <option value="Tất cả">Tất cả địa điểm</option>
                       <option value="Hà Nội">Hà Nội</option>
                       <option value="Hồ Chí Minh">TP. Hồ Chí Minh</option>
                     </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                 </div>
 
                 {/* Price range */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                <div className="sm:col-span-1 lg:w-44 shrink-0">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                     Khoảng giá
                   </label>
                   <div className="relative">
-                    <DollarSign className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <DollarSign className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <select
                       value={priceRange}
                       onChange={(e) => setPriceRange(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="w-full h-10 pl-9 pr-8 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer appearance-none"
                     >
                       <option value="all">Tất cả mức giá</option>
                       <option value="under3">Dưới 3 triệu/tháng</option>
@@ -194,17 +199,18 @@ export default function HomePage() {
                       <option value="5to8">5 - 8 triệu/tháng</option>
                       <option value="over8">Trên 8 triệu/tháng</option>
                     </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                 </div>
 
                 {/* Submit button */}
-                <div className="flex items-end">
+                <div className="sm:col-span-2 lg:w-auto shrink-0 flex items-end">
                   <button
                     type="submit"
-                    className="w-full py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-2"
+                    className="w-full lg:w-auto h-10 px-6 rounded-xl font-bold text-xs text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
                   >
                     <Search className="w-4 h-4" />
-                    <span>Tìm 100+ phòng trống</span>
+                    <span>Tìm phòng</span>
                   </button>
                 </div>
               </form>

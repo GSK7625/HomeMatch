@@ -46,13 +46,25 @@ export default function RegisterPage() {
     e.preventDefault();
     setErrorMessage(null);
 
-    if (password !== confirmPassword) {
-      setErrorMessage("Mật khẩu xác nhận không khớp!");
+    if (fullName.trim().length < 2) {
+      setErrorMessage("Họ và tên phải có tối thiểu 2 ký tự!");
       return;
     }
 
     if (password.length < 8) {
       setErrorMessage("Mật khẩu phải có độ dài tối thiểu 8 ký tự!");
+      return;
+    }
+
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasDigit = /\d/.test(password);
+    if (!hasLetter || !hasDigit) {
+      setErrorMessage("Mật khẩu phải bao gồm cả chữ cái và chữ số!");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage("Mật khẩu xác nhận không khớp!");
       return;
     }
 
@@ -72,7 +84,11 @@ export default function RegisterPage() {
       setIsOtpModalOpen(true);
       showToast("Mã xác thực OTP đã được gửi đến email của bạn!", "info");
     } else {
-      setErrorMessage(res.message || "Đăng ký không thành công. Vui lòng thử lại.");
+      let msg = res.message || "Đăng ký không thành công. Vui lòng thử lại.";
+      if (msg === "Dữ liệu yêu cầu không hợp lệ.") {
+        msg = "Thông tin không hợp lệ. Vui lòng đảm bảo họ tên từ 2 ký tự và mật khẩu từ 8 ký tự gồm cả chữ và số.";
+      }
+      setErrorMessage(msg);
     }
   };
 
@@ -152,7 +168,7 @@ export default function RegisterPage() {
           )}
 
           {/* Form */}
-          <form onSubmit={handleRegister} className="space-y-4">
+          <form onSubmit={handleRegister} className="space-y-4" autoComplete="off">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Họ và tên
@@ -188,9 +204,12 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Số điện thoại
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Số điện thoại
+                </label>
+                <span className="text-[10px] text-slate-400 font-medium">(Không bắt buộc)</span>
+              </div>
               <div className="relative">
                 <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
@@ -203,40 +222,48 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Mật khẩu
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                  <input
-                    type="password"
-                    required
-                    placeholder="Tối thiểu 8 ký tự"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  />
+            <div className="space-y-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Mật khẩu
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                    <input
+                      type="password"
+                      required
+                      autoComplete="new-password"
+                      placeholder="Tối thiểu 8 ký tự (chữ & số)"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Xác nhận mật khẩu
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                  <input
-                    type="password"
-                    required
-                    placeholder="Nhập lại mật khẩu"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  />
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Xác nhận mật khẩu
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                    <input
+                      type="password"
+                      required
+                      autoComplete="new-password"
+                      placeholder="Nhập lại mật khẩu"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
                 </div>
               </div>
+              <p className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0"></span>
+                <span>Mật khẩu tối thiểu 8 ký tự, phải bao gồm cả chữ cái và chữ số.</span>
+              </p>
             </div>
 
             <button

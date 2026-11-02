@@ -29,7 +29,25 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:5000
+      - Jwt__Secret=${Jwt__Secret:-}
+      - Jwt__Issuer=${Jwt__Issuer:-HomeMatch}
+      - Jwt__Audience=${Jwt__Audience:-HomeMatchApp}
+      - Jwt__ExpirationMinutes=${Jwt__ExpirationMinutes:-15}
+      - Jwt__ClockSkewSeconds=${Jwt__ClockSkewSeconds:-30}
+      - Cors__AllowedOrigins__0=${Cors__AllowedOrigins__0:-http://localhost:3000}
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=${POSTGRES_DB:-homematch_db};Username=${POSTGRES_USER:-homematch_user};Password=${POSTGRES_PASSWORD:-homematch_password};
+      - Identity__EmailVerification__Enabled=${Identity__EmailVerification__Enabled:-true}
+      - Identity__EmailVerification__KeyId=${Identity__EmailVerification__KeyId:-v1}
+      - Identity__EmailVerification__Keys__v1=${Identity__EmailVerification__Keys__v1:-}
+      - Email__Enabled=${Email__Enabled:-true}
+      - Email__Smtp__Host=${Email__Smtp__Host:-smtp.gmail.com}
+      - Email__Smtp__Port=${Email__Smtp__Port:-587}
+      - Email__Smtp__Security=${Email__Smtp__Security:-StartTls}
+      - Email__Smtp__Username=${Email__Smtp__Username:-}
+      - Email__Smtp__FromAddress=${Email__Smtp__FromAddress:-}
+      - Email__Smtp__AppPassword=${Email__Smtp__AppPassword:-}
+      - Email__Smtp__FromName=${Email__Smtp__FromName:-HomeMatch}
+      - Email__Smtp__TimeoutSeconds=${Email__Smtp__TimeoutSeconds:-15}
     ports:
       - "${API_PORT:-5000}:5000"
     depends_on:

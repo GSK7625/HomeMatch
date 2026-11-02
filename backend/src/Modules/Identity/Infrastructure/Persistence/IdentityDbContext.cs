@@ -1,45 +1,45 @@
 using HomeMatch.Modules.Identity.Domain.Entities;
+using HomeMatch.Modules.Identity.Infrastructure.Authentication;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace HomeMatch.Modules.Identity.Infrastructure.Persistence;
 
-public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : DbContext(options)
+public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> options)
+    : IdentityDbContext<IdentityAccount, IdentityRole<long>, long>(options)
 {
-    /// <summary>Bảng quản lý tài khoản người dùng, phân quyền vai trò (Chủ nhà, Khách thuê, Admin)</summary>
-    public DbSet<User> Users => Set<User>();
+    public const string Schema = "identity";
+    public const string MigrationHistoryTable = "__EFMigrationsHistory";
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    public DbSet<UserToken> CredentialTokens => Set<UserToken>();
+    public DbSet<PublicOtpChallenge> PublicOtpChallenges => Set<PublicOtpChallenge>();
+    public DbSet<UserProfile> Profiles => Set<UserProfile>();
+    public DbSet<AccountSession> Sessions => Set<AccountSession>();
+    public DbSet<RefreshCredential> RefreshCredentials => Set<RefreshCredential>();
+    public DbSet<EmailVerificationChallenge> EmailVerificationChallenges => Set<EmailVerificationChallenge>();
+    public DbSet<EmailVerificationQuota> EmailVerificationQuotas => Set<EmailVerificationQuota>();
+
+    protected override void OnModelCreating(ModelBuilder builder)
     {
-        modelBuilder.HasPostgresExtension("citext");
-        modelBuilder.Entity<User>(user =>
+        base.OnModelCreating(builder);
+        builder.HasDefaultSchema(Schema);
+
+        builder.Entity<IdentityAccount>().ToTable("Users");
+        builder.Ignore<IdentityRole<long>>();
+        builder.Ignore<IdentityUserRole<long>>();
+        builder.Ignore<IdentityUserClaim<long>>();
+        builder.Ignore<IdentityUserLogin<long>>();
+        builder.Ignore<IdentityRoleClaim<long>>();
+        builder.Ignore<IdentityUserToken<long>>();
+
+        builder.ApplyConfigurationsFromAssembly(typeof(IdentityDbContext).Assembly);
+        foreach (var entity in builder.Model.GetEntityTypes())
         {
-            user.ToTable("users", "identity", table =>
-            {
-                table.HasCheckConstraint("ck_users_email_length", "length(email) <= 255");
-                table.HasCheckConstraint("ck_users_role", "role IN ('TENANT', 'LANDLORD', 'ADMIN')");
-                table.HasCheckConstraint("ck_users_status", "status IN ('ACTIVE', 'LOCKED', 'PENDING_VERIFICATION')");
-            });
-            user.HasKey(x => x.Id);
-            user.Property(x => x.Email).HasColumnType("citext").IsRequired();
-            user.Property(x => x.PhoneNumber).HasMaxLength(20);
-            user.Property(x => x.PasswordHash).HasMaxLength(255).IsRequired();
-            user.Property(x => x.Role).HasMaxLength(20).HasDefaultValue("TENANT").IsRequired();
-            user.Property(x => x.Status).HasMaxLength(20).HasDefaultValue("ACTIVE").IsRequired();
-            user.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
-            user.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
-            user.HasIndex(x => x.Email).IsUnique().HasDatabaseName("ux_users_email");
-            user.HasIndex(x => x.PhoneNumber).IsUnique().HasFilter("phone_number IS NOT NULL")
-                .HasDatabaseName("ux_users_phone");
-        });
-
-        UseSnakeCaseColumns(modelBuilder);
+            if (entity.GetTableName() is { } tableName) entity.SetTableName(ToSnakeCase(tableName));
+            foreach (var property in entity.GetProperties()) property.SetColumnName(ToSnakeCase(property.Name));
+        }
     }
-
-    private static void UseSnakeCaseColumns(ModelBuilder modelBuilder)
-    {
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        foreach (var property in entity.GetProperties())
-            property.SetColumnName(string.Concat(property.Name.Select((c, i) =>
-                char.IsUpper(c) && i > 0 ? $"_{char.ToLowerInvariant(c)}" : char.ToLowerInvariant(c).ToString())));
-    }
+    private static string ToSnakeCase(string value) => System.Text.RegularExpressions.Regex
+        .Replace(value, "(?<!^)(?=[A-Z])", "_").ToLowerInvariant();
 }

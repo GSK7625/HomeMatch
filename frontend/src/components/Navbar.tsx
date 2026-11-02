@@ -56,7 +56,6 @@ export function Navbar() {
   // Guest navigation
   const guestNav: NavItem[] = [
     { label: "Khám phá phòng", href: "/listings", icon: Search },
-    { label: "So sánh phòng", href: "/compare", icon: Scale },
   ];
 
   // Tenant / Public navigation

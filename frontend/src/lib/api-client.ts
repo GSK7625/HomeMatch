@@ -1,27 +1,285 @@
-import { ApiResponse, HealthCheck, SystemStatus } from "@/types";
+import { ApiResponse, CurrentUserProfile, HealthCheck, SystemStatus } from "@/types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5207";
 
+let csrfTokenCache: string | null = null;
+let csrfPromise: Promise<string | null> | null = null;
+
+export const TOKEN_STORAGE_KEY = "homematch_access_token";
+export const USER_STORAGE_KEY = "homematch_current_user";
+
+export function getStoredToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_STORAGE_KEY);
+}
+
+export function setStoredToken(token: string | null) {
+  if (typeof window === "undefined") return;
+  if (token) {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+  }
+}
+
+export function getStoredUser(): CurrentUserProfile | null {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem(USER_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredUser(user: CurrentUserProfile | null) {
+  if (typeof window === "undefined") return;
+  if (user) {
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+  } else {
+    localStorage.removeItem(USER_STORAGE_KEY);
+  }
+}
+
+/**
+ * Fetch or reuse CSRF Request Token from ASP.NET Core Identity
+ */
+export async function getCsrfToken(): Promise<string | null> {
+  if (csrfTokenCache) return csrfTokenCache;
+  if (csrfPromise) return csrfPromise;
+
+  csrfPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/identity/auth/csrf`, {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        csrfPromise = null;
+        return null;
+      }
+
+      const json = (await res.json()) as ApiResponse<{ requestToken: string }>;
+      if (json.isSuccess && json.data?.requestToken) {
+        csrfTokenCache = json.data.requestToken;
+        return csrfTokenCache;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      csrfPromise = null;
+    }
+  })();
+
+  return csrfPromise;
+}
+
+/**
+ * Common request wrapper with Bearer token, CSRF, and standard error handling
+ */
+export async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<ApiResponse<T>> {
+  const url = endpoint.startsWith("http") ? endpoint : `${API_BASE}${endpoint}`;
+  const headers = new Headers(options.headers || {});
+
+  if (!headers.has("Content-Type") && options.body && typeof options.body === "string") {
+    headers.set("Content-Type", "application/json");
+  }
+
+  // Attach JWT if available
+  const token = getStoredToken();
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  // Attach CSRF Token for mutating requests if available
+  const method = (options.method || "GET").toUpperCase();
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+    const csrf = await getCsrfToken();
+    if (csrf) {
+      headers.set("X-CSRF-TOKEN", csrf);
+    }
+  }
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      headers,
+      credentials: "include",
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      return {
+        isSuccess: false,
+        error: data?.error || {
+          code: `HTTP_${res.status}`,
+          message: data?.message || res.statusText || "Yêu cầu thất bại",
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    return data as ApiResponse<T>;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Không thể kết nối đến máy chủ";
+    return {
+      isSuccess: false,
+      error: {
+        code: "NETWORK_ERROR",
+        message,
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+}
+
+// System Endpoints
 export async function fetchHealth(): Promise<HealthCheck> {
   const res = await fetch(`${API_BASE}/health`, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error(`Failed to fetch health: ${res.statusText}`);
-  }
+  if (!res.ok) throw new Error(`Failed to fetch health: ${res.statusText}`);
   return res.json();
 }
 
 export async function fetchSystemStatus(): Promise<SystemStatus> {
   const res = await fetch(`${API_BASE}/api/v1/system/status`, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error(`Failed to fetch system status: ${res.statusText}`);
-  }
+  if (!res.ok) throw new Error(`Failed to fetch system status: ${res.statusText}`);
   return res.json();
 }
 
 export async function pingModule(moduleName: string): Promise<Record<string, unknown>> {
   const res = await fetch(`${API_BASE}/api/v1/${moduleName.toLowerCase()}/ping`, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error(`Failed to ping module ${moduleName}: ${res.statusText}`);
-  }
+  if (!res.ok) throw new Error(`Failed to ping module ${moduleName}: ${res.statusText}`);
   return res.json();
 }
+
+// Authentication API
+export interface RegistrationBody {
+  email: string;
+  password: string;
+  fullName: string;
+  role: "Tenant" | "Landlord";
+}
+
+export interface LoginBody {
+  email: string;
+  password: string;
+}
+
+export interface PublicOtpResult {
+  status: string;
+  challengeId?: string;
+  expiresAt?: string;
+  resetToken?: string;
+  retryAfterSeconds?: number;
+}
+
+export interface IssuedAccessToken {
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
+  expiresAt: string;
+  sessionExpiresAt: string;
+}
+
+export const authApi = {
+  getCsrf: getCsrfToken,
+
+  register: async (payload: RegistrationBody) => {
+    // Only pass exact 4 fields required by backend Identity RegistrationRequestDto
+    const body = JSON.stringify({
+      email: payload.email.trim(),
+      password: payload.password,
+      fullName: payload.fullName.trim(),
+      role: payload.role,
+    });
+    return apiRequest<PublicOtpResult>("/api/v1/identity/auth/register", {
+      method: "POST",
+      body,
+    });
+  },
+
+  verifyRegistrationOtp: async (challengeId: string, code: string) => {
+    // Only pass exact 2 fields required by backend parse rule: challengeId, code
+    const body = JSON.stringify({
+      challengeId,
+      code,
+    });
+    return apiRequest<PublicOtpResult>("/api/v1/identity/auth/registration/verify-otp", {
+      method: "POST",
+      body,
+    });
+  },
+
+  resendRegistrationOtp: async (email: string, password: string) => {
+    const body = JSON.stringify({
+      email: email.trim(),
+      password,
+    });
+    return apiRequest<PublicOtpResult>("/api/v1/identity/auth/registration/send-otp", {
+      method: "POST",
+      body,
+    });
+  },
+
+  login: async (payload: LoginBody) => {
+    const body = JSON.stringify({
+      email: payload.email.trim(),
+      password: payload.password,
+    });
+    return apiRequest<IssuedAccessToken>("/api/v1/identity/auth/login", {
+      method: "POST",
+      body,
+    });
+  },
+
+  logout: async () => {
+    const res = await apiRequest<void>("/api/v1/identity/auth/logout", {
+      method: "POST",
+    });
+    setStoredToken(null);
+    setStoredUser(null);
+    csrfTokenCache = null;
+    return res;
+  },
+
+  getMe: async () => {
+    return apiRequest<CurrentUserProfile>("/api/v1/identity/me", {
+      method: "GET",
+    });
+  },
+
+  forgotPassword: async (email: string) => {
+    // Only pass email
+    const body = JSON.stringify({ email: email.trim() });
+    return apiRequest<PublicOtpResult>("/api/v1/identity/auth/forgot-password", {
+      method: "POST",
+      body,
+    });
+  },
+
+  verifyForgotPasswordOtp: async (challengeId: string, code: string) => {
+    const body = JSON.stringify({ challengeId, code });
+    return apiRequest<PublicOtpResult>("/api/v1/identity/auth/forgot-password/verify-otp", {
+      method: "POST",
+      body,
+    });
+  },
+
+  resetPassword: async (resetToken: string, newPassword: string) => {
+    const body = JSON.stringify({ resetToken, newPassword });
+    return apiRequest<PublicOtpResult>("/api/v1/identity/auth/reset-password", {
+      method: "POST",
+      body,
+    });
+  },
+};

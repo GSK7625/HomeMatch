@@ -116,7 +116,7 @@ export default function HomePage() {
           <div className="mt-8 pt-2 max-w-4xl mx-auto">
             <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl text-slate-800 border border-white/20 text-left">
               {/* Category tabs */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 border-b border-slate-100 scrollbar-none">
+              <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 border-b border-slate-100 no-scrollbar">
                 {[
                   { id: "all", label: "Tất cả phòng" },
                   { id: "Phòng trọ", label: "Phòng trọ sinh viên" },

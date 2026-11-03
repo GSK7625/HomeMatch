@@ -4,6 +4,7 @@ import { AuthProvider } from "@/features/auth/AuthContext";
 import { ToastProvider } from "@/components/Toast";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 export const metadata: Metadata = {
   title: "HomeMatch - Hệ Thống Hỗ Trợ Tìm Kiếm Thuê Nhà & Quản Lý Cho Thuê",
@@ -22,8 +23,9 @@ export default function RootLayout({
         <AuthProvider>
           <ToastProvider>
             <Navbar />
-            <main className="flex-1 flex flex-col">{children}</main>
+            <main className="flex-1 flex flex-col pb-16 lg:pb-0">{children}</main>
             <Footer />
+            <MobileBottomNav />
           </ToastProvider>
         </AuthProvider>
       </body>

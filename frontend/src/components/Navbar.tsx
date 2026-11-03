@@ -24,6 +24,7 @@ import {
   PlusCircle,
   HelpCircle,
   Sparkles,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +55,7 @@ export function Navbar() {
   // Guest navigation
   const guestNav: NavItem[] = [
     { label: "Tìm phòng", href: "/listings", icon: Search },
+    { label: "Kênh Chủ Nhà", href: "/landlord/dashboard", icon: Building2 },
   ];
 
   // Tenant / Public navigation
@@ -89,15 +91,15 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-white/95 backdrop-blur-md shadow-xs">
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-3 sm:gap-4">
+      <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-15 sm:h-16 gap-2 sm:gap-4">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0 group">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-lg shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform">
+            <div className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-lg shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform">
               <Home className="w-4.5 h-4.5" />
             </div>
             <div className="flex flex-col">
-              <span className="font-black text-lg tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors whitespace-nowrap">
+              <span className="font-black text-base sm:text-lg tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors whitespace-nowrap">
                 HomeMatch
               </span>
               <span className="text-[9px] text-blue-600 font-bold tracking-wider uppercase -mt-1 hidden sm:inline whitespace-nowrap">
@@ -106,9 +108,9 @@ export function Navbar() {
             </div>
           </Link>
 
-          {/* Right Action Cluster: Nav Links + Quick Action Buttons + CTA + Profile */}
+          {/* Right Action Cluster */}
           <div className="flex items-center gap-1 sm:gap-2">
-            {/* Main Navigation Links */}
+            {/* Desktop Navigation Links */}
             <nav className="hidden lg:flex items-center gap-1">
               {currentNav.map((item) => {
                 const Icon = item.icon;
@@ -131,12 +133,12 @@ export function Navbar() {
               })}
             </nav>
 
-            {/* Compare Quick Button - Only for Tenant / Guest */}
+            {/* Compare Quick Button (Desktop / Tablet) */}
             {role !== "Landlord" && role !== "Admin" && (
               <Link
                 href="/compare"
                 className={cn(
-                  "flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
+                  "hidden md:flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
                   pathname === "/compare"
                     ? "text-blue-600 bg-blue-50/80 shadow-xs"
                     : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
@@ -152,12 +154,12 @@ export function Navbar() {
               </Link>
             )}
 
-            {/* Favorites Quick Button - Only for Tenant / Guest */}
+            {/* Favorites Quick Button (Desktop / Tablet) */}
             {role !== "Landlord" && role !== "Admin" && (
               <Link
                 href="/tenant/favorites"
                 className={cn(
-                  "flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
+                  "hidden md:flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
                   pathname === "/tenant/favorites"
                     ? "text-rose-600 bg-rose-50/80 shadow-xs"
                     : "text-slate-600 hover:text-rose-600 hover:bg-slate-100/80"
@@ -173,11 +175,11 @@ export function Navbar() {
               </Link>
             )}
 
-            {/* Messages Quick Button */}
+            {/* Messages Quick Button (Desktop / Tablet) */}
             <Link
               href="/messages"
               className={cn(
-                "flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
+                "hidden sm:flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
                 pathname === "/messages"
                   ? "text-blue-600 bg-blue-50/80 shadow-xs"
                   : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
@@ -188,13 +190,13 @@ export function Navbar() {
               <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
             </Link>
 
-            <div className="h-5 w-px bg-slate-200 hidden sm:block mx-0.5" />
+            <div className="h-5 w-px bg-slate-200 hidden lg:block mx-0.5" />
 
             {/* Standout Commercial CTA Button */}
             {role === "Landlord" ? (
               <Link
                 href="/landlord/listings"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all whitespace-nowrap shrink-0"
+                className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all whitespace-nowrap shrink-0"
               >
                 <PlusCircle className="w-3.5 h-3.5 shrink-0" />
                 <span>Đăng tin</span>
@@ -202,7 +204,7 @@ export function Navbar() {
             ) : !user ? (
               <Link
                 href="/landlord/dashboard"
-                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50/90 hover:bg-blue-100 border border-blue-200/90 shadow-2xs transition-all whitespace-nowrap shrink-0"
+                className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50/90 hover:bg-blue-100 border border-blue-200/90 shadow-2xs transition-all whitespace-nowrap shrink-0"
               >
                 <Building2 className="w-3.5 h-3.5 shrink-0 text-blue-600" />
                 <span>Kênh Chủ Nhà</span>
@@ -233,8 +235,6 @@ export function Navbar() {
                       </span>
                     </div>
 
-
-                    {/* User Dropdown Profile Menu */}
                     <Link
                       href="/settings"
                       onClick={() => setUserDropdownOpen(false)}
@@ -249,7 +249,7 @@ export function Navbar() {
                         setUserDropdownOpen(false);
                         logout();
                       }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50"
+                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 text-left"
                     >
                       <LogOut className="w-4 h-4 text-rose-500" />
                       <span>Đăng xuất</span>
@@ -258,7 +258,7 @@ export function Navbar() {
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2 ml-1">
+              <div className="hidden lg:flex items-center gap-1.5">
                 <Link
                   href="/auth/login"
                   className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/90 rounded-xl transition-all whitespace-nowrap shadow-2xs"
@@ -267,87 +267,123 @@ export function Navbar() {
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm shadow-blue-500/25 transition-all whitespace-nowrap"
+                  className="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm shadow-blue-500/25 transition-all whitespace-nowrap"
                 >
                   Đăng ký
                 </Link>
               </div>
             )}
 
-            {/* Mobile Menu Toggle Button */}
+            {/* Mobile Hamburger Toggle Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100"
+              className="lg:hidden p-2 text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors"
+              aria-label="Toggle Navigation Menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-          {/* Mobile Drawer */}
-          {mobileMenuOpen && (
-            <div className="lg:hidden border-t border-slate-100 py-3 space-y-1 animate-in fade-in">
-              {user ? (
-                <div className="px-3 py-2.5 bg-slate-50 rounded-xl mb-2 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-bold text-slate-900">{user.displayName}</p>
-                    <p className="text-[10px] text-slate-500">{user.email}</p>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700">
-                    {role === "Landlord" ? "Chủ nhà" : role === "Admin" ? "Admin" : "Người thuê"}
-                  </span>
+        {/* Mobile Slide-down Drawer */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden border-t border-slate-100 py-3 space-y-1 animate-in fade-in">
+            {user ? (
+              <div className="px-3.5 py-2.5 bg-slate-50 rounded-2xl mb-2 flex items-center justify-between border border-slate-100">
+                <div className="min-w-0 pr-2">
+                  <p className="text-xs font-bold text-slate-900 truncate">{user.displayName}</p>
+                  <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
                 </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2 p-1 mb-2">
-                  <Link
-                    href="/auth/login"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="py-2 text-center text-xs font-bold text-slate-700 bg-slate-100 rounded-xl"
-                  >
-                    Đăng nhập
-                  </Link>
-                  <Link
-                    href="/auth/register"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="py-2 text-center text-xs font-bold text-white bg-blue-600 rounded-xl"
-                  >
-                    Đăng ký
-                  </Link>
-                </div>
-              )}
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 shrink-0">
+                  {role === "Landlord" ? "Chủ nhà" : role === "Admin" ? "Admin" : "Người thuê"}
+                </span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 p-1 mb-2">
+                <Link
+                  href="/auth/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-2.5 text-center text-xs font-bold text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
+                >
+                  Đăng nhập
+                </Link>
+                <Link
+                  href="/auth/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-2.5 text-center text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-xs"
+                >
+                  Đăng ký
+                </Link>
+              </div>
+            )}
 
-              {currentNav.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100"
-                  >
-                    <Icon className="w-4 h-4 text-slate-500" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
+            {currentNav.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors",
+                    isActive
+                      ? "text-blue-600 bg-blue-50/80"
+                      : "text-slate-700 hover:bg-slate-100"
+                  )}
+                >
+                  <Icon className="w-4 h-4 text-slate-500" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
 
-              {user && (
-                <div className="pt-2 border-t border-slate-100">
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      logout();
-                    }}
-                    className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>Đăng xuất</span>
-                  </button>
-                </div>
+            {/* Quick compare link on mobile drawer */}
+            <Link
+              href="/compare"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100"
+            >
+              <div className="flex items-center gap-3">
+                <Scale className="w-4 h-4 text-slate-500" />
+                <span>So sánh phòng</span>
+              </div>
+              {compareCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">
+                  {compareCount} phòng
+                </span>
               )}
-            </div>
-          )}
-        </div>
-      </header>
+            </Link>
+
+            {/* Settings link on mobile drawer */}
+            {user && (
+              <Link
+                href="/settings"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100"
+              >
+                <Settings className="w-4 h-4 text-slate-500" />
+                <span>Cài đặt tài khoản & Bảo mật</span>
+              </Link>
+            )}
+
+            {user && (
+              <div className="pt-2 border-t border-slate-100">
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    logout();
+                  }}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Đăng xuất</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </header>
   );
 }

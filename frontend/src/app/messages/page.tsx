@@ -14,6 +14,7 @@ export default function MessagesPage() {
   const [activeConvId, setActiveConvId] = useState<string>("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
+  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const loadConversations = () => {
@@ -39,6 +40,11 @@ export default function MessagesPage() {
   }, [messages]);
 
   const activeConv = conversations.find((c) => c.id === activeConvId);
+
+  const handleSelectConv = (id: string) => {
+    setActiveConvId(id);
+    setMobileView("chat");
+  };
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,11 +102,16 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 flex flex-col">
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs flex-1 flex flex-col md:flex-row overflow-hidden min-h-[600px] max-h-[750px]">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-8 w-full flex-1 flex flex-col">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs flex-1 flex flex-col md:flex-row overflow-hidden h-[calc(100dvh-130px)] md:h-[650px] min-h-[480px]">
         {/* Left Side: Conversations List */}
-        <div className="w-full md:w-80 border-r border-slate-200 flex flex-col bg-slate-50/50">
-          <div className="p-4 border-b border-slate-200 bg-white">
+        <div
+          className={cn(
+            "w-full md:w-80 border-r border-slate-200 flex flex-col bg-slate-50/50",
+            mobileView === "chat" ? "hidden md:flex" : "flex flex-1"
+          )}
+        >
+          <div className="p-3.5 sm:p-4 border-b border-slate-200 bg-white">
             <h2 className="font-bold text-slate-900 text-sm flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-blue-600" />
               <span>Hộp Thư Trực Tiếp ({conversations.length})</span>
@@ -111,10 +122,10 @@ export default function MessagesPage() {
             {conversations.map((conv) => (
               <button
                 key={conv.id}
-                onClick={() => setActiveConvId(conv.id)}
+                onClick={() => handleSelectConv(conv.id)}
                 className={cn(
-                  "w-full p-4 text-left flex items-start gap-3 transition-colors hover:bg-slate-100/70",
-                  activeConvId === conv.id ? "bg-blue-50/70 border-r-2 border-blue-600" : ""
+                  "w-full p-3.5 sm:p-4 text-left flex items-start gap-3 transition-colors hover:bg-slate-100/70",
+                  activeConvId === conv.id ? "bg-blue-50/70 md:border-r-2 md:border-blue-600" : ""
                 )}
               >
                 <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
@@ -137,7 +148,7 @@ export default function MessagesPage() {
                   <p className="text-[11px] text-slate-500 truncate">{conv.lastMessage}</p>
 
                   {conv.listingTitle && (
-                    <span className="inline-block mt-1 text-[10px] font-medium text-blue-600 bg-blue-100/60 px-1.5 py-0.2 rounded">
+                    <span className="inline-block mt-1 text-[10px] font-medium text-blue-600 bg-blue-100/60 px-1.5 py-0.2 rounded truncate max-w-full">
                       {conv.listingTitle}
                     </span>
                   )}
@@ -149,25 +160,42 @@ export default function MessagesPage() {
 
         {/* Right Side: Active Chat Box */}
         {activeConv ? (
-          <div className="flex-1 flex flex-col bg-white">
+          <div
+            className={cn(
+              "flex-1 flex flex-col bg-white",
+              mobileView === "list" ? "hidden md:flex" : "flex flex-1"
+            )}
+          >
             {/* Chat Header */}
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
+            <div className="p-3 sm:p-4 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
+              <div className="flex items-center gap-2.5">
+                {/* Back to list button for mobile */}
+                <button
+                  type="button"
+                  onClick={() => setMobileView("list")}
+                  className="md:hidden p-1.5 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl"
+                  title="Danh sách hội thoại"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shrink-0">
                   {activeConv.partnerName.charAt(0)}
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm">{activeConv.partnerName}</h3>
-                  <span className="text-[11px] text-emerald-600 font-medium">● Đang trực tuyến</span>
+                  <h3 className="font-bold text-slate-900 text-xs sm:text-sm line-clamp-1">
+                    {activeConv.partnerName}
+                  </h3>
+                  <span className="text-[10px] text-emerald-600 font-medium">● Đang trực tuyến</span>
                 </div>
               </div>
 
               {activeConv.listingTitle && (
-                <div className="hidden sm:block text-right">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                <div className="hidden sm:block text-right max-w-[200px]">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block truncate">
                     Tin phòng liên quan
                   </span>
-                  <span className="text-xs font-semibold text-slate-800">
+                  <span className="text-xs font-semibold text-slate-800 truncate block">
                     {activeConv.listingTitle}
                   </span>
                 </div>
@@ -175,13 +203,18 @@ export default function MessagesPage() {
             </div>
 
             {/* Messages Scroll Area */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50/30">
+            <div className="flex-1 p-3 sm:p-4 overflow-y-auto space-y-3 bg-slate-50/30">
               {messages.map((msg) => {
-                const isMine = msg.senderId === (user?.accountId || "current-user") || msg.senderId === "tenant-1";
+                const isMine =
+                  msg.senderId === (user?.accountId || "current-user") ||
+                  msg.senderId === "tenant-1";
                 return (
                   <div
                     key={msg.id}
-                    className={cn("flex flex-col max-w-[75%]", isMine ? "ml-auto items-end" : "mr-auto items-start")}
+                    className={cn(
+                      "flex flex-col max-w-[85%] sm:max-w-[75%]",
+                      isMine ? "ml-auto items-end" : "mr-auto items-start"
+                    )}
                   >
                     <div
                       className={cn(
@@ -193,7 +226,7 @@ export default function MessagesPage() {
                     >
                       {msg.content}
                     </div>
-                    <span className="text-[10px] text-slate-400 mt-1 px-1">
+                    <span className="text-[9px] text-slate-400 mt-0.5 px-1">
                       {new Date(msg.timestamp).toLocaleTimeString("vi-VN", {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -206,21 +239,24 @@ export default function MessagesPage() {
             </div>
 
             {/* Input Bar */}
-            <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-200 flex gap-2 bg-white">
+            <form
+              onSubmit={handleSendMessage}
+              className="p-2.5 sm:p-3 border-t border-slate-200 flex gap-2 bg-white shrink-0"
+            >
               <input
                 type="text"
-                placeholder="Nhập nội dung tin nhắn trao đổi về phòng..."
+                placeholder="Nhập nội dung tin nhắn..."
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                className="flex-1 px-4 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="flex-1 px-3.5 py-2 sm:py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
               <button
                 type="submit"
                 disabled={!inputText.trim()}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5 shrink-0"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Gửi</span>
+                <span className="hidden sm:inline">Gửi</span>
               </button>
             </form>
           </div>

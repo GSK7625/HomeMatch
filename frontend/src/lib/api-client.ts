@@ -1,6 +1,8 @@
 import { ApiResponse, CurrentUserProfile, HealthCheck, SystemStatus } from "@/types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL !== undefined
+  ? process.env.NEXT_PUBLIC_API_URL
+  : (process.env.NODE_ENV === "production" ? "" : "http://localhost:5000");
 
 let csrfTokenCache: string | null = null;
 let csrfPromise: Promise<string | null> | null = null;

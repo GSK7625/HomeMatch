@@ -19,6 +19,7 @@ import {
   X,
   ArrowRight,
   Navigation,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +59,7 @@ function ListingsContent() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showMap, setShowMap] = useState(false);
   const [page, setPage] = useState(1);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const pageSize = 10; // Requirement Section 4.1: Max 10 items/page
 
   const [compareList, setCompareList] = useState<string[]>([]);
@@ -107,6 +109,18 @@ function ListingsContent() {
     setPage(1);
   };
 
+  // Count active filters for badge
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (city !== "Tất cả") count++;
+    if (district !== "Tất cả") count++;
+    if (selectedTypes.length > 0) count += selectedTypes.length;
+    if (priceRange !== "all") count++;
+    if (areaRange !== "all") count++;
+    if (selectedAmenities.length > 0) count += selectedAmenities.length;
+    return count;
+  }, [city, district, selectedTypes, priceRange, areaRange, selectedAmenities]);
+
   // Filter listings
   const filteredListings = useMemo(() => {
     return allListings
@@ -126,7 +140,9 @@ function ListingsContent() {
         if (district !== "Tất cả" && item.district !== district) return false;
 
         // Room Type
-        if (selectedTypes.length > 0 && !selectedTypes.includes(item.roomType)) return false;
+        if (selectedTypes.length > 0 && !selectedTypes.includes(item.roomType)) {
+          return false;
+        }
 
         // Price
         if (priceRange === "under3" && item.price >= 3000000) return false;
@@ -162,32 +178,220 @@ function ListingsContent() {
     return filteredListings.slice(start, start + pageSize);
   }, [filteredListings, page, pageSize]);
 
+  // Reusable Filter Inputs JSX
+  const renderFilterFields = () => (
+    <div className="space-y-6">
+      {/* City */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+          Tỉnh / Thành phố
+        </label>
+        <select
+          value={city}
+          onChange={(e) => {
+            setCity(e.target.value);
+            setDistrict("Tất cả");
+            setPage(1);
+          }}
+          className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+        >
+          <option value="Tất cả">Tất cả địa điểm</option>
+          <option value="Hà Nội">Hà Nội</option>
+          <option value="Hồ Chí Minh">TP. Hồ Chí Minh</option>
+        </select>
+      </div>
+
+      {/* District */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+          Quận / Huyện
+        </label>
+        <select
+          value={district}
+          onChange={(e) => {
+            setDistrict(e.target.value);
+            setPage(1);
+          }}
+          className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+        >
+          <option value="Tất cả">Tất cả quận huyện</option>
+          {city === "Hà Nội" && (
+            <>
+              <option value="Cầu Giấy">Cầu Giấy</option>
+              <option value="Đống Đa">Đống Đa</option>
+              <option value="Hai Bà Trưng">Hai Bà Trưng</option>
+              <option value="Thanh Xuân">Thanh Xuân</option>
+            </>
+          )}
+          {city === "Hồ Chí Minh" && (
+            <>
+              <option value="Bình Thạnh">Bình Thạnh</option>
+              <option value="Quận 1">Quận 1</option>
+              <option value="Quận 7">Quận 7</option>
+            </>
+          )}
+        </select>
+      </div>
+
+      {/* Room Type */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+          Loại hình phòng
+        </label>
+        <div className="space-y-2 text-xs">
+          {["Phòng trọ", "Chung cư mini", "Căn hộ dịch vụ"].map((t) => (
+            <label key={t} className="flex items-center gap-2.5 cursor-pointer select-none py-0.5">
+              <input
+                type="checkbox"
+                checked={selectedTypes.includes(t)}
+                onChange={() => {
+                  toggleType(t);
+                  setPage(1);
+                }}
+                className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
+              />
+              <span className="text-slate-700 font-medium">{t}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Price Range */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+          Khoảng giá thuê
+        </label>
+        <div className="space-y-2 text-xs">
+          {[
+            { id: "all", label: "Tất cả mức giá" },
+            { id: "under3", label: "Dưới 3 triệu" },
+            { id: "3to5", label: "3 - 5 triệu" },
+            { id: "5to8", label: "5 - 8 triệu" },
+            { id: "over8", label: "Trên 8 triệu" },
+          ].map((p) => (
+            <label key={p.id} className="flex items-center gap-2.5 cursor-pointer select-none py-0.5">
+              <input
+                type="radio"
+                name="price"
+                checked={priceRange === p.id}
+                onChange={() => {
+                  setPriceRange(p.id);
+                  setPage(1);
+                }}
+                className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+              />
+              <span className="text-slate-700 font-medium">{p.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Area Range */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+          Diện tích
+        </label>
+        <div className="space-y-2 text-xs">
+          {[
+            { id: "all", label: "Tất cả diện tích" },
+            { id: "under25", label: "Dưới 25 m²" },
+            { id: "25to40", label: "25 - 40 m²" },
+            { id: "over40", label: "Trên 40 m²" },
+          ].map((a) => (
+            <label key={a.id} className="flex items-center gap-2.5 cursor-pointer select-none py-0.5">
+              <input
+                type="radio"
+                name="area"
+                checked={areaRange === a.id}
+                onChange={() => {
+                  setAreaRange(a.id);
+                  setPage(1);
+                }}
+                className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+              />
+              <span className="text-slate-700 font-medium">{a.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Amenities Pills */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+          Tiện ích đi kèm
+        </label>
+        <div className="flex flex-wrap gap-1.5">
+          {ALL_AMENITIES.map((amenity) => {
+            const isChecked = selectedAmenities.includes(amenity);
+            return (
+              <button
+                key={amenity}
+                type="button"
+                onClick={() => {
+                  toggleAmenity(amenity);
+                  setPage(1);
+                }}
+                className={cn(
+                  "px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                  isChecked
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                )}
+              >
+                {amenity}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 w-full flex-1">
       {/* Top Search & Actions bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="relative w-full md:max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-          <input
-            type="text"
-            placeholder="Tìm theo tên đường, quận huyện, trường học..."
-            value={keyword}
-            onChange={(e) => {
-              setKeyword(e.target.value);
-              setPage(1);
-            }}
-            className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-          />
+      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-6 sm:mb-8 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4">
+        {/* Search input with integrated filter button on mobile */}
+        <div className="flex items-center gap-2 w-full md:max-w-md">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Tìm theo đường, quận, trường..."
+              value={keyword}
+              onChange={(e) => {
+                setKeyword(e.target.value);
+                setPage(1);
+              }}
+              className="w-full pl-10 pr-4 py-2 text-xs sm:text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            />
+          </div>
+
+          {/* Mobile Filter Button */}
+          <button
+            type="button"
+            onClick={() => setIsMobileFilterOpen(true)}
+            className="lg:hidden flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200/80 hover:bg-blue-100 transition-colors shrink-0 relative"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-blue-600" />
+            <span>Lọc</span>
+            {activeFilterCount > 0 && (
+              <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-black flex items-center justify-center leading-none">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-end">
+        {/* Quick actions cluster */}
+        <div className="flex flex-wrap items-center gap-2 justify-between md:justify-end">
           {/* Near me button */}
           <button
             onClick={handleNearMe}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
           >
-            <Navigation className="w-3.5 h-3.5 text-blue-600" />
-            <span>Tìm phòng gần tôi</span>
+            <Navigation className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <span className="whitespace-nowrap">Gần tôi</span>
           </button>
 
           {/* Map toggle */}
@@ -200,18 +404,19 @@ function ListingsContent() {
                 : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
             )}
           >
-            <MapIcon className="w-3.5 h-3.5" />
-            <span>{showMap ? "Ẩn bản đồ" : "Xem trên bản đồ"}</span>
+            <MapIcon className="w-3.5 h-3.5 shrink-0" />
+            <span className="whitespace-nowrap">{showMap ? "Ẩn map" : "Bản đồ"}</span>
           </button>
 
           {/* View Mode */}
-          <div className="flex items-center border border-slate-200 rounded-xl p-0.5 bg-slate-50">
+          <div className="flex items-center border border-slate-200 rounded-xl p-0.5 bg-slate-50 shrink-0">
             <button
               onClick={() => setViewMode("grid")}
               className={cn(
                 "p-1.5 rounded-lg text-slate-600 transition-colors",
                 viewMode === "grid" && "bg-white text-blue-600 shadow-xs"
               )}
+              title="Xem dạng lưới"
             >
               <Grid className="w-4 h-4" />
             </button>
@@ -221,6 +426,7 @@ function ListingsContent() {
                 "p-1.5 rounded-lg text-slate-600 transition-colors",
                 viewMode === "list" && "bg-white text-blue-600 shadow-xs"
               )}
+              title="Xem dạng danh sách"
             >
               <List className="w-4 h-4" />
             </button>
@@ -228,10 +434,10 @@ function ListingsContent() {
         </div>
       </div>
 
-      {/* Main Grid: Sidebar Filters + Listings */}
+      {/* Main Grid: Desktop Sidebar Filters + Listings Result */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Sidebar Filter */}
-        <aside className="lg:col-span-1 space-y-6">
+        {/* Desktop Sidebar Filter (Hidden on Mobile) */}
+        <aside className="hidden lg:block lg:col-span-1 space-y-6">
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-6 sticky top-20">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
@@ -246,196 +452,34 @@ function ListingsContent() {
               </button>
             </div>
 
-            {/* City */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Tỉnh / Thành phố
-              </label>
-              <select
-                value={city}
-                onChange={(e) => {
-                  setCity(e.target.value);
-                  setDistrict("Tất cả");
-                  setPage(1);
-                }}
-                className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium"
-              >
-                <option value="Tất cả">Tất cả địa điểm</option>
-                <option value="Hà Nội">Hà Nội</option>
-                <option value="Hồ Chí Minh">TP. Hồ Chí Minh</option>
-              </select>
-            </div>
-
-            {/* District */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Quận / Huyện
-              </label>
-              <select
-                value={district}
-                onChange={(e) => {
-                  setDistrict(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium"
-              >
-                <option value="Tất cả">Tất cả quận huyện</option>
-                {city === "Hà Nội" && (
-                  <>
-                    <option value="Cầu Giấy">Cầu Giấy</option>
-                    <option value="Đống Đa">Đống Đa</option>
-                    <option value="Hai Bà Trưng">Hai Bà Trưng</option>
-                    <option value="Thanh Xuân">Thanh Xuân</option>
-                  </>
-                )}
-                {city === "Hồ Chí Minh" && (
-                  <>
-                    <option value="Bình Thạnh">Bình Thạnh</option>
-                    <option value="Quận 1">Quận 1</option>
-                    <option value="Quận 7">Quận 7</option>
-                  </>
-                )}
-              </select>
-            </div>
-
-            {/* Room Type */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Loại hình phòng
-              </label>
-              <div className="space-y-2 text-xs">
-                {["Phòng trọ", "Chung cư mini", "Căn hộ dịch vụ"].map((t) => (
-                  <label key={t} className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={selectedTypes.includes(t)}
-                      onChange={() => {
-                        toggleType(t);
-                        setPage(1);
-                      }}
-                      className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
-                    />
-                    <span className="text-slate-700">{t}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Price Range */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Khoảng giá thuê
-              </label>
-              <div className="space-y-2 text-xs">
-                {[
-                  { id: "all", label: "Tất cả mức giá" },
-                  { id: "under3", label: "Dưới 3 triệu" },
-                  { id: "3to5", label: "3 - 5 triệu" },
-                  { id: "5to8", label: "5 - 8 triệu" },
-                  { id: "over8", label: "Trên 8 triệu" },
-                ].map((p) => (
-                  <label key={p.id} className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="radio"
-                      name="price"
-                      checked={priceRange === p.id}
-                      onChange={() => {
-                        setPriceRange(p.id);
-                        setPage(1);
-                      }}
-                      className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
-                    />
-                    <span className="text-slate-700">{p.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Area Range */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Diện tích
-              </label>
-              <div className="space-y-2 text-xs">
-                {[
-                  { id: "all", label: "Tất cả diện tích" },
-                  { id: "under25", label: "Dưới 25 m²" },
-                  { id: "25to40", label: "25 - 40 m²" },
-                  { id: "over40", label: "Trên 40 m²" },
-                ].map((a) => (
-                  <label key={a.id} className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="radio"
-                      name="area"
-                      checked={areaRange === a.id}
-                      onChange={() => {
-                        setAreaRange(a.id);
-                        setPage(1);
-                      }}
-                      className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
-                    />
-                    <span className="text-slate-700">{a.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Amenities Pills */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Tiện ích đi kèm
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {ALL_AMENITIES.map((amenity) => {
-                  const isChecked = selectedAmenities.includes(amenity);
-                  return (
-                    <button
-                      key={amenity}
-                      type="button"
-                      onClick={() => {
-                        toggleAmenity(amenity);
-                        setPage(1);
-                      }}
-                      className={cn(
-                        "px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors",
-                        isChecked
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                      )}
-                    >
-                      {amenity}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            {renderFilterFields()}
           </div>
         </aside>
 
         {/* Listings Result View */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className="lg:col-span-3 space-y-5">
           {/* Map Simulator Section (if enabled) */}
           {showMap && (
-            <div className="bg-slate-900 rounded-2xl overflow-hidden p-6 text-white space-y-4 relative shadow-lg">
-              <div className="flex items-center justify-between">
+            <div className="bg-slate-900 rounded-2xl overflow-hidden p-4 sm:p-6 text-white space-y-3 sm:space-y-4 relative shadow-lg">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-rose-500" />
-                  <h3 className="font-bold text-sm">Bản Đồ Không Gian PostGIS (WGS 84 - 4326)</h3>
+                  <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
+                  <h3 className="font-bold text-xs sm:text-sm">Bản Đồ Không Gian PostGIS (WGS 84 - 4326)</h3>
                 </div>
-                <span className="text-xs text-slate-400">
-                  Hiển thị {paginatedListings.length} điểm tọa độ trong khu vực
+                <span className="text-[11px] text-slate-400">
+                  {paginatedListings.length} điểm tọa độ trong khu vực
                 </span>
               </div>
 
               {/* Visual simulated map */}
-              <div className="w-full h-48 bg-slate-800 rounded-xl relative overflow-hidden flex items-center justify-center border border-slate-700">
+              <div className="w-full h-44 sm:h-52 bg-slate-800 rounded-xl relative overflow-hidden flex items-center justify-center border border-slate-700">
                 <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:16px_16px]" />
-                <div className="z-10 text-center space-y-1">
+                <div className="z-10 text-center space-y-1 px-4">
                   <p className="text-xs font-bold text-blue-300">
                     Bản đồ không gian PostGIS định vị chuẩn xác
                   </p>
                   <p className="text-[11px] text-slate-400">
-                    Đã nạp tọa độ GPS của các phòng trọ đang hiển thị trên danh sách
+                    Tọa độ GPS các phòng trọ đang lọc
                   </p>
                 </div>
 
@@ -444,12 +488,12 @@ function ListingsContent() {
                   <div
                     key={item.id}
                     style={{
-                      left: `${20 + (idx * 18) % 65}%`,
-                      top: `${25 + (idx * 22) % 55}%`,
+                      left: `${15 + (idx * 20) % 70}%`,
+                      top: `${20 + (idx * 24) % 60}%`,
                     }}
                     className="absolute z-20 group cursor-pointer"
                   >
-                    <div className="px-2 py-1 bg-blue-600 text-white text-[10px] font-black rounded-md shadow-md border border-white hover:scale-110 transition-transform">
+                    <div className="px-2 py-0.5 bg-blue-600 text-white text-[10px] font-black rounded-md shadow-md border border-white hover:scale-110 transition-transform">
                       {(item.price / 1000000).toFixed(1)} tr
                     </div>
                   </div>
@@ -458,16 +502,16 @@ function ListingsContent() {
             </div>
           )}
 
-          {/* Commercial Quick Filter Chips */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-            <span className="text-slate-400 font-semibold text-[11px] whitespace-nowrap">Lọc nhanh:</span>
+          {/* Quick Filter Horizontal Scroll Chips */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+            <span className="text-slate-400 font-semibold text-[11px] whitespace-nowrap shrink-0">Lọc nhanh:</span>
             <button
               onClick={() => {
-                setPriceRange("3to5");
+                setPriceRange(priceRange === "3to5" ? "all" : "3to5");
                 setPage(1);
               }}
               className={cn(
-                "px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap",
+                "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap shrink-0",
                 priceRange === "3to5"
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
@@ -481,7 +525,7 @@ function ListingsContent() {
                 setPage(1);
               }}
               className={cn(
-                "px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap",
+                "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap shrink-0",
                 selectedAmenities.includes("Máy giặt riêng")
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
@@ -495,7 +539,7 @@ function ListingsContent() {
                 setPage(1);
               }}
               className={cn(
-                "px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap",
+                "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap shrink-0",
                 selectedAmenities.includes("Ban công")
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
@@ -509,7 +553,7 @@ function ListingsContent() {
                 setPage(1);
               }}
               className={cn(
-                "px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap",
+                "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap shrink-0",
                 selectedAmenities.includes("Nuôi thú cưng")
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
@@ -523,7 +567,7 @@ function ListingsContent() {
                 setPage(1);
               }}
               className={cn(
-                "px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap",
+                "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap shrink-0",
                 selectedTypes.includes("Căn hộ dịch vụ")
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
@@ -534,26 +578,26 @@ function ListingsContent() {
           </div>
 
           {/* Results Summary & Sorting */}
-          <div className="flex items-center justify-between flex-wrap gap-4 pb-2">
+          <div className="flex items-center justify-between flex-wrap gap-2.5 pb-1">
             <div>
-              <p className="text-sm font-bold text-slate-800">
+              <p className="text-xs sm:text-sm font-bold text-slate-800">
                 Tìm thấy{" "}
                 <span className="text-blue-600 font-black">{filteredListings.length}</span> phòng
                 phù hợp
               </p>
               {selectedAmenities.length > 0 && (
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Lọc theo: {selectedAmenities.join(", ")}
+                <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+                  Đang lọc: {selectedAmenities.join(", ")}
                 </p>
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 font-medium">Sắp xếp:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500 font-medium whitespace-nowrap">Sắp xếp:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
                 <option value="newest">Mới nhất</option>
                 <option value="price-asc">Giá tăng dần</option>
@@ -565,11 +609,11 @@ function ListingsContent() {
 
           {/* Listings List */}
           {paginatedListings.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center space-y-3">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-8 sm:p-12 text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
                 <Search className="w-6 h-6" />
               </div>
-              <h3 className="font-bold text-slate-800 text-base">Không tìm thấy phòng nào</h3>
+              <h3 className="font-bold text-slate-800 text-sm sm:text-base">Không tìm thấy phòng nào</h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
                 Không có tin đăng nào phù hợp với các tiêu chí lọc hiện tại. Hãy thử bỏ chọn một số
                 tiện ích hoặc mở rộng khoảng giá.
@@ -584,7 +628,7 @@ function ListingsContent() {
           ) : (
             <div
               className={cn(
-                "grid gap-6",
+                "grid gap-4 sm:gap-6",
                 viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"
               )}
             >
@@ -593,7 +637,7 @@ function ListingsContent() {
                   key={listing.id}
                   listing={listing}
                   onFavoriteChange={() => {
-                    // Refresh
+                    // Counter refresh handled by global listener
                   }}
                 />
               ))}
@@ -602,7 +646,7 @@ function ListingsContent() {
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-6">
+            <div className="flex items-center justify-center gap-1.5 sm:gap-2 pt-6">
               <button
                 disabled={page === 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -634,21 +678,85 @@ function ListingsContent() {
         </div>
       </div>
 
-      {/* Floating Comparison Bar if items exist */}
+      {/* Mobile Slide-up Filter Bottom Sheet / Modal */}
+      {isMobileFilterOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex flex-col justify-end">
+          {/* Backdrop overlay */}
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in"
+            onClick={() => setIsMobileFilterOpen(false)}
+          />
+
+          {/* Drawer Sheet */}
+          <div className="relative bg-white rounded-t-3xl max-h-[85vh] flex flex-col shadow-2xl z-10 animate-in slide-in-from-bottom duration-300">
+            {/* Grab handle bar */}
+            <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mt-3 mb-1 shrink-0" />
+
+            {/* Sheet Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-blue-600" />
+                <h3 className="font-bold text-slate-900 text-sm">Bộ Lọc Tìm Kiếm</h3>
+                {activeFilterCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-600">
+                    {activeFilterCount} tiêu chí
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={resetFilters}
+                  className="text-xs font-bold text-blue-600 hover:text-blue-700"
+                >
+                  Xóa tất cả
+                </button>
+                <button
+                  onClick={() => setIsMobileFilterOpen(false)}
+                  className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Filters */}
+            <div className="overflow-y-auto p-5 space-y-6 flex-1">
+              {renderFilterFields()}
+            </div>
+
+            {/* Sticky Sheet Footer */}
+            <div className="p-4 border-t border-slate-100 bg-white flex items-center gap-3 shrink-0 pb-[env(safe-area-inset-bottom,1rem)]">
+              <button
+                onClick={resetFilters}
+                className="flex-1 py-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Đặt lại
+              </button>
+              <button
+                onClick={() => setIsMobileFilterOpen(false)}
+                className="flex-[2] py-3 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-md shadow-blue-500/25 hover:bg-blue-700 transition-colors"
+              >
+                Áp dụng ({filteredListings.length} phòng)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Comparison Bar (positioned above MobileBottomNav on mobile) */}
       {compareList.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-slate-900/95 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4">
+        <div className="fixed bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 z-30 bg-slate-900/95 backdrop-blur-md text-white px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 sm:gap-4 animate-in fade-in slide-in-from-bottom-4 max-w-[92vw]">
           <div className="flex items-center gap-2">
-            <Scale className="w-5 h-5 text-blue-400" />
-            <span className="text-xs font-bold">
-              Đang chọn <span className="text-blue-300 font-black">{compareList.length}/3</span> phòng
-              so sánh
+            <Scale className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400 shrink-0" />
+            <span className="text-xs font-bold whitespace-nowrap">
+              Đang chọn <span className="text-blue-300 font-black">{compareList.length}/3</span>
             </span>
           </div>
           <Link
             href="/compare"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors whitespace-nowrap"
           >
-            <span>So sánh ngay</span>
+            <span>So sánh</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
           <button

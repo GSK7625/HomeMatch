@@ -156,15 +156,16 @@ export default function ListingDetailPage() {
   const firstMonthTotal = listing.price + listing.deposit + estElecCost + estWaterCost + listing.serviceFee;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 lg:pb-8 w-full flex-1 space-y-6 sm:space-y-8">
       {/* Top Action Bar */}
-      <div className="flex items-center justify-between text-xs text-slate-500">
+      <div className="flex items-center justify-between text-xs text-slate-500 gap-2">
         <Link
           href="/listings"
           className="flex items-center gap-1.5 font-semibold text-slate-700 hover:text-blue-600"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Quay lại danh sách phòng</span>
+          <span className="hidden sm:inline">Quay lại danh sách phòng</span>
+          <span className="sm:hidden">Quay lại</span>
         </Link>
 
         <div className="flex items-center gap-2">
@@ -225,7 +226,7 @@ export default function ListingDetailPage() {
 
             {/* Thumbnail selector */}
             {listing.images.length > 1 && (
-              <div className="flex gap-3 overflow-x-auto pb-1">
+              <div className="flex gap-2.5 sm:gap-3 overflow-x-auto pb-1 no-scrollbar">
                 {listing.images.map((img, idx) => (
                   <button
                     key={idx}
@@ -652,6 +653,52 @@ export default function ListingDetailPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Mobile Sticky Bottom Action Bar */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-4 py-2.5 pb-[env(safe-area-inset-bottom,0.75rem)] flex items-center justify-between gap-3">
+        <div className="flex flex-col">
+          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">
+            Giá thuê
+          </span>
+          <div className="flex items-baseline gap-1 mt-0.5">
+            <span className="text-base font-black text-blue-600 leading-none">
+              {(listing.price / 1000000).toFixed(1)} tr
+            </span>
+            <span className="text-[10px] text-slate-500 font-medium leading-none">/tháng</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Quick Call */}
+          <button
+            type="button"
+            onClick={handlePhoneClick}
+            className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors"
+            title={showFullPhone ? listing.landlordPhone : "Gọi điện"}
+          >
+            <Phone className="w-4 h-4 text-emerald-600" />
+          </button>
+
+          {/* Quick Chat */}
+          <Link
+            href="/messages"
+            className="p-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+            title="Chat với chủ trọ"
+          >
+            <MessageSquare className="w-4 h-4 text-blue-600" />
+          </Link>
+
+          {/* Book Viewing CTA */}
+          <button
+            onClick={() => setIsBookingOpen(true)}
+            disabled={listing.status !== "Còn trống"}
+            className="px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/25 transition-all flex items-center gap-1.5 disabled:opacity-50 whitespace-nowrap"
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            <span>Đặt lịch xem</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -27,6 +27,7 @@ using HomeMatch.Modules.Identity.Infrastructure.Services;
 using HomeMatch.Modules.Identity.Presentation.Endpoints.Auth;
 using HomeMatch.Modules.Identity.Presentation.Endpoints.Profile;
 using HomeMatch.Modules.Identity.Presentation.Security;
+using HomeMatch.Shared.Contracts.Identity;
 
 namespace HomeMatch.Modules.Identity;
 
@@ -122,6 +123,9 @@ public static class IdentityModuleExtensions
         // Phase 4 Handlers
         services.AddScoped<ForgotPasswordHandler>();
         services.AddScoped<ResetPasswordHandler>();
+
+        // 6. Cross-Module Contracts (HomeMatch.Shared/Contracts)
+        services.AddScoped<IIdentityUserReader, IdentityUserReader>();
 
         return services;
     }

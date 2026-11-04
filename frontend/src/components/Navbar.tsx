@@ -24,6 +24,8 @@ import {
   PlusCircle,
   HelpCircle,
   Sparkles,
+  Loader2,
+  Laptop,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +40,7 @@ export function Navbar() {
   const { user, role, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [favCount, setFavCount] = useState(0);
   const [compareCount, setCompareCount] = useState(0);
 
@@ -217,44 +220,123 @@ export function Navbar() {
                   className="flex items-center gap-1.5 p-1 rounded-xl hover:bg-slate-100 text-slate-700 transition-colors shrink-0"
                   title={user.displayName}
                 >
-                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
-                    {user.displayName.charAt(0).toUpperCase()}
+                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0 overflow-hidden">
+                    {user.avatarUrl ? (
+                      <img src={user.avatarUrl} alt={user.displayName} className="w-full h-full object-cover" />
+                    ) : (
+                      user.displayName.charAt(0).toUpperCase()
+                    )}
                   </div>
                   <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 </button>
 
                 {userDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95">
-                    <div className="px-4 py-2.5 border-b border-slate-100">
-                      <p className="text-xs font-bold text-slate-900 truncate">{user.displayName}</p>
-                      <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
-                      <span className="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700">
-                        {role === "Landlord" ? "Tài khoản Chủ nhà" : role === "Admin" ? "Quản trị viên" : "Tài khoản Người thuê"}
-                      </span>
-                    </div>
-
-
-                    {/* User Dropdown Profile Menu */}
-                    <Link
-                      href="/settings"
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
                       onClick={() => setUserDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
-                    >
-                      <User className="w-4 h-4 text-slate-400" />
-                      <span>Cài đặt tài khoản & Bảo mật</span>
-                    </Link>
+                    />
+                    <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95">
+                      <div className="px-4 py-3 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold text-slate-900 truncate">{user.displayName}</p>
+                          {user.emailConfirmed && (
+                            <span title="Email đã xác thực" className="inline-flex text-emerald-600">
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <span
+                            className={cn(
+                              "px-2 py-0.5 rounded-md text-[10px] font-bold",
+                              role === "Landlord"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : role === "Admin"
+                                ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                : "bg-blue-50 text-blue-700 border border-blue-200"
+                            )}
+                          >
+                            {role === "Landlord"
+                              ? "Tài khoản Chủ nhà"
+                              : role === "Admin"
+                              ? "Quản trị viên"
+                              : "Tài khoản Người thuê"}
+                          </span>
+                        </div>
+                      </div>
 
-                    <button
-                      onClick={() => {
-                        setUserDropdownOpen(false);
-                        logout();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50"
-                    >
-                      <LogOut className="w-4 h-4 text-rose-500" />
-                      <span>Đăng xuất</span>
-                    </button>
-                  </div>
+                      {/* Direct role dashboard links */}
+                      {role === "Landlord" && (
+                        <Link
+                          href="/landlord/dashboard"
+                          onClick={() => setUserDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+                        >
+                          <Building2 className="w-4 h-4 text-slate-400" />
+                          <span>Kênh quản lý Chủ nhà</span>
+                        </Link>
+                      )}
+                      {role === "Tenant" && (
+                        <Link
+                          href="/tenant/dashboard"
+                          onClick={() => setUserDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+                        >
+                          <FileText className="w-4 h-4 text-slate-400" />
+                          <span>Phòng thuê & Hợp đồng</span>
+                        </Link>
+                      )}
+
+                      <Link
+                        href="/settings"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+                      >
+                        <User className="w-4 h-4 text-slate-400" />
+                        <span>Cài đặt tài khoản & Bảo mật</span>
+                      </Link>
+
+                      <div className="my-1 border-t border-slate-100" />
+
+                      {/* Normal logout */}
+                      <button
+                        disabled={loggingOut}
+                        onClick={async () => {
+                          setLoggingOut(true);
+                          await logout();
+                          setUserDropdownOpen(false);
+                          setLoggingOut(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50 cursor-pointer"
+                      >
+                        {loggingOut ? (
+                          <Loader2 className="w-4 h-4 text-rose-500 animate-spin" />
+                        ) : (
+                          <LogOut className="w-4 h-4 text-rose-500" />
+                        )}
+                        <span>{loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}</span>
+                      </button>
+
+                      {/* Logout all sessions */}
+                      <button
+                        disabled={loggingOut}
+                        onClick={async () => {
+                          if (window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi tất cả các thiết bị?")) {
+                            setLoggingOut(true);
+                            await logout(true);
+                            setUserDropdownOpen(false);
+                            setLoggingOut(false);
+                          }
+                        }}
+                        className="w-full flex items-center gap-2.5 px-4 py-1.5 text-[11px] font-normal text-slate-500 hover:text-rose-600 hover:bg-rose-50/50 disabled:opacity-50 cursor-pointer"
+                      >
+                        <Laptop className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Đăng xuất tất cả thiết bị</span>
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
             ) : (
@@ -332,16 +414,38 @@ export function Navbar() {
               })}
 
               {user && (
-                <div className="pt-2 border-t border-slate-100">
+                <div className="pt-2 border-t border-slate-100 space-y-1.5">
                   <button
-                    onClick={() => {
+                    disabled={loggingOut}
+                    onClick={async () => {
+                      setLoggingOut(true);
+                      await logout();
                       setMobileMenuOpen(false);
-                      logout();
+                      setLoggingOut(false);
                     }}
-                    className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 disabled:opacity-50"
                   >
-                    <LogOut className="w-4 h-4" />
-                    <span>Đăng xuất</span>
+                    {loggingOut ? (
+                      <Loader2 className="w-4 h-4 text-rose-500 animate-spin" />
+                    ) : (
+                      <LogOut className="w-4 h-4" />
+                    )}
+                    <span>{loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}</span>
+                  </button>
+                  <button
+                    disabled={loggingOut}
+                    onClick={async () => {
+                      if (window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi tất cả các thiết bị?")) {
+                        setLoggingOut(true);
+                        await logout(true);
+                        setMobileMenuOpen(false);
+                        setLoggingOut(false);
+                      }
+                    }}
+                    className="flex items-center justify-center gap-2 w-full py-2 px-4 rounded-xl text-[11px] font-medium text-slate-500 hover:text-rose-600"
+                  >
+                    <Laptop className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Đăng xuất tất cả thiết bị</span>
                   </button>
                 </div>
               )}

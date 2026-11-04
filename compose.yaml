@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-homematch_password}
       POSTGRES_DB: ${POSTGRES_DB:-homematch_db}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -26,18 +26,26 @@ services:
     container_name: homematch-backend
     restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
       - ASPNETCORE_URLS=http://+:5000
+      - ASPNETCORE_FORWARDEDHEADERS_ENABLED=${ASPNETCORE_FORWARDEDHEADERS_ENABLED:-true}
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=${POSTGRES_DB:-homematch_db};Username=${POSTGRES_USER:-homematch_user};Password=${POSTGRES_PASSWORD:-homematch_password};
-      - Jwt__Secret=${Jwt__Secret:-super_secret_jwt_key_with_at_least_32_characters_long_123!}
+      - Jwt__Secret=${Jwt__Secret:-PAJReYLh0GuXnuSwqr8sihMDCIUWBiPY3HJ0mbLNy/k=}
       - Jwt__Issuer=${Jwt__Issuer:-HomeMatch}
       - Jwt__Audience=${Jwt__Audience:-HomeMatchApp}
-      - Cors__AllowedOrigins__0=${Cors__AllowedOrigins__0:-${CORS_ALLOWED_ORIGIN_0:-http://localhost:3000}}
-      - Cors__AllowedOrigins__1=${Cors__AllowedOrigins__1:-${CORS_ALLOWED_ORIGIN_1:-http://127.0.0.1:3000}}
-      - EmailSettings__SenderEmail=${EMAIL_SENDER_EMAIL:-}
-      - EmailSettings__AppPassword=${EMAIL_APP_PASSWORD:-}
+      - Jwt__ExpirationMinutes=${Jwt__ExpirationMinutes:-1440}
+      - Cors__AllowedOrigins__0=${Cors__AllowedOrigins__0:-${CORS_ALLOWED_ORIGIN_0:-https://homematch2005.id.vn}}
+      - Cors__AllowedOrigins__1=${Cors__AllowedOrigins__1:-${CORS_ALLOWED_ORIGIN_1:-https://www.homematch2005.id.vn}}
+      - Cors__AllowedOrigins__2=${Cors__AllowedOrigins__2:-${CORS_ALLOWED_ORIGIN_2:-http://localhost}}
+      - EmailSettings__SenderEmail=${EMAIL_SENDER_EMAIL:-${Email__Smtp__Username:-}}
+      - EmailSettings__AppPassword=${EMAIL_APP_PASSWORD:-${Email__Smtp__AppPassword:-}}
+      - EmailSettings__SenderName=${Email__Smtp__FromName:-HomeMatch Support}
+      - EmailSettings__SmtpServer=${Email__Smtp__Host:-smtp.gmail.com}
+      - EmailSettings__SmtpPort=${Email__Smtp__Port:-587}
+      - EmailSettings__EnableSsl=true
+      - EmailSettings__FrontendUrl=${FRONTEND_URL:-https://homematch2005.id.vn}
     ports:
-      - "${API_PORT:-5000}:5000"
+      - "127.0.0.1:${API_PORT:-5000}:5000"
     depends_on:
       db:
         condition: service_healthy
@@ -48,16 +56,32 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
     container_name: homematch-frontend
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost:${API_PORT:-5000}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-}
       - API_INTERNAL_URL=http://backend:5000
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
     depends_on:
       - backend
+    networks:
+      - homematch-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: homematch-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
     networks:
       - homematch-network
 

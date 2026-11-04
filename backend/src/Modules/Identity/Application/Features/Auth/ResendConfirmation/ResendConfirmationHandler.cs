@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Mail;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using HomeMatch.Modules.Identity.Application.Interfaces;
+using HomeMatch.Modules.Identity.Infrastructure.Services;
 using HomeMatch.Shared.Common;
 
 namespace HomeMatch.Modules.Identity.Application.Features.Auth.ResendConfirmation;
@@ -10,15 +12,18 @@ public class ResendConfirmationHandler
 {
     private readonly IIdentityAccountService _accountService;
     private readonly IEmailSender _emailSender;
+    private readonly EmailSettings _emailSettings;
     private readonly ILogger<ResendConfirmationHandler> _logger;
 
     public ResendConfirmationHandler(
         IIdentityAccountService accountService,
         IEmailSender emailSender,
+        IOptions<EmailSettings> emailOptions,
         ILogger<ResendConfirmationHandler> logger)
     {
         _accountService = accountService;
         _emailSender = emailSender;
+        _emailSettings = emailOptions.Value;
         _logger = logger;
     }
 
@@ -70,7 +75,8 @@ public class ResendConfirmationHandler
     private async Task SendConfirmationEmailAsync(string email, long userId, string token, CancellationToken cancellationToken)
     {
         var encodedToken = WebUtility.UrlEncode(token);
-        var confirmationLink = $"http://localhost:3000/verify-email?userId={userId}&token={encodedToken}";
+        var frontendUrl = string.IsNullOrWhiteSpace(_emailSettings.FrontendUrl) ? "http://localhost:3000" : _emailSettings.FrontendUrl.TrimEnd('/');
+        var confirmationLink = $"{frontendUrl}/verify-email?userId={userId}&token={encodedToken}";
 
         var subject = "[HomeMatch] Gửi lại liên kết xác thực tài khoản";
         var body = $"""

@@ -103,23 +103,21 @@ var app = builder.Build();
 app.UseTraceId();
 app.UseCustomExceptionHandling();
 
-if (app.Environment.IsDevelopment())
+// OpenAPI & Swagger UI
+app.MapOpenApi();
+app.UseSwaggerUI(options =>
 {
-    // Native .NET 10 OpenAPI document endpoint (/openapi/v1.json)
-    app.MapOpenApi();
+    options.SwaggerEndpoint("/openapi/v1.json", "HomeMatch API v1");
+    options.RoutePrefix = "swagger";
+});
 
-    // Swagger UI visual client rendering from /openapi/v1.json
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/openapi/v1.json", "HomeMatch API v1");
-        options.RoutePrefix = "swagger";
-    });
-
-    // Tự động chạy Migration và Seed dữ liệu khi khởi động
-    using var scope = app.Services.CreateScope();
+// Tự động chạy Migration và Seed dữ liệu khi khởi động (trong mọi môi trường)
+using (var scope = app.Services.CreateScope())
+{
     var identityDb = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
     await identityDb.Database.MigrateAsync();
     await IdentityDataSeeder.SeedRolesAsync(scope.ServiceProvider);
+    await IdentityDataSeeder.SeedDefaultUsersAsync(scope.ServiceProvider);
 }
 
 app.UseCors("AllowFrontend");

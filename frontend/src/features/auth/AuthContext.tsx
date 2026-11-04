@@ -11,15 +11,22 @@ import {
   RegistrationBody,
 } from "@/lib/api-client";
 
+export interface AuthResult {
+  success: boolean;
+  message?: string;
+  errorCode?: string;
+  user?: CurrentUserProfile;
+}
+
 interface AuthContextType {
   user: CurrentUserProfile | null;
   token: string | null;
   role: UserRole | "Guest";
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
-  register: (body: RegistrationBody) => Promise<{ success: boolean; challengeId?: string; message?: string }>;
-  verifyOtp: (challengeId: string, code: string) => Promise<{ success: boolean; message?: string }>;
-  logout: () => Promise<void>;
+  login: (email: string, password: string) => Promise<AuthResult>;
+  register: (body: RegistrationBody) => Promise<{ success: boolean; message?: string }>;
+  resendConfirmationEmail: (email: string) => Promise<{ success: boolean; message?: string }>;
+  logout: (allDevices?: boolean) => Promise<void>;
   refreshProfile: () => Promise<void>;
   switchDemoRole: (role: UserRole) => void;
 }
@@ -126,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<AuthResult> => {
     setIsLoading(true);
     try {
       const res = await authApi.login({ email, password });
@@ -137,30 +144,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Fetch user profile from backend /api/v1/identity/me
         const profileRes = await authApi.getMe();
+        let userProfile: CurrentUserProfile;
         if (profileRes.isSuccess && profileRes.data) {
-          const profile = normalizeProfile(profileRes.data);
-          setUser(profile);
-          setStoredUser(profile);
+          userProfile = normalizeProfile(profileRes.data);
+          setUser(userProfile);
+          setStoredUser(userProfile);
         } else {
           // Fallback profile if /me endpoint has slight latency
-          const isLandlord = email.includes("chu") || email.includes("landlord");
-          const fallbackUser: CurrentUserProfile = {
+          userProfile = {
             accountId: "user-" + Date.now(),
             email,
             displayName: email.split("@")[0],
-            role: isLandlord ? "Landlord" : "Tenant",
+            role: "Tenant",
             phoneNumber: null,
             emailConfirmed: true,
             emailVerified: true,
             createdAt: new Date().toISOString(),
           };
-          setUser(fallbackUser);
-          setStoredUser(fallbackUser);
+          setUser(userProfile);
+          setStoredUser(userProfile);
         }
-        return { success: true };
+        return { success: true, user: userProfile };
       } else {
         return {
           success: false,
+          errorCode: res.error?.code,
           message: res.error?.message || "Đăng nhập không thành công. Vui lòng kiểm tra lại thông tin.",
         };
       }
@@ -171,6 +179,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const resendConfirmationEmail = async (email: string): Promise<{ success: boolean; message?: string }> => {
+    try {
+      const res = await authApi.resendConfirmation(email);
+      if (res.isSuccess) {
+        return {
+          success: true,
+          message: res.data?.message || "Email kích hoạt đã được gửi lại. Vui lòng kiểm tra hộp thư của bạn.",
+        };
+      }
+      return {
+        success: false,
+        message: res.error?.message || "Không thể gửi email kích hoạt. Vui lòng thử lại sau.",
+      };
+    } catch {
+      return {
+        success: false,
+        message: "Lỗi kết nối đến máy chủ khi gửi lại email.",
+      };
+    }
+  };
+
   const register = async (body: RegistrationBody) => {
     setIsLoading(true);
     try {
@@ -178,8 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.isSuccess) {
         return {
           success: true,
-          challengeId: res.data?.challengeId,
-          message: "Mã OTP xác thực đã được gửi đến email của bạn.",
+          message: res.data?.message || "Đăng ký thành công! Vui lòng kiểm tra hộp thư email để kích hoạt tài khoản.",
         };
       } else {
         return {
@@ -194,24 +222,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const verifyOtp = async (challengeId: string, code: string) => {
-    setIsLoading(true);
+  const logout = async (allDevices = false) => {
     try {
-      const res = await authApi.verifyRegistrationOtp(challengeId, code);
-      if (res.isSuccess) {
-        return { success: true, message: "Xác thực email thành công! Bạn có thể đăng nhập ngay." };
+      if (allDevices) {
+        await authApi.logoutAll();
+      } else {
+        await authApi.logout();
       }
-      return { success: false, message: res.error?.message || "Mã OTP không chính xác hoặc đã hết hạn." };
-    } catch {
-      return { success: false, message: "Lỗi kiểm tra mã xác thực." };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await authApi.logout();
     } catch {
       // Ignored
     } finally {
@@ -242,7 +259,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         login,
         register,
-        verifyOtp,
+        resendConfirmationEmail,
         logout,
         refreshProfile,
         switchDemoRole,

@@ -1,6 +1,11 @@
 import { ApiResponse, CurrentUserProfile, HealthCheck, SystemStatus } from "@/types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL !== undefined && process.env.NEXT_PUBLIC_API_URL !== ""
+    ? process.env.NEXT_PUBLIC_API_URL
+    : process.env.NODE_ENV === "production"
+      ? ""
+      : "http://localhost:5000";
 
 let csrfTokenCache: string | null = null;
 let csrfPromise: Promise<string | null> | null = null;
@@ -139,6 +144,31 @@ export async function apiRequest<T>(
       return apiRequest<T>(endpoint, options, true);
     }
 
+    // Auto-refresh token on 401 if not already retrying, and not login/refresh endpoint
+    if (
+      !isRetry &&
+      res.status === 401 &&
+      !endpoint.includes("/auth/login") &&
+      !endpoint.includes("/auth/refresh")
+    ) {
+      try {
+        const refreshRes = await fetch(`${API_BASE}/api/v1/identity/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
+        if (refreshRes.ok) {
+          const refreshData = await refreshRes.json();
+          if (refreshData?.data?.accessToken) {
+            setStoredToken(refreshData.data.accessToken);
+            return apiRequest<T>(endpoint, options, true);
+          }
+        }
+      } catch {
+        // Refresh token failed, proceed to return 401 error
+      }
+    }
+
     if (!res.ok) {
       return {
         isSuccess: false,
@@ -196,14 +226,6 @@ export interface LoginBody {
   password: string;
 }
 
-export interface PublicOtpResult {
-  status: string;
-  challengeId?: string;
-  expiresAt?: string;
-  resetToken?: string;
-  retryAfterSeconds?: number;
-}
-
 export interface IssuedAccessToken {
   accessToken: string;
   tokenType: string;
@@ -224,30 +246,7 @@ export const authApi = {
       fullName: payload.fullName.trim(),
       role: payload.role,
     });
-    return apiRequest<PublicOtpResult>("/api/v1/identity/auth/register", {
-      method: "POST",
-      body,
-    });
-  },
-
-  verifyRegistrationOtp: async (challengeId: string, code: string) => {
-    // Only pass exact 2 fields required by backend parse rule: challengeId, code
-    const body = JSON.stringify({
-      challengeId,
-      code,
-    });
-    return apiRequest<PublicOtpResult>("/api/v1/identity/auth/registration/verify-otp", {
-      method: "POST",
-      body,
-    });
-  },
-
-  resendRegistrationOtp: async (email: string, password: string) => {
-    const body = JSON.stringify({
-      email: email.trim(),
-      password,
-    });
-    return apiRequest<PublicOtpResult>("/api/v1/identity/auth/registration/send-otp", {
+    return apiRequest<{ message: string }>("/api/v1/identity/auth/register", {
       method: "POST",
       body,
     });
@@ -274,6 +273,44 @@ export const authApi = {
     return res;
   },
 
+  logoutAll: async () => {
+    const res = await apiRequest<void>("/api/v1/identity/auth/logout-all", {
+      method: "POST",
+    });
+    setStoredToken(null);
+    setStoredUser(null);
+    csrfTokenCache = null;
+    return res;
+  },
+
+  refreshToken: async (token?: string) => {
+    const body = token ? JSON.stringify({ refreshToken: token }) : undefined;
+    const res = await apiRequest<IssuedAccessToken>("/api/v1/identity/auth/refresh", {
+      method: "POST",
+      body,
+    });
+    if (res.isSuccess && res.data?.accessToken) {
+      setStoredToken(res.data.accessToken);
+    }
+    return res;
+  },
+
+  resendConfirmation: async (email: string) => {
+    const body = JSON.stringify({ email: email.trim() });
+    return apiRequest<{ message: string }>("/api/v1/identity/auth/resend-confirmation", {
+      method: "POST",
+      body,
+    });
+  },
+
+  confirmEmail: async (userId: number, token: string) => {
+    const body = JSON.stringify({ userId, token });
+    return apiRequest<{ message: string }>("/api/v1/identity/auth/confirm-email", {
+      method: "POST",
+      body,
+    });
+  },
+
   getMe: async () => {
     return apiRequest<CurrentUserProfile>("/api/v1/identity/me", {
       method: "GET",
@@ -281,25 +318,16 @@ export const authApi = {
   },
 
   forgotPassword: async (email: string) => {
-    // Only pass email
     const body = JSON.stringify({ email: email.trim() });
-    return apiRequest<PublicOtpResult>("/api/v1/identity/auth/forgot-password", {
+    return apiRequest<{ message: string }>("/api/v1/identity/auth/forgot-password", {
       method: "POST",
       body,
     });
   },
 
-  verifyForgotPasswordOtp: async (challengeId: string, code: string) => {
-    const body = JSON.stringify({ challengeId, code });
-    return apiRequest<PublicOtpResult>("/api/v1/identity/auth/forgot-password/verify-otp", {
-      method: "POST",
-      body,
-    });
-  },
-
-  resetPassword: async (resetToken: string, newPassword: string) => {
-    const body = JSON.stringify({ resetToken, newPassword });
-    return apiRequest<PublicOtpResult>("/api/v1/identity/auth/reset-password", {
+  resetPassword: async (userId: number, token: string, newPassword: string) => {
+    const body = JSON.stringify({ userId, token, newPassword });
+    return apiRequest<{ message: string }>("/api/v1/identity/auth/reset-password", {
       method: "POST",
       body,
     });

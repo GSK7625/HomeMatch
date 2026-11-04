@@ -1,9 +1,11 @@
 using System.Net;
 using System.Net.Mail;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using HomeMatch.Modules.Identity.Application.Interfaces;
 using HomeMatch.Modules.Identity.Domain.Constants;
 using HomeMatch.Modules.Identity.Domain.Enums;
+using HomeMatch.Modules.Identity.Infrastructure.Services;
 using HomeMatch.Shared.Common;
 
 namespace HomeMatch.Modules.Identity.Application.Features.Auth.ForgotPassword;
@@ -12,15 +14,18 @@ public class ForgotPasswordHandler
 {
     private readonly IIdentityAccountService _accountService;
     private readonly IEmailSender _emailSender;
+    private readonly EmailSettings _emailSettings;
     private readonly ILogger<ForgotPasswordHandler> _logger;
 
     public ForgotPasswordHandler(
         IIdentityAccountService accountService,
         IEmailSender emailSender,
+        IOptions<EmailSettings> emailOptions,
         ILogger<ForgotPasswordHandler> logger)
     {
         _accountService = accountService;
         _emailSender = emailSender;
+        _emailSettings = emailOptions.Value;
         _logger = logger;
     }
 
@@ -77,7 +82,8 @@ public class ForgotPasswordHandler
     private async Task SendResetPasswordEmailAsync(string email, long userId, string token, CancellationToken cancellationToken)
     {
         var encodedToken = WebUtility.UrlEncode(token);
-        var resetLink = $"http://localhost:3000/reset-password?userId={userId}&token={encodedToken}";
+        var frontendUrl = string.IsNullOrWhiteSpace(_emailSettings.FrontendUrl) ? "http://localhost:3000" : _emailSettings.FrontendUrl.TrimEnd('/');
+        var resetLink = $"{frontendUrl}/reset-password?userId={userId}&token={encodedToken}";
 
         var subject = "[HomeMatch] Hướng dẫn đặt lại mật khẩu";
         var body = $"""

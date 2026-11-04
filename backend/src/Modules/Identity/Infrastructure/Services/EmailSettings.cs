@@ -10,6 +10,7 @@ public class EmailSettings
     public string SenderEmail { get; set; } = string.Empty;
     public string AppPassword { get; set; } = string.Empty;
     public bool EnableSsl { get; set; } = true;
+    public string FrontendUrl { get; set; } = "http://localhost:3000";
 
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(SenderEmail) &&

@@ -34,6 +34,9 @@ public static class IdentityModuleExtensions
 {
     public static IServiceCollection AddIdentityModule(this IServiceCollection services, IConfiguration configuration)
     {
+        // 0. Kích hoạt .NET 10 Minimal API Validation (Data Annotations via Source Generator)
+        services.AddValidation();
+
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 

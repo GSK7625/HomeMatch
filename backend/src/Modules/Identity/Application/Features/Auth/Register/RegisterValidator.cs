@@ -1,4 +1,3 @@
-using System.Net.Mail;
 using HomeMatch.Modules.Identity.Domain.Constants;
 using HomeMatch.Shared.Common;
 
@@ -10,47 +9,9 @@ public static class RegisterValidator
     {
         var details = new List<ErrorDetail>();
 
-        // 1. Validate Email (BR-05)
-        if (string.IsNullOrWhiteSpace(command.Email))
+        // 1. Validate Password (BR-06): Phải chứa ít nhất một chữ cái và một chữ số
+        if (!string.IsNullOrEmpty(command.Password))
         {
-            details.Add(new ErrorDetail(nameof(command.Email), "Email không được để trống."));
-        }
-        else
-        {
-            var trimmedEmail = command.Email.Trim();
-            if (trimmedEmail.Length > 254)
-            {
-                details.Add(new ErrorDetail(nameof(command.Email), "Email không được vượt quá 254 ký tự."));
-            }
-            else
-            {
-                try
-                {
-                    var addr = new MailAddress(trimmedEmail);
-                    if (addr.Address != trimmedEmail)
-                    {
-                        details.Add(new ErrorDetail(nameof(command.Email), "Định dạng email không hợp lệ."));
-                    }
-                }
-                catch
-                {
-                    details.Add(new ErrorDetail(nameof(command.Email), "Định dạng email không hợp lệ."));
-                }
-            }
-        }
-
-        // 2. Validate Password (BR-06: 8-128 chars, requires letter and digit)
-        if (string.IsNullOrEmpty(command.Password))
-        {
-            details.Add(new ErrorDetail(nameof(command.Password), "Mật khẩu không được để trống."));
-        }
-        else
-        {
-            if (command.Password.Length < 8 || command.Password.Length > 128)
-            {
-                details.Add(new ErrorDetail(nameof(command.Password), "Mật khẩu phải có độ dài từ 8 đến 128 ký tự."));
-            }
-
             var hasLetter = command.Password.Any(char.IsLetter);
             var hasDigit = command.Password.Any(char.IsDigit);
 
@@ -60,27 +21,14 @@ public static class RegisterValidator
             }
         }
 
-        // 3. Validate FullName (BR-07: 2-100 chars, no control characters)
-        if (string.IsNullOrWhiteSpace(command.FullName))
+        // 2. Validate FullName (BR-07): Không được chứa ký tự điều khiển
+        if (!string.IsNullOrEmpty(command.FullName) && command.FullName.Any(char.IsControl))
         {
-            details.Add(new ErrorDetail(nameof(command.FullName), "Họ tên không được để trống."));
-        }
-        else
-        {
-            var trimmedName = command.FullName.Trim();
-            if (trimmedName.Length < 2 || trimmedName.Length > 100)
-            {
-                details.Add(new ErrorDetail(nameof(command.FullName), "Họ tên phải có độ dài từ 2 đến 100 ký tự."));
-            }
-
-            if (trimmedName.Any(char.IsControl))
-            {
-                details.Add(new ErrorDetail(nameof(command.FullName), "Họ tên không được chứa ký tự điều khiển."));
-            }
+            details.Add(new ErrorDetail(nameof(command.FullName), "Họ tên không được chứa ký tự điều khiển."));
         }
 
-        // 4. Validate Role (BR-04: Tenant or Landlord only)
-        if (string.IsNullOrWhiteSpace(command.Role) ||
+        // 3. Validate Role (BR-04): Chỉ chấp nhận Tenant hoặc Landlord
+        if (!string.IsNullOrEmpty(command.Role) &&
             !AccountRoles.PublicAssignableRoles.Contains(command.Role.Trim()))
         {
             details.Add(new ErrorDetail(nameof(command.Role), $"Vai trò đăng ký không hợp lệ. Chỉ chấp nhận '{AccountRoles.Tenant}' hoặc '{AccountRoles.Landlord}'."));

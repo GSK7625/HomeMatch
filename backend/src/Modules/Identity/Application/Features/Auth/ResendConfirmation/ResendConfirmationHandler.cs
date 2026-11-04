@@ -33,23 +33,6 @@ public class ResendConfirmationHandler
 
         var trimmedEmail = command.Email.Trim();
 
-        try
-        {
-            var addr = new MailAddress(trimmedEmail);
-            if (addr.Address != trimmedEmail)
-            {
-                return Result.Failure<ResendConfirmationResult>(new Error(
-                    "Identity.ValidationFailed",
-                    "Định dạng email không hợp lệ."));
-            }
-        }
-        catch
-        {
-            return Result.Failure<ResendConfirmationResult>(new Error(
-                "Identity.ValidationFailed",
-                "Định dạng email không hợp lệ."));
-        }
-
         var userId = await _accountService.GetUserIdByEmailAsync(trimmedEmail, cancellationToken);
         if (userId.HasValue)
         {

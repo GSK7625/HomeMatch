@@ -35,6 +35,8 @@ services:
       - Jwt__ExpirationMinutes=${Jwt__ExpirationMinutes:-15}
       - Jwt__ClockSkewSeconds=${Jwt__ClockSkewSeconds:-30}
       - Cors__AllowedOrigins__0=${Cors__AllowedOrigins__0:-http://localhost:3000}
+      - Cors__AllowedOrigins__1=${Cors__AllowedOrigins__1:-http://localhost:5000}
+      - Cors__AllowedOrigins__2=${Cors__AllowedOrigins__2:-http://127.0.0.1:5000}
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=${POSTGRES_DB:-homematch_db};Username=${POSTGRES_USER:-homematch_user};Password=${POSTGRES_PASSWORD:-homematch_password};
       - Identity__EmailVerification__Enabled=${Identity__EmailVerification__Enabled:-true}
       - Identity__EmailVerification__KeyId=${Identity__EmailVerification__KeyId:-v1}

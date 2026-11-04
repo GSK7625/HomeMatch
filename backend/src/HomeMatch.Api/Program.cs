@@ -60,6 +60,11 @@ if (args.Contains("--initialize-identity", StringComparer.Ordinal))
     return;
 }
 
+if (app.Environment.IsDevelopment())
+{
+    await app.Services.InitializeIdentityDatabaseAsync();
+}
+
 // 4. HTTP Pipeline & Middlewares
 app.UseMiddleware<RequestIdMiddleware>();
 app.UseTraceId();

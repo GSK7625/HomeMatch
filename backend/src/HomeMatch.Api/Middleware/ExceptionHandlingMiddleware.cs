@@ -38,7 +38,6 @@ public class ExceptionHandlingMiddleware
         {
             var traceId = GetTraceId(context);
             _logger.LogInformation(ex, "[{TraceId}] Request was cancelled by the client.", traceId);
-            context.Abort();
             if (!context.Response.HasStarted)
             {
                 context.Response.StatusCode = 499; // Client Closed Request
@@ -48,10 +47,6 @@ public class ExceptionHandlingMiddleware
         {
             var traceId = GetTraceId(context);
             _logger.LogError(ex, "[{TraceId}] An unhandled exception occurred: {Message}", traceId, ex.Message);
-            if (context.Response.HasStarted)
-            {
-                throw;
-            }
             await HandleExceptionAsync(context, traceId);
         }
     }
@@ -66,11 +61,11 @@ public class ExceptionHandlingMiddleware
         return Activity.Current?.Id ?? context.TraceIdentifier;
     }
 
-    private static async Task HandleExceptionAsync(HttpContext context, string traceId)
+    private static Task HandleExceptionAsync(HttpContext context, string traceId)
     {
         if (context.Response.HasStarted)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         if (!context.Response.Headers.ContainsKey(TraceIdMiddleware.TraceIdHeaderName))
@@ -78,13 +73,14 @@ public class ExceptionHandlingMiddleware
             context.Response.Headers.Append(TraceIdMiddleware.TraceIdHeaderName, traceId);
         }
 
-        context.Response.Clear();
         context.Response.ContentType = "application/json";
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
         var error = new Error("Server.InternalError", "Đã xảy ra lỗi hệ thống không mong muốn. Vui lòng thử lại sau.");
         var response = ApiResponse<object>.Failure(error);
-        await context.Response.WriteAsJsonAsync(response, JsonOptions, cancellationToken: CancellationToken.None);
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+
+        return context.Response.WriteAsync(json);
     }
 }
 

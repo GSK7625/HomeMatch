@@ -1,33 +1,33 @@
-using HomeMatch.Modules.Identity.Presentation.PublicOtp;
-using HomeMatch.Modules.Identity.Presentation.Http;
-using HomeMatch.Modules.Identity.Application.PublicOtp;
-using HomeMatch.Modules.Identity.Application.Authentication;
-using HomeMatch.Modules.Identity.Application.EmailVerification;
-using HomeMatch.Modules.Identity.Infrastructure.EmailVerification;
-using HomeMatch.Modules.Identity.Presentation.EmailVerification;
-using HomeMatch.Modules.Identity.Infrastructure.Authentication;
-using HomeMatch.Modules.Identity.Application.Registration;
-using HomeMatch.Modules.Identity.Application.Login;
-using HomeMatch.Modules.Identity.Application.Refresh;
-using HomeMatch.Modules.Identity.Application.Logout;
-using HomeMatch.Modules.Identity.Presentation.Logout;
-using HomeMatch.Modules.Identity.Presentation.Refresh;
-using HomeMatch.Modules.Identity.Presentation.Login;
-using HomeMatch.Modules.Identity.Presentation.Authentication;
-using HomeMatch.Modules.Identity.Infrastructure.Passwords;
-using HomeMatch.Modules.Identity.Presentation.Registration;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using HomeMatch.Modules.Identity.Presentation;
-using HomeMatch.Modules.Identity.Infrastructure.Configuration;
-using HomeMatch.Modules.Identity.Infrastructure.Persistence;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using HomeMatch.Modules.Identity.Application.Features.Auth.ConfirmEmail;
+using HomeMatch.Modules.Identity.Application.Features.Auth.ForgotPassword;
+using HomeMatch.Modules.Identity.Application.Features.Auth.Login;
+using HomeMatch.Modules.Identity.Application.Features.Auth.Logout;
+using HomeMatch.Modules.Identity.Application.Features.Auth.LogoutAll;
+using HomeMatch.Modules.Identity.Application.Features.Auth.RefreshToken;
+using HomeMatch.Modules.Identity.Application.Features.Auth.Register;
+using HomeMatch.Modules.Identity.Application.Features.Auth.ResendConfirmation;
+using HomeMatch.Modules.Identity.Application.Features.Auth.ResetPassword;
+using HomeMatch.Modules.Identity.Application.Features.Profile.GetCurrentUser;
+using HomeMatch.Modules.Identity.Application.Interfaces;
+using HomeMatch.Modules.Identity.Infrastructure.Identity;
+using HomeMatch.Modules.Identity.Infrastructure.Persistence;
+using HomeMatch.Modules.Identity.Infrastructure.Persistence.Repositories;
+using HomeMatch.Modules.Identity.Infrastructure.Services;
+using HomeMatch.Modules.Identity.Presentation.Endpoints.Auth;
+using HomeMatch.Modules.Identity.Presentation.Endpoints.Profile;
+using HomeMatch.Modules.Identity.Presentation.Security;
+using HomeMatch.Shared.Contracts.Identity;
 
 namespace HomeMatch.Modules.Identity;
 
@@ -35,92 +35,112 @@ public static class IdentityModuleExtensions
 {
     public static IServiceCollection AddIdentityModule(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddSingleton<IValidateOptions<JwtOptions>, JwtOptionsValidator>();
-        services.AddSingleton<IValidateOptions<IdentitySessionOptions>, IdentitySessionOptionsValidator>();
-        services.AddSingleton<IValidateOptions<IdentityDatabaseOptions>, IdentityDatabaseOptionsValidator>();
-        services.AddOptions<JwtOptions>()
-            .Bind(configuration.GetSection(JwtOptions.SectionName))
-            .ValidateOnStart();
-        services.AddOptions<IdentitySessionOptions>()
-            .Bind(configuration.GetSection(IdentitySessionOptions.SectionName))
-            .ValidateOnStart();
-        services.AddOptions<IdentityDatabaseOptions>()
-            .Bind(configuration.GetSection(IdentityDatabaseOptions.SectionName))
-            .ValidateOnStart();
+        // 0. Kích hoạt .NET 10 Minimal API Validation (Data Annotations via Source Generator)
+        services.AddValidation();
 
-        services.AddDbContext<IdentityDbContext>((provider, options) =>
+        var connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
+        // 1. Configure EF Core DbContext with PostgreSQL
+        services.AddDbContext<IdentityDbContext>(options =>
         {
-            var connection = provider.GetRequiredService<IOptions<IdentityDatabaseOptions>>().Value.DefaultConnection;
-            options.UseNpgsql(connection, postgres =>
-                postgres.MigrationsHistoryTable(IdentityDbContext.MigrationHistoryTable, IdentityDbContext.Schema));
+            options.UseNpgsql(connectionString, npgsqlOptions =>
+            {
+                npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", IdentityDbContext.Schema);
+            });
+            options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
         });
-        services.AddIdentityCore<IdentityAccount>(options =>
+
+        // 2. Configure ASP.NET Core Identity Core
+        services.AddIdentityCore<ApplicationUser>(options =>
         {
-            options.Stores.SchemaVersion = IdentitySchemaVersions.Version2;
-            options.Stores.MaxLengthForKeys = 128;
-            options.User.RequireUniqueEmail = true;
-            options.User.AllowedUserNameCharacters = string.Empty;
-            options.SignIn.RequireConfirmedEmail = false;
-            options.SignIn.RequireConfirmedAccount = false;
-            options.Lockout.AllowedForNewUsers = false;
-            // All password creation rules live in NewPasswordPolicy.
-            options.Password.RequiredLength = 8;
-            options.Password.RequireDigit = false;
+            // Password policy (BR-06): 8-128 chars, requires letters and numbers
+            options.Password.RequireDigit = true;
             options.Password.RequireLowercase = false;
             options.Password.RequireUppercase = false;
             options.Password.RequireNonAlphanumeric = false;
+            options.Password.RequiredLength = 8;
+
+            options.User.RequireUniqueEmail = true;
+            options.SignIn.RequireConfirmedEmail = true;
         })
-            .AddRoles<IdentityRole<long>>()
-            .AddEntityFrameworkStores<IdentityDbContext>();
-        services.RemoveAll<IUserStore<IdentityAccount>>();
-        services.AddScoped<IUserStore<IdentityAccount>, SqlIdentityUserStore>();
-        services.RemoveAll<IPasswordHasher<IdentityAccount>>();
-        services.AddScoped<IPasswordHasher<IdentityAccount>, CompatiblePasswordHasher>();
-        services.AddSingleton<INewPasswordPolicy, NewPasswordPolicy>();
-        services.RemoveAll<IPasswordValidator<IdentityAccount>>();
-        services.AddScoped<IPasswordValidator<IdentityAccount>, IdentityNewPasswordValidator>();
-        services.AddScoped<IRegistrationStore, PostgresRegistrationStore>();
-        services.AddScoped<AuthService>();
-        services.AddScoped<IPublicOtpStore, PostgresPublicOtpStore>();
-        services.AddScoped<SendPublicOtpHandler>();
-        services.AddScoped<VerifyPublicOtpHandler>();
+        .AddRoles<ApplicationRole>()
+        .AddRoleManager<RoleManager<ApplicationRole>>()
+        .AddUserManager<UserManager<ApplicationUser>>()
+        .AddSignInManager()
+        .AddEntityFrameworkStores<IdentityDbContext>()
+        .AddDefaultTokenProviders();
+
+        // 3. Configure JWT Authentication & Authorization
+        var jwtSecret = configuration["Jwt:Secret"] ?? "super_secret_jwt_key_with_at_least_32_characters_long_123!";
+        var jwtIssuer = configuration["Jwt:Issuer"] ?? "HomeMatch";
+        var jwtAudience = configuration["Jwt:Audience"] ?? "HomeMatchApp";
+
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = jwtIssuer,
+                ValidAudience = jwtAudience,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+                ClockSkew = TimeSpan.Zero
+            };
+        });
+
+        services.AddAuthorization();
+        services.AddIdentityRateLimiting();
+
+        // 4. Register Infrastructure Services & Repositories
+        services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
+        services.AddScoped<IIdentityAccountService, IdentityAccountService>();
+        services.AddScoped<IUserProfileRepository, UserProfileRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IEmailSender, EmailSender>();
+        services.AddScoped<IJwtTokenService, JwtTokenService>();
+
+        // 5. Register Use Case Handlers
+        // Phase 2 Handlers
+        services.AddScoped<RegisterHandler>();
+        services.AddScoped<ConfirmEmailHandler>();
+        services.AddScoped<ResendConfirmationHandler>();
+
+        // Phase 3 Handlers
+        services.AddScoped<LoginHandler>();
+        services.AddScoped<RefreshTokenHandler>();
+        services.AddScoped<LogoutHandler>();
+        services.AddScoped<LogoutAllHandler>();
+        services.AddScoped<GetCurrentUserHandler>();
+
+        // Phase 4 Handlers
+        services.AddScoped<ForgotPasswordHandler>();
         services.AddScoped<ResetPasswordHandler>();
-        services.AddScoped<ILoginStore, PostgresLoginStore>();
-        services.AddSingleton<LoginDummyCredential>();
-        services.AddHostedService<LoginSecurityStartupCheck>();
-        services.AddSingleton<IdentityQuotas>();
-        services.AddScoped<RefreshCookie>();
-        services.AddScoped<IRefreshSessionStore, PostgresRefreshSessionStore>();
-        services.AddSingleton<IRefreshRequestQuota>(provider => provider.GetRequiredService<IdentityQuotas>());
-        services.AddScoped<ILogoutSessionStore, PostgresLogoutSessionStore>();
 
-        services.AddSingleton<IValidateOptions<EmailVerificationOptions>, EmailVerificationOptionsValidator>();
-        services.AddOptions<EmailVerificationOptions>().Bind(configuration.GetSection(EmailVerificationOptions.SectionName))
-            .Configure(value => value.Enabled = configuration.GetValue<bool>("Email:Enabled")).ValidateOnStart();
-        services.AddSingleton<EmailVerificationCodeProtector>();
-        services.AddScoped<IEmailVerificationStore, PostgresEmailVerificationStore>();
-        services.AddScoped<IEmailVerificationDelivery, TransactionalVerificationDelivery>();
-        services.AddScoped<RequestEmailVerificationHandler>();
-        services.AddScoped<IAccessIdentityReader, DatabaseAccessIdentityReader>();
-        services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
-        services.AddIdentityHttpSecurity();
+        // 6. Cross-Module Contracts (HomeMatch.Shared/Contracts)
+        services.AddScoped<IIdentityUserReader, IdentityUserReader>();
+
         return services;
-    }
-
-    /// <summary>Explicit deployment/development operation; never migrates on every API startup.</summary>
-    public static async Task InitializeIdentityDatabaseAsync(
-        this IServiceProvider services, CancellationToken cancellationToken = default)
-    {
-        await using var scope = services.CreateAsyncScope();
-        var database = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-        await database.Database.MigrateAsync(cancellationToken);
     }
 
     public static IEndpointRouteBuilder MapIdentityEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/v1/identity").WithTags("Identity");
         group.MapGet("/ping", () => Results.Ok(new { module = "Identity", status = "Healthy", timestamp = DateTime.UtcNow }));
-        group.MapAccountEndpoints();
+
+        // Map Auth Endpoints (UC-A01 đến UC-A10)
+        group.MapAuthEndpoints();
+
+        // Map Profile Endpoints (UC-A11: /me)
+        group.MapProfileEndpoints();
+
         return endpoints;
     }
 }

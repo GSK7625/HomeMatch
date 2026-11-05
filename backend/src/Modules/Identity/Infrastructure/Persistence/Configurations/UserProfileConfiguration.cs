@@ -1,30 +1,56 @@
-using HomeMatch.Modules.Identity.Domain.Entities;
-using HomeMatch.Modules.Identity.Infrastructure.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using HomeMatch.Modules.Identity.Domain.Entities;
+using HomeMatch.Modules.Identity.Infrastructure.Identity;
 
 namespace HomeMatch.Modules.Identity.Infrastructure.Persistence.Configurations;
 
-public sealed class UserProfileConfiguration : IEntityTypeConfiguration<UserProfile>
+public class UserProfileConfiguration : IEntityTypeConfiguration<UserProfile>
 {
     public void Configure(EntityTypeBuilder<UserProfile> builder)
     {
-        builder.ToTable("UserProfiles", table =>
-        {
-            table.HasCheckConstraint("CK_UserProfiles_Name", "char_length(btrim(\"full_name\")) BETWEEN 2 AND 100");
-        });
-        builder.HasKey(profile => profile.UserId);
-        builder.Property(profile => profile.UserId).ValueGeneratedNever();
-        builder.Property(profile => profile.FullName).HasMaxLength(100).IsRequired();
-        builder.Ignore(profile => profile.PhoneNumber);
-        builder.Property(profile => profile.AvatarUrl).HasMaxLength(500);
-        builder.Property(profile => profile.Gender).HasMaxLength(10);
-        builder.Property(profile => profile.NotifyEmail).HasDefaultValue(true);
-        builder.Property(profile => profile.NotifySms).HasDefaultValue(false);
-        builder.Property(profile => profile.NotifyPush).HasDefaultValue(true);
-        builder.Ignore(profile => profile.CreatedAt);
-        builder.Property(profile => profile.UpdatedAt).IsRequired();
-        builder.HasOne<IdentityAccount>().WithOne()
-            .HasForeignKey<UserProfile>(profile => profile.UserId).OnDelete(DeleteBehavior.Cascade);
+        builder.ToTable("user_profiles");
+
+        builder.HasKey(p => p.UserId);
+
+        builder.Property(p => p.UserId)
+            .HasColumnName("user_id");
+
+        builder.Property(p => p.FullName)
+            .HasColumnName("full_name")
+            .HasMaxLength(100)
+            .IsRequired();
+
+        builder.Property(p => p.AvatarUrl)
+            .HasColumnName("avatar_url")
+            .HasMaxLength(500);
+
+        builder.Property(p => p.DateOfBirth)
+            .HasColumnName("date_of_birth");
+
+        builder.Property(p => p.Gender)
+            .HasColumnName("gender")
+            .HasMaxLength(10);
+
+        builder.Property(p => p.NotifyEmail)
+            .HasColumnName("notify_email")
+            .HasDefaultValue(true);
+
+        builder.Property(p => p.NotifySms)
+            .HasColumnName("notify_sms")
+            .HasDefaultValue(false);
+
+        builder.Property(p => p.NotifyPush)
+            .HasColumnName("notify_push")
+            .HasDefaultValue(true);
+
+        builder.Property(p => p.UpdatedAt)
+            .HasColumnName("updated_at")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+        builder.HasOne<ApplicationUser>()
+            .WithOne(u => u.Profile)
+            .HasForeignKey<UserProfile>(p => p.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

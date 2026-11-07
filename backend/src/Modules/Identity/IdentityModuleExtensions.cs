@@ -27,7 +27,6 @@ using HomeMatch.Modules.Identity.Infrastructure.Services;
 using HomeMatch.Modules.Identity.Presentation.Endpoints.Auth;
 using HomeMatch.Modules.Identity.Presentation.Endpoints.Profile;
 using HomeMatch.Modules.Identity.Presentation.Security;
-using HomeMatch.Shared.Contracts.Identity;
 
 namespace HomeMatch.Modules.Identity;
 
@@ -35,9 +34,6 @@ public static class IdentityModuleExtensions
 {
     public static IServiceCollection AddIdentityModule(this IServiceCollection services, IConfiguration configuration)
     {
-        // 0. Kích hoạt .NET 10 Minimal API Validation (Data Annotations via Source Generator)
-        services.AddValidation();
-
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
@@ -100,7 +96,44 @@ public static class IdentityModuleExtensions
         services.AddIdentityRateLimiting();
 
         // 4. Register Infrastructure Services & Repositories
-        services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
+        services.Configure<EmailSettings>(options =>
+        {
+            configuration.GetSection(EmailSettings.SectionName).Bind(options);
+
+            // Tự động map từ Email:Smtp hoặc biến môi trường nếu EmailSettings chưa có
+            if (string.IsNullOrWhiteSpace(options.SenderEmail))
+            {
+                options.SenderEmail = configuration["Email:Smtp:FromAddress"]
+                    ?? configuration["Email:Smtp:Username"]
+                    ?? configuration["EMAIL_SENDER_EMAIL"]
+                    ?? string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(options.AppPassword))
+            {
+                options.AppPassword = configuration["Email:Smtp:AppPassword"]
+                    ?? configuration["EMAIL_APP_PASSWORD"]
+                    ?? string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(options.SenderName) || options.SenderName == "HomeMatch Support")
+            {
+                var fromName = configuration["Email:Smtp:FromName"];
+                if (!string.IsNullOrWhiteSpace(fromName))
+                {
+                    options.SenderName = fromName;
+                }
+            }
+
+            var frontendUrl = configuration["FRONTEND_URL"]
+                ?? configuration["FrontendUrl"]
+                ?? configuration["AppUrl"]
+                ?? configuration["EmailSettings:FrontendUrl"];
+            if (!string.IsNullOrWhiteSpace(frontendUrl))
+            {
+                options.FrontendUrl = frontendUrl.TrimEnd('/');
+            }
+        });
         services.AddScoped<IIdentityAccountService, IdentityAccountService>();
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
@@ -123,9 +156,6 @@ public static class IdentityModuleExtensions
         // Phase 4 Handlers
         services.AddScoped<ForgotPasswordHandler>();
         services.AddScoped<ResetPasswordHandler>();
-
-        // 6. Cross-Module Contracts (HomeMatch.Shared/Contracts)
-        services.AddScoped<IIdentityUserReader, IdentityUserReader>();
 
         return services;
     }

@@ -21,15 +21,10 @@ public class EmailSender : IEmailSender
 
     public async Task SendEmailAsync(string toEmail, string subject, string htmlContent, CancellationToken cancellationToken = default)
     {
-        // 1. Nếu chưa điền cấu hình Google App Password: tự động fallback in ra Console/Log để dev không bị crash
+        // 1. Kiểm tra cấu hình Gmail SMTP
         if (!_settings.IsConfigured)
         {
-            _logger.LogWarning("⚠️ EmailSettings (SenderEmail / AppPassword) chưa được cấu hình trong appsettings. Tự động ghi nội dung email vào log:");
-            _logger.LogInformation("================== EMAIL MOCK (CHẾ ĐỘ DEV) ==================");
-            _logger.LogInformation("Gửi tới: {ToEmail}", toEmail);
-            _logger.LogInformation("Tiêu đề: {Subject}", subject);
-            _logger.LogInformation("Nội dung: {Content}", htmlContent);
-            _logger.LogInformation("=============================================================");
+            _logger.LogError("❌ EmailSettings (SenderEmail / AppPassword) chưa được cấu hình. Không thể gửi email tới {ToEmail}.", toEmail);
             return;
         }
 

@@ -11,6 +11,15 @@ public sealed class ListingsDbContext(DbContextOptions<ListingsDbContext> option
     /// <summary>Bảng quản lý album ảnh của bài đăng cho thuê</summary>
     public DbSet<ListingImage> ListingImages => Set<ListingImage>();
 
+    /// <summary>Bảng quản lý danh sách tin yêu thích</summary>
+    public DbSet<SavedListing> SavedListings => Set<SavedListing>();
+
+    /// <summary>Bảng quản lý nhật ký lượt xem tin đăng</summary>
+    public DbSet<ListingView> ListingViews => Set<ListingView>();
+
+    /// <summary>Bảng quản lý khay so sánh phòng</summary>
+    public DbSet<UserRoomComparison> UserRoomComparisons => Set<UserRoomComparison>();
+
     /// <summary>Bảng quản lý tọa độ không gian PostGIS phục vụ tìm kiếm theo bán kính</summary>
     public DbSet<ListingLocation> ListingLocations => Set<ListingLocation>();
 
@@ -30,11 +39,12 @@ public sealed class ListingsDbContext(DbContextOptions<ListingsDbContext> option
             });
             listing.HasKey(x => x.Id);
             listing.Property(x => x.Title).HasMaxLength(255).IsRequired();
-            listing.Property(x => x.Slug).HasMaxLength(255).IsRequired();
+            listing.Property(x => x.Slug).HasMaxLength(300).IsRequired();
             listing.Property(x => x.Description).HasColumnType("text").IsRequired();
             listing.Property(x => x.MinLeaseMonths).HasDefaultValue(6);
             listing.Property(x => x.AllowPets).HasDefaultValue(false);
             listing.Property(x => x.HasCurfew).HasDefaultValue(false);
+            listing.Property(x => x.IsFeatured).HasDefaultValue(false);
             listing.Property(x => x.Status).HasMaxLength(20).HasDefaultValue("DRAFT").IsRequired();
             listing.Property(x => x.ViewCount).HasDefaultValue(0L);
             listing.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
@@ -47,14 +57,53 @@ public sealed class ListingsDbContext(DbContextOptions<ListingsDbContext> option
 
         modelBuilder.Entity<ListingImage>(image =>
         {
-            image.ToTable("listing_images", "listings");
+            image.ToTable("listing_images", "listings", table =>
+            {
+                table.HasCheckConstraint("ck_listingimages_mediatype", "media_type IN ('IMAGE', 'VIDEO', 'VIRTUAL_TOUR_360')");
+                table.HasCheckConstraint("ck_listingimages_duration", "duration_seconds IS NULL OR duration_seconds > 0");
+            });
             image.HasKey(x => x.Id);
             image.Property(x => x.ImageUrl).HasMaxLength(500).IsRequired();
             image.Property(x => x.IsPrimary).HasDefaultValue(false);
             image.Property(x => x.SortOrder).HasDefaultValue(0);
+            image.Property(x => x.MediaType).HasMaxLength(20).HasDefaultValue("IMAGE").IsRequired();
+            image.Property(x => x.ThumbnailUrl).HasMaxLength(500);
             image.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
             image.HasIndex(x => x.ListingId).HasDatabaseName("ix_listing_images_listing_id");
             image.HasOne(x => x.Listing).WithMany(x => x.Images).HasForeignKey(x => x.ListingId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SavedListing>(saved =>
+        {
+            saved.ToTable("saved_listings", "listings");
+            saved.HasKey(x => x.Id);
+            saved.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
+            saved.HasIndex(x => new { x.UserId, x.ListingId }).IsUnique().HasDatabaseName("ux_savedlistings_user_listing");
+            saved.HasOne(x => x.Listing).WithMany().HasForeignKey(x => x.ListingId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ListingView>(view =>
+        {
+            view.ToTable("listing_views", "listings");
+            view.HasKey(x => x.Id);
+            view.Property(x => x.IpAddress).HasMaxLength(45);
+            view.Property(x => x.ViewedAt).HasDefaultValueSql("now()");
+            view.HasIndex(x => new { x.ListingId, x.ViewedAt }).HasDatabaseName("ix_listing_views_listing_date");
+            view.HasOne(x => x.Listing).WithMany().HasForeignKey(x => x.ListingId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserRoomComparison>(comp =>
+        {
+            comp.ToTable("user_room_comparisons", "listings", table =>
+                table.HasCheckConstraint("ck_comparisons_slot", "slot BETWEEN 1 AND 3"));
+            comp.HasKey(x => x.Id);
+            comp.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
+            comp.HasIndex(x => new { x.UserId, x.Slot }).IsUnique().HasDatabaseName("ux_comparisons_user_slot");
+            comp.HasIndex(x => new { x.UserId, x.ListingId }).IsUnique().HasDatabaseName("ux_comparisons_user_listing");
+            comp.HasOne(x => x.Listing).WithMany().HasForeignKey(x => x.ListingId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

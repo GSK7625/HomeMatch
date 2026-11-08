@@ -18,7 +18,7 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "postgis");
@@ -68,6 +68,12 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("has_curfew");
 
+                    b.Property<bool>("IsFeatured")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_featured");
+
                     b.Property<long>("LandlordId")
                         .HasColumnType("bigint")
                         .HasColumnName("landlord_id");
@@ -92,8 +98,8 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Slug")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
                         .HasColumnName("slug");
 
                     b.Property<string>("Status")
@@ -165,6 +171,10 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<int?>("DurationSeconds")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_seconds");
+
                     b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -181,18 +191,151 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("listing_id");
 
+                    b.Property<string>("MediaType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("IMAGE")
+                        .HasColumnName("media_type");
+
                     b.Property<int>("SortOrder")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
                         .HasColumnName("sort_order");
 
+                    b.Property<string>("ThumbnailUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("thumbnail_url");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ListingId")
                         .HasDatabaseName("ix_listing_images_listing_id");
 
-                    b.ToTable("listing_images", "listings");
+                    b.ToTable("listing_images", "listings", t =>
+                        {
+                            t.HasCheckConstraint("ck_listingimages_duration", "duration_seconds IS NULL OR duration_seconds > 0");
+
+                            t.HasCheckConstraint("ck_listingimages_mediatype", "media_type IN ('IMAGE', 'VIDEO', 'VIRTUAL_TOUR_360')");
+                        });
+                });
+
+            modelBuilder.Entity("HomeMatch.Modules.Listings.Domain.Entities.ListingView", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<long>("ListingId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("listing_id");
+
+                    b.Property<long?>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTimeOffset>("ViewedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("viewed_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ListingId", "ViewedAt")
+                        .HasDatabaseName("ix_listing_views_listing_date");
+
+                    b.ToTable("listing_views", "listings");
+                });
+
+            modelBuilder.Entity("HomeMatch.Modules.Listings.Domain.Entities.SavedListing", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<long>("ListingId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("listing_id");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ListingId");
+
+                    b.HasIndex("UserId", "ListingId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_savedlistings_user_listing");
+
+                    b.ToTable("saved_listings", "listings");
+                });
+
+            modelBuilder.Entity("HomeMatch.Modules.Listings.Domain.Entities.UserRoomComparison", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<long>("ListingId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("listing_id");
+
+                    b.Property<int>("Slot")
+                        .HasColumnType("integer")
+                        .HasColumnName("slot");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ListingId");
+
+                    b.HasIndex("UserId", "ListingId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_comparisons_user_listing");
+
+                    b.HasIndex("UserId", "Slot")
+                        .IsUnique()
+                        .HasDatabaseName("ux_comparisons_user_slot");
+
+                    b.ToTable("user_room_comparisons", "listings", t =>
+                        {
+                            t.HasCheckConstraint("ck_comparisons_slot", "slot BETWEEN 1 AND 3");
+                        });
                 });
 
             modelBuilder.Entity("HomeMatch.Modules.Listings.Infrastructure.Persistence.ListingLocation", b =>
@@ -219,6 +362,39 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
                 {
                     b.HasOne("HomeMatch.Modules.Listings.Domain.Entities.Listing", "Listing")
                         .WithMany("Images")
+                        .HasForeignKey("ListingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Listing");
+                });
+
+            modelBuilder.Entity("HomeMatch.Modules.Listings.Domain.Entities.ListingView", b =>
+                {
+                    b.HasOne("HomeMatch.Modules.Listings.Domain.Entities.Listing", "Listing")
+                        .WithMany()
+                        .HasForeignKey("ListingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Listing");
+                });
+
+            modelBuilder.Entity("HomeMatch.Modules.Listings.Domain.Entities.SavedListing", b =>
+                {
+                    b.HasOne("HomeMatch.Modules.Listings.Domain.Entities.Listing", "Listing")
+                        .WithMany()
+                        .HasForeignKey("ListingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Listing");
+                });
+
+            modelBuilder.Entity("HomeMatch.Modules.Listings.Domain.Entities.UserRoomComparison", b =>
+                {
+                    b.HasOne("HomeMatch.Modules.Listings.Domain.Entities.Listing", "Listing")
+                        .WithMany()
                         .HasForeignKey("ListingId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

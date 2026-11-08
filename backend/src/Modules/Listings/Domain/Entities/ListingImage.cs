@@ -1,7 +1,7 @@
 namespace HomeMatch.Modules.Listings.Domain.Entities;
 
 /// <summary>
-/// Thực thể Hình ảnh bài đăng phòng trọ (ListingImage)
+/// Thực thể Đa phương tiện bài đăng phòng trọ (ListingImage - Hình ảnh, Video, Tour 360)
 /// </summary>
 public sealed class ListingImage
 {
@@ -19,6 +19,15 @@ public sealed class ListingImage
 
     /// <summary>Thứ tự sắp xếp hiển thị ảnh trong album (0, 1, 2...)</summary>
     public int SortOrder { get; set; }
+
+    /// <summary>Loại đa phương tiện: IMAGE, VIDEO, VIRTUAL_TOUR_360</summary>
+    public string MediaType { get; set; } = "IMAGE";
+
+    /// <summary>Đường dẫn ảnh bìa thu nhỏ đại diện (dành cho video)</summary>
+    public string? ThumbnailUrl { get; set; }
+
+    /// <summary>Thời lượng video tính bằng giây (nếu là video)</summary>
+    public int? DurationSeconds { get; set; }
 
     /// <summary>Thời điểm tải ảnh lên</summary>
     public DateTimeOffset CreatedAt { get; set; }

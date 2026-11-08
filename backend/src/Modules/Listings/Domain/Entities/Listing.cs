@@ -47,6 +47,9 @@ public sealed class Listing
     /// <summary>Tổng lượt xem tin đăng</summary>
     public long ViewCount { get; set; }
 
+    /// <summary>Cờ đánh dấu tin đăng nổi bật được tài trợ / ưu tiên</summary>
+    public bool IsFeatured { get; set; }
+
     /// <summary>Thời điểm chủ nhà xuất bản tin công khai lên sàn</summary>
     public DateTimeOffset? PublishedAt { get; set; }
 

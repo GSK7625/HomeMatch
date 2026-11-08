@@ -8,11 +8,17 @@ namespace HomeMatch.Modules.Listings.Application.Features.Listings.GetPublicList
 
 public sealed class GetPublicListingByIdHandler(IListingRepository listings, IRoomListingReader rooms)
 {
-    public async Task<Result<ListingResult>> HandleAsync(GetPublicListingByIdQuery query, CancellationToken cancellationToken = default)
+    public async Task<Result<PublicListingDetailResult>> HandleAsync(GetPublicListingByIdQuery query, CancellationToken cancellationToken = default)
     {
         var listing = await listings.GetByIdAsync(query.ListingId, cancellationToken);
-        if (!await ListingVisibility.IsPublicAsync(listing, rooms, cancellationToken))
-            return Result.Failure<ListingResult>(ListingsErrors.ListingNotFound);
-        return Result.Success(ListingMapping.ToResult(listing!, await listings.GetCoordinatesAsync(query.ListingId, cancellationToken)));
+        if (listing?.Status != "PUBLISHED")
+            return Result.Failure<PublicListingDetailResult>(ListingsErrors.ListingNotFound);
+
+        var room = await rooms.GetRoomDetailAsync(listing.RoomId, cancellationToken);
+        if (room?.Status != "AVAILABLE")
+            return Result.Failure<PublicListingDetailResult>(ListingsErrors.ListingNotFound);
+
+        var coordinates = await listings.GetCoordinatesAsync(query.ListingId, cancellationToken);
+        return Result.Success(new PublicListingDetailResult(ListingMapping.ToResult(listing, coordinates), room));
     }
 }

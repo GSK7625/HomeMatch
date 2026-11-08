@@ -4,6 +4,20 @@ namespace HomeMatch.Modules.Listings.Presentation.Endpoints.Responses;
 
 internal static class ListingResponseMapper
 {
+    public static PublicListingDetailResponse ToResponse(PublicListingDetailResult result)
+    {
+        var room = result.Room;
+        var property = room.Property;
+        return new(ToResponse(result.Listing),
+            new(room.RoomId, room.RoomNumber, room.Floor, room.AreaSqm, room.RoomType,
+                room.MaxOccupants, room.Status, room.AvailableFrom,
+                room.Amenities.Select(amenity => new PublicListingAmenityResponse(amenity.Id, amenity.Code, amenity.Name)).ToArray()),
+            new(property.Id, property.Name, property.PropertyType, property.ProvinceCode, property.ProvinceName,
+                property.WardCode, property.WardName, property.DistrictName, property.AddressDetail),
+            room.Tariffs.Select(tariff => new PublicListingTariffResponse(
+                tariff.Id, tariff.TariffType, tariff.CalcMethod, tariff.UnitPrice)).ToArray());
+    }
+
     public static ListingResponse ToResponse(ListingResult result) =>
         new(result.Id, result.RoomId, result.LandlordId, result.Title, result.Slug, result.Description,
             result.Price, result.DepositAmount, result.MinLeaseMonths, result.AllowPets, result.HasCurfew,

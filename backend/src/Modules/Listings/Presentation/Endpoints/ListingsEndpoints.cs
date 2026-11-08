@@ -34,7 +34,7 @@ public static class ListingsEndpoints
             .AllowAnonymous()
             .WithName("Listings.GetPublicById")
             .WithSummary("Lấy chi tiết tin đăng công khai")
-            .Produces<ApiResponse<ListingResponse>>(StatusCodes.Status200OK)
+            .Produces<ApiResponse<PublicListingDetailResponse>>(StatusCodes.Status200OK)
             .Produces<ApiResponse<string>>(StatusCodes.Status404NotFound);
 
         group.MapPost("/", CreateAsync)
@@ -114,7 +114,7 @@ public static class ListingsEndpoints
     {
         var result = await handler.HandleAsync(new GetPublicListingByIdQuery(listingId), cancellationToken);
         if (result.IsFailure) return ListingsHttpErrors.Failure(result.Error);
-        return Results.Ok(ApiResponse<ListingResponse>.Success(ListingResponseMapper.ToResponse(result.Value)));
+        return Results.Ok(ApiResponse<PublicListingDetailResponse>.Success(ListingResponseMapper.ToResponse(result.Value)));
     }
 
     private static async Task<IResult> CreateAsync(

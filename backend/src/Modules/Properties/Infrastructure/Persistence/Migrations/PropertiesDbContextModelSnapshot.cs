@@ -340,12 +340,6 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
-                    b.Property<DateOnly>("EffectiveFrom")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("date")
-                        .HasColumnName("effective_from")
-                        .HasDefaultValueSql("CURRENT_DATE");
-
                     b.Property<long>("PropertyId")
                         .HasColumnType("bigint")
                         .HasColumnName("property_id");
@@ -368,14 +362,14 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("PropertyId", "RoomId");
 
-                    b.HasIndex("PropertyId", "TariffType", "EffectiveFrom")
+                    b.HasIndex("PropertyId", "TariffType")
                         .IsUnique()
-                        .HasDatabaseName("ux_utility_tariffs_property_type_date")
+                        .HasDatabaseName("ux_utility_tariffs_property_type")
                         .HasFilter("room_id IS NULL");
 
-                    b.HasIndex("RoomId", "TariffType", "EffectiveFrom")
+                    b.HasIndex("RoomId", "TariffType")
                         .IsUnique()
-                        .HasDatabaseName("ux_utility_tariffs_room_type_date")
+                        .HasDatabaseName("ux_utility_tariffs_room_type")
                         .HasFilter("room_id IS NOT NULL");
 
                     b.ToTable("utility_tariffs", "properties", t =>

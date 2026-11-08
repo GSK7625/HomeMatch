@@ -37,7 +37,6 @@ public sealed class TariffRepository(PropertiesDbContext db) : ITariffRepository
             }
         }
 
-        var today = BusinessDate.Today();
         var resultList = new List<UtilityTariff>();
 
         // Cập nhật hoặc thêm mới
@@ -47,7 +46,6 @@ public sealed class TariffRepository(PropertiesDbContext db) : ITariffRepository
             {
                 existingTariff.CalcMethod = item.CalcMethod;
                 existingTariff.UnitPrice = item.UnitPrice;
-                existingTariff.EffectiveFrom = today;
                 resultList.Add(existingTariff);
             }
             else
@@ -59,7 +57,6 @@ public sealed class TariffRepository(PropertiesDbContext db) : ITariffRepository
                     TariffType = item.TariffType,
                     CalcMethod = item.CalcMethod,
                     UnitPrice = item.UnitPrice,
-                    EffectiveFrom = today,
                     CreatedAt = DateTimeOffset.UtcNow
                 };
                 db.UtilityTariffs.Add(created);

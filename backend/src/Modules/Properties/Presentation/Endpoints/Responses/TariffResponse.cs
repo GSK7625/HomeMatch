@@ -8,8 +8,7 @@ public sealed record TariffResponse(
     long? RoomId,
     string TariffType,
     string CalcMethod,
-    long UnitPrice,
-    DateOnly EffectiveFrom)
+    long UnitPrice)
 {
     public static TariffResponse From(TariffResult value) =>
         new(
@@ -18,6 +17,5 @@ public sealed record TariffResponse(
             value.RoomId,
             value.TariffType,
             value.CalcMethod,
-            value.UnitPrice,
-            value.EffectiveFrom);
+            value.UnitPrice);
 }

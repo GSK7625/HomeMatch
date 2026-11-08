@@ -16,5 +16,5 @@ internal static class PropertyMapping
 
     public static TariffResult ToResult(UtilityTariff tariff) =>
         new(tariff.Id, tariff.PropertyId, tariff.RoomId, tariff.TariffType,
-            tariff.CalcMethod, tariff.UnitPrice, tariff.EffectiveFrom);
+            tariff.CalcMethod, tariff.UnitPrice);
 }

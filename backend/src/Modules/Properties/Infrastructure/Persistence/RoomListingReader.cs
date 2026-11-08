@@ -39,7 +39,6 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
         var types = await db.UtilityTariffs.AsNoTracking()
             .Where(rate => rate.PropertyId == propertyId
                 && rate.RoomId == null
-                && rate.EffectiveFrom <= date
                 && (rate.TariffType == "ELECTRICITY" || rate.TariffType == "WATER"))
             .Select(rate => rate.TariffType).Distinct().ToListAsync(cancellationToken);
         return types.Count == 2;

@@ -23,9 +23,6 @@ public sealed class UtilityTariff
     /// <summary>Đơn giá tính tiền (VNĐ/đơn vị tính)</summary>
     public long UnitPrice { get; set; }
 
-    /// <summary>Ngày bắt đầu có hiệu lực của biểu giá</summary>
-    public DateOnly EffectiveFrom { get; set; }
-
     /// <summary>Thời điểm tạo bản ghi</summary>
     public DateTimeOffset CreatedAt { get; set; }
 }

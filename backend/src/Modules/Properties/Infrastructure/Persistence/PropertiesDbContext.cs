@@ -139,7 +139,6 @@ public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> op
             tariff.HasKey(x => x.Id);
             tariff.Property(x => x.TariffType).HasMaxLength(50).IsRequired();
             tariff.Property(x => x.CalcMethod).HasMaxLength(20).IsRequired();
-            tariff.Property(x => x.EffectiveFrom).HasDefaultValueSql("CURRENT_DATE");
             tariff.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
             tariff.HasOne<Property>().WithMany().HasForeignKey(x => x.PropertyId)
                 .OnDelete(DeleteBehavior.Restrict);
@@ -147,11 +146,11 @@ public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> op
                 .HasForeignKey(x => new { x.PropertyId, x.RoomId })
                 .HasPrincipalKey(x => new { x.PropertyId, x.Id })
                 .OnDelete(DeleteBehavior.Restrict);
-            tariff.HasIndex(x => new { x.PropertyId, x.TariffType, x.EffectiveFrom })
-                .IsUnique().HasDatabaseName("ux_utility_tariffs_property_type_date")
+            tariff.HasIndex(x => new { x.PropertyId, x.TariffType })
+                .IsUnique().HasDatabaseName("ux_utility_tariffs_property_type")
                 .HasFilter("room_id IS NULL");
-            tariff.HasIndex(x => new { x.RoomId, x.TariffType, x.EffectiveFrom })
-                .IsUnique().HasDatabaseName("ux_utility_tariffs_room_type_date")
+            tariff.HasIndex(x => new { x.RoomId, x.TariffType })
+                .IsUnique().HasDatabaseName("ux_utility_tariffs_room_type")
                 .HasFilter("room_id IS NOT NULL");
         });
 

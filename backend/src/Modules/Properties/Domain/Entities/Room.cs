@@ -20,8 +20,8 @@ public sealed class Room
     /// <summary>Diện tích phòng theo mét vuông (m2)</summary>
     public decimal AreaSqm { get; set; }
 
-    /// <summary>Loại phòng: STUDIO, 1PN (1 phòng ngủ), 2PN (2 phòng ngủ), DUPLEX (gác xép), SHARED (ở ghép)</summary>
-    public string RoomType { get; set; } = string.Empty;
+    /// <summary>Loại phòng: SINGLE, STUDIO, 1B1B, 2B1B, DORMITORY</summary>
+    public string RoomType { get; set; } = "STUDIO";
 
     /// <summary>Số lượng người ở tối đa cho phép</summary>
     public int MaxOccupants { get; set; } = 2;

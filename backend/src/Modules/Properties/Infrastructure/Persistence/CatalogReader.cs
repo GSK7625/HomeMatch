@@ -6,25 +6,24 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence;
 
 public sealed class CatalogReader(PropertiesDbContext db) : ICatalogReader
 {
-    public async Task<IReadOnlyList<ProvinceResponse>> GetProvincesAsync(
+    public async Task<IReadOnlyList<ProvinceResult>> GetProvincesAsync(
         CancellationToken cancellationToken) =>
         await db.AdministrativeProvinces.AsNoTracking().OrderBy(province => province.Name)
-            .Select(province => new ProvinceResponse(province.Code, province.Name, province.FullName))
+            .Select(province => new ProvinceResult(province.Code, province.Name, province.FullName))
             .ToListAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<WardResponse>> GetWardsAsync(
+    public async Task<IReadOnlyList<WardResult>> GetWardsAsync(
         string provinceCode, CancellationToken cancellationToken) =>
         await db.AdministrativeWards.AsNoTracking()
             .Where(ward => ward.ProvinceCode == provinceCode)
             .OrderBy(ward => ward.Name)
-            .Select(ward => new WardResponse(ward.Code, ward.Name, ward.FullName, ward.ProvinceCode))
+            .Select(ward => new WardResult(ward.Code, ward.Name, ward.FullName, ward.ProvinceCode))
             .ToListAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<AmenityResponse>> GetAmenitiesAsync(
+    public async Task<IReadOnlyList<AmenityResult>> GetAmenitiesAsync(
         CancellationToken cancellationToken) =>
         await db.Amenities.AsNoTracking()
-            .OrderBy(amenity => amenity.Category).ThenBy(amenity => amenity.Name)
-            .Select(amenity => new AmenityResponse(amenity.Id, amenity.Code, amenity.Name,
-                amenity.Category, amenity.IconUrl))
+            .OrderBy(amenity => amenity.Id)
+            .Select(amenity => new AmenityResult(amenity.Id, amenity.Code, amenity.Name))
             .ToListAsync(cancellationToken);
 }

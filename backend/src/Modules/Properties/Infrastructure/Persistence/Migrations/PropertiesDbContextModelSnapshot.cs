@@ -17,7 +17,7 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -100,22 +100,11 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("category");
-
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("code");
-
-                    b.Property<string>("IconUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("icon_url");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -133,10 +122,7 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ux_amenities_name");
 
-                    b.ToTable("amenities", "properties", t =>
-                        {
-                            t.HasCheckConstraint("ck_amenities_category", "category IN ('ROOM', 'BUILDING', 'SECURITY', 'SERVICE')");
-                        });
+                    b.ToTable("amenities", "properties");
                 });
 
             modelBuilder.Entity("HomeMatch.Modules.Properties.Domain.Entities.Property", b =>
@@ -163,6 +149,16 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
                     b.Property<long>("LandlordId")
                         .HasColumnType("bigint")
                         .HasColumnName("landlord_id");
+
+                    b.Property<decimal?>("Latitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)")
+                        .HasColumnName("latitude");
+
+                    b.Property<decimal?>("Longitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)")
+                        .HasColumnName("longitude");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -203,7 +199,7 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
 
                     b.ToTable("properties", "properties", t =>
                         {
-                            t.HasCheckConstraint("ck_properties_type", "property_type IN ('BOARDING_HOUSE', 'APARTMENT', 'MINI_APARTMENT', 'WHOLE_HOUSE')");
+                            t.HasCheckConstraint("ck_properties_type", "property_type IN ('APARTMENT', 'BOARDING_HOUSE', 'SERVICED_APARTMENT', 'HOMESTAY')");
                         });
                 });
 
@@ -302,7 +298,7 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_rooms_status", "status IN ('AVAILABLE', 'RENTED', 'SUSPENDED')");
 
-                            t.HasCheckConstraint("ck_rooms_type", "room_type IN ('STUDIO', '1PN', '2PN', 'DUPLEX', 'SHARED')");
+                            t.HasCheckConstraint("ck_rooms_type", "room_type IN ('SINGLE', 'STUDIO', '1B1B', '2B1B', 'DORMITORY')");
                         });
                 });
 
@@ -338,6 +334,12 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("calc_method");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
                     b.Property<DateOnly>("EffectiveFrom")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("date")
@@ -364,6 +366,8 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("PropertyId", "RoomId");
+
                     b.HasIndex("PropertyId", "TariffType", "EffectiveFrom")
                         .IsUnique()
                         .HasDatabaseName("ux_utility_tariffs_property_type_date")
@@ -374,16 +378,13 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ux_utility_tariffs_room_type_date")
                         .HasFilter("room_id IS NOT NULL");
 
-                    b.HasIndex("PropertyId", "RoomId", "TariffType", "EffectiveFrom")
-                        .HasDatabaseName("ix_utility_tariffs_scope_type_date");
-
                     b.ToTable("utility_tariffs", "properties", t =>
                         {
-                            t.HasCheckConstraint("ck_utility_tariffs_calc_method", "calc_method IN ('PER_KWH', 'PER_M3', 'PER_PERSON', 'FIXED_ROOM')");
+                            t.HasCheckConstraint("ck_utility_tariffs_calc_method", "calc_method IN ('PER_KWH', 'PER_M3', 'PER_PERSON', 'FIXED_PER_MONTH', 'FREE')");
 
                             t.HasCheckConstraint("ck_utility_tariffs_price", "unit_price >= 0");
 
-                            t.HasCheckConstraint("ck_utility_tariffs_type", "tariff_type IN ('ELECTRICITY', 'WATER', 'INTERNET', 'SERVICE', 'CLEANING')");
+                            t.HasCheckConstraint("ck_utility_tariffs_type", "tariff_type IN ('ELECTRICITY', 'WATER', 'INTERNET', 'SERVICE', 'CLEANING', 'PARKING')");
                         });
                 });
 

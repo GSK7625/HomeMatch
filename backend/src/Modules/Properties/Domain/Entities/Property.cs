@@ -23,8 +23,14 @@ public sealed class Property
     /// <summary>Địa chỉ chi tiết (Số nhà, tên ngõ, tên đường phố)</summary>
     public string AddressDetail { get; set; } = string.Empty;
 
-    /// <summary>Loại hình bất động sản: BOARDING_HOUSE (Nhà trọ), APARTMENT (Căn hộ), MINI_APARTMENT (CCMN), WHOLE_HOUSE (Nhà nguyên căn)</summary>
+    /// <summary>Loại hình bất động sản: APARTMENT, BOARDING_HOUSE, SERVICED_APARTMENT, HOMESTAY</summary>
     public string PropertyType { get; set; } = "BOARDING_HOUSE";
+
+    /// <summary>Tọa độ vĩ độ (Latitude WGS-84)</summary>
+    public decimal? Latitude { get; set; }
+
+    /// <summary>Tọa độ kinh độ (Longitude WGS-84)</summary>
+    public decimal? Longitude { get; set; }
 
     /// <summary>Thời điểm tạo bản ghi</summary>
     public DateTimeOffset CreatedAt { get; set; }

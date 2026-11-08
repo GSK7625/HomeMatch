@@ -11,13 +11,13 @@ public sealed class UtilityTariff
     /// <summary>ID của Tòa nhà áp dụng biểu giá này (khóa ngoại bảng properties)</summary>
     public long PropertyId { get; set; }
 
-    /// <summary>Cột tương thích dữ liệu cũ; API MVP chỉ tạo biểu giá chung nên giá trị luôn NULL</summary>
+    /// <summary>Áp dụng riêng cho phòng (nếu NULL nghĩa là áp dụng chung cho cả tòa nhà)</summary>
     public long? RoomId { get; set; }
 
-    /// <summary>Loại dịch vụ: ELECTRICITY, WATER, INTERNET, SERVICE hoặc CLEANING</summary>
+    /// <summary>Loại dịch vụ: ELECTRICITY, WATER, INTERNET, SERVICE, CLEANING, PARKING</summary>
     public string TariffType { get; set; } = string.Empty;
 
-    /// <summary>Đơn vị giá: PER_KWH, PER_M3, PER_PERSON hoặc FIXED_ROOM</summary>
+    /// <summary>Cách tính: PER_KWH, PER_M3, PER_PERSON, FIXED_PER_MONTH, FREE</summary>
     public string CalcMethod { get; set; } = string.Empty;
 
     /// <summary>Đơn giá tính tiền (VNĐ/đơn vị tính)</summary>
@@ -25,4 +25,7 @@ public sealed class UtilityTariff
 
     /// <summary>Ngày bắt đầu có hiệu lực của biểu giá</summary>
     public DateOnly EffectiveFrom { get; set; }
+
+    /// <summary>Thời điểm tạo bản ghi</summary>
+    public DateTimeOffset CreatedAt { get; set; }
 }

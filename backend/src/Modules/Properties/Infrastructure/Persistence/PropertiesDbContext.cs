@@ -56,13 +56,15 @@ public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> op
         modelBuilder.Entity<Property>(property =>
         {
             property.ToTable("properties", "properties", table => table.HasCheckConstraint(
-                "ck_properties_type", "property_type IN ('BOARDING_HOUSE', 'APARTMENT', 'MINI_APARTMENT', 'WHOLE_HOUSE')"));
+                "ck_properties_type", "property_type IN ('APARTMENT', 'BOARDING_HOUSE', 'SERVICED_APARTMENT', 'HOMESTAY')"));
             property.HasKey(x => x.Id);
             property.Property(x => x.Name).HasMaxLength(200).IsRequired();
             property.Property(x => x.ProvinceCode).HasMaxLength(20).IsRequired();
             property.Property(x => x.WardCode).HasMaxLength(20).IsRequired();
             property.Property(x => x.AddressDetail).HasMaxLength(255).IsRequired();
             property.Property(x => x.PropertyType).HasMaxLength(50).IsRequired();
+            property.Property(x => x.Latitude).HasPrecision(9, 6);
+            property.Property(x => x.Longitude).HasPrecision(9, 6);
             property.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
             property.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
             property.HasIndex(x => x.LandlordId).HasDatabaseName("ix_properties_landlord_id");
@@ -82,7 +84,7 @@ public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> op
                 table.HasCheckConstraint("ck_rooms_max_occupants", "max_occupants > 0");
                 table.HasCheckConstraint("ck_rooms_base_price", "base_price >= 0");
                 table.HasCheckConstraint("ck_rooms_status", "status IN ('AVAILABLE', 'RENTED', 'SUSPENDED')");
-                table.HasCheckConstraint("ck_rooms_type", "room_type IN ('STUDIO', '1PN', '2PN', 'DUPLEX', 'SHARED')");
+                table.HasCheckConstraint("ck_rooms_type", "room_type IN ('SINGLE', 'STUDIO', '1B1B', '2B1B', 'DORMITORY')");
             });
             room.HasKey(x => x.Id);
             room.HasAlternateKey(x => new { x.PropertyId, x.Id })
@@ -106,13 +108,10 @@ public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> op
 
         modelBuilder.Entity<Amenity>(amenity =>
         {
-            amenity.ToTable("amenities", "properties", table => table.HasCheckConstraint(
-                "ck_amenities_category", "category IN ('ROOM', 'BUILDING', 'SECURITY', 'SERVICE')"));
+            amenity.ToTable("amenities", "properties");
             amenity.HasKey(x => x.Id);
             amenity.Property(x => x.Name).HasMaxLength(100).IsRequired();
             amenity.Property(x => x.Code).HasMaxLength(50).IsRequired();
-            amenity.Property(x => x.IconUrl).HasMaxLength(500);
-            amenity.Property(x => x.Category).HasMaxLength(50).IsRequired();
             amenity.HasIndex(x => x.Name).IsUnique().HasDatabaseName("ux_amenities_name");
             amenity.HasIndex(x => x.Code).IsUnique().HasDatabaseName("ux_amenities_code");
         });
@@ -132,29 +131,28 @@ public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> op
             tariff.ToTable("utility_tariffs", "properties", table =>
             {
                 table.HasCheckConstraint("ck_utility_tariffs_type",
-                    "tariff_type IN ('ELECTRICITY', 'WATER', 'INTERNET', 'SERVICE', 'CLEANING')");
+                    "tariff_type IN ('ELECTRICITY', 'WATER', 'INTERNET', 'SERVICE', 'CLEANING', 'PARKING')");
                 table.HasCheckConstraint("ck_utility_tariffs_calc_method",
-                    "calc_method IN ('PER_KWH', 'PER_M3', 'PER_PERSON', 'FIXED_ROOM')");
+                    "calc_method IN ('PER_KWH', 'PER_M3', 'PER_PERSON', 'FIXED_PER_MONTH', 'FREE')");
                 table.HasCheckConstraint("ck_utility_tariffs_price", "unit_price >= 0");
             });
             tariff.HasKey(x => x.Id);
             tariff.Property(x => x.TariffType).HasMaxLength(50).IsRequired();
             tariff.Property(x => x.CalcMethod).HasMaxLength(20).IsRequired();
             tariff.Property(x => x.EffectiveFrom).HasDefaultValueSql("CURRENT_DATE");
+            tariff.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
             tariff.HasOne<Property>().WithMany().HasForeignKey(x => x.PropertyId)
                 .OnDelete(DeleteBehavior.Restrict);
             tariff.HasOne<Room>().WithMany()
                 .HasForeignKey(x => new { x.PropertyId, x.RoomId })
                 .HasPrincipalKey(x => new { x.PropertyId, x.Id })
                 .OnDelete(DeleteBehavior.Restrict);
-            tariff.HasIndex(x => new { x.PropertyId, x.RoomId, x.TariffType, x.EffectiveFrom })
-                .HasDatabaseName("ix_utility_tariffs_scope_type_date");
             tariff.HasIndex(x => new { x.PropertyId, x.TariffType, x.EffectiveFrom })
-                .IsUnique().HasFilter("room_id IS NULL")
-                .HasDatabaseName("ux_utility_tariffs_property_type_date");
+                .IsUnique().HasDatabaseName("ux_utility_tariffs_property_type_date")
+                .HasFilter("room_id IS NULL");
             tariff.HasIndex(x => new { x.RoomId, x.TariffType, x.EffectiveFrom })
-                .IsUnique().HasFilter("room_id IS NOT NULL")
-                .HasDatabaseName("ux_utility_tariffs_room_type_date");
+                .IsUnique().HasDatabaseName("ux_utility_tariffs_room_type_date")
+                .HasFilter("room_id IS NOT NULL");
         });
 
         UseSnakeCaseColumns(modelBuilder);

@@ -6,9 +6,12 @@ using HomeMatch.Modules.Identity.Infrastructure.Persistence.Seed;
 using HomeMatch.Modules.Leasing;
 using HomeMatch.Modules.Listings;
 using HomeMatch.Modules.Messaging;
+using HomeMatch.Modules.Messaging.Infrastructure.Persistence;
 using HomeMatch.Modules.Notifications;
+using HomeMatch.Modules.Notifications.Infrastructure.Persistence;
 using HomeMatch.Modules.Properties;
 using HomeMatch.Modules.Viewings;
+using HomeMatch.Modules.Viewings.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 
@@ -118,6 +121,15 @@ using (var scope = app.Services.CreateScope())
     await identityDb.Database.MigrateAsync();
     await IdentityDataSeeder.SeedRolesAsync(scope.ServiceProvider);
     await IdentityDataSeeder.SeedDefaultUsersAsync(scope.ServiceProvider);
+
+    var viewingsDb = scope.ServiceProvider.GetRequiredService<ViewingsDbContext>();
+    await viewingsDb.Database.MigrateAsync();
+
+    var messagingDb = scope.ServiceProvider.GetRequiredService<MessagingDbContext>();
+    await messagingDb.Database.MigrateAsync();
+
+    var notificationsDb = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
+    await notificationsDb.Database.MigrateAsync();
 }
 
 app.UseCors("AllowFrontend");

@@ -19,6 +19,8 @@ using HomeMatch.Modules.Identity.Application.Features.Auth.Register;
 using HomeMatch.Modules.Identity.Application.Features.Auth.ResendConfirmation;
 using HomeMatch.Modules.Identity.Application.Features.Auth.ResetPassword;
 using HomeMatch.Modules.Identity.Application.Features.Profile.GetCurrentUser;
+using HomeMatch.Modules.Identity.Application.Features.TenantOverview.GetTenantDashboard;
+using HomeMatch.Modules.Identity.Application.Features.TenantOverview.GetViewedListings;
 using HomeMatch.Modules.Identity.Application.Interfaces;
 using HomeMatch.Modules.Identity.Infrastructure.Identity;
 using HomeMatch.Modules.Identity.Infrastructure.Persistence;
@@ -27,6 +29,9 @@ using HomeMatch.Modules.Identity.Infrastructure.Services;
 using HomeMatch.Modules.Identity.Presentation.Endpoints.Auth;
 using HomeMatch.Modules.Identity.Presentation.Endpoints.Profile;
 using HomeMatch.Modules.Identity.Presentation.Security;
+using HomeMatch.Shared.Contracts.Identity;
+using HomeMatch.Shared.Contracts.Listings;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace HomeMatch.Modules.Identity;
 
@@ -90,6 +95,24 @@ public static class IdentityModuleExtensions
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
                 ClockSkew = TimeSpan.Zero
             };
+
+            // Hỗ trợ xác thực JWT qua query string (?access_token=...) cho kết nối WebSocket / SignalR Hub
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    var accessToken = context.Request.Query["access_token"];
+                    var path = context.HttpContext.Request.Path;
+
+                    if (!string.IsNullOrEmpty(accessToken)
+                        && (path.StartsWithSegments("/api/v1/messaging/hub") || path.StartsWithSegments("/hubs")))
+                    {
+                        context.Token = accessToken;
+                    }
+
+                    return Task.CompletedTask;
+                }
+            };
         });
 
         services.AddAuthorization();
@@ -135,6 +158,8 @@ public static class IdentityModuleExtensions
             }
         });
         services.AddScoped<IIdentityAccountService, IdentityAccountService>();
+        services.AddScoped<IIdentityUserReader, IdentityUserReader>();
+        services.TryAddScoped<ITenantListingActivityReader, FallbackTenantListingActivityReader>();
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IEmailSender, EmailSender>();
@@ -157,6 +182,10 @@ public static class IdentityModuleExtensions
         services.AddScoped<ForgotPasswordHandler>();
         services.AddScoped<ResetPasswordHandler>();
 
+        // Mục 3.4: Tenant Overview & Dashboard Handlers
+        services.AddScoped<GetTenantDashboardHandler>();
+        services.AddScoped<GetViewedListingsHandler>();
+
         return services;
     }
 
@@ -168,8 +197,9 @@ public static class IdentityModuleExtensions
         // Map Auth Endpoints (UC-A01 đến UC-A10)
         group.MapAuthEndpoints();
 
-        // Map Profile Endpoints (UC-A11: /me)
+        // Map Profile Endpoints (UC-A11: /me) & Tenant Overview (Mục 3.4.1 & 3.4.2)
         group.MapProfileEndpoints();
+        group.MapTenantOverviewEndpoints();
 
         return endpoints;
     }

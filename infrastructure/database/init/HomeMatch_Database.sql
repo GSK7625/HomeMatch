@@ -1758,10 +1758,10 @@ ON CONFLICT (code) DO NOTHING;
 
 -- 2. Users (Admin, Landlord, Tenants)
 INSERT INTO identity.users (id, email, phone_number, password_hash, role, status) VALUES
-(1, 'admin@homematch.vn', '0901000001', '{bcrypt-sha384}$2a$12$eN.Hg7c9rjPtrJu2LV.H1e1Nj71LisEQb2FJRTqAAo.rWYDs8TpNy', 'ADMIN', 'ACTIVE'),
-(2, 'chutro.hoang@gmail.com', '0902000002', '{bcrypt-sha384}$2a$12$eN.Hg7c9rjPtrJu2LV.H1e1Nj71LisEQb2FJRTqAAo.rWYDs8TpNy', 'LANDLORD', 'ACTIVE'),
-(3, 'khachthue.an@gmail.com', '0903000003', '{bcrypt-sha384}$2a$12$eN.Hg7c9rjPtrJu2LV.H1e1Nj71LisEQb2FJRTqAAo.rWYDs8TpNy', 'TENANT', 'ACTIVE'),
-(4, 'khachthue.binh@gmail.com', NULL, '{bcrypt-sha384}$2a$12$eN.Hg7c9rjPtrJu2LV.H1e1Nj71LisEQb2FJRTqAAo.rWYDs8TpNy', 'TENANT', 'ACTIVE')
+(1, 'admin@homematch.vn', '0901000001', '$2a$12$e80yV9Z.X9pP2YkQ.Z5nOe3gH8YJ2Y.Z5nOe3gH8YJ2Y.Z5nOe3gH', 'ADMIN', 'ACTIVE'),
+(2, 'chutro.hoang@gmail.com', '0902000002', '$2a$12$e80yV9Z.X9pP2YkQ.Z5nOe3gH8YJ2Y.Z5nOe3gH8YJ2Y.Z5nOe3gH', 'LANDLORD', 'ACTIVE'),
+(3, 'khachthue.an@gmail.com', '0903000003', '$2a$12$e80yV9Z.X9pP2YkQ.Z5nOe3gH8YJ2Y.Z5nOe3gH8YJ2Y.Z5nOe3gH', 'TENANT', 'ACTIVE'),
+(4, 'khachthue.binh@gmail.com', NULL, '$2a$12$e80yV9Z.X9pP2YkQ.Z5nOe3gH8YJ2Y.Z5nOe3gH8YJ2Y.Z5nOe3gH', 'TENANT', 'ACTIVE')
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('identity.users', 'id'), (SELECT MAX(id) FROM identity.users));

@@ -38,7 +38,6 @@ public class ExceptionHandlingMiddleware
         {
             var traceId = GetTraceId(context);
             _logger.LogInformation(ex, "[{TraceId}] Request was cancelled by the client.", traceId);
-            context.Abort();
             if (!context.Response.HasStarted)
             {
                 context.Response.StatusCode = 499; // Client Closed Request
@@ -52,10 +51,6 @@ public class ExceptionHandlingMiddleware
         {
             var traceId = GetTraceId(context);
             _logger.LogError(ex, "[{TraceId}] An unhandled exception occurred: {Message}", traceId, ex.Message);
-            if (context.Response.HasStarted)
-            {
-                throw;
-            }
             await HandleExceptionAsync(context, traceId, (int)HttpStatusCode.InternalServerError,
                 new Error("Server.InternalError", "Đã xảy ra lỗi hệ thống không mong muốn. Vui lòng thử lại sau."));
         }
@@ -71,11 +66,11 @@ public class ExceptionHandlingMiddleware
         return Activity.Current?.Id ?? context.TraceIdentifier;
     }
 
-    private static async Task HandleExceptionAsync(HttpContext context, string traceId, int statusCode, Error error)
+    private static Task HandleExceptionAsync(HttpContext context, string traceId, int statusCode, Error error)
     {
         if (context.Response.HasStarted)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         context.Response.Clear();
@@ -88,7 +83,9 @@ public class ExceptionHandlingMiddleware
         context.Response.StatusCode = statusCode;
 
         var response = ApiResponse<object>.Failure(error);
-        await context.Response.WriteAsJsonAsync(response, JsonOptions, cancellationToken: CancellationToken.None);
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+
+        return context.Response.WriteAsync(json);
     }
 }
 

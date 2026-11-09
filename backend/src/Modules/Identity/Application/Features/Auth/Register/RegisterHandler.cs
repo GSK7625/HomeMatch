@@ -1,7 +1,9 @@
 using System.Net;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using HomeMatch.Modules.Identity.Application.Interfaces;
 using HomeMatch.Modules.Identity.Domain.Entities;
+using HomeMatch.Modules.Identity.Infrastructure.Services;
 using HomeMatch.Shared.Common;
 
 namespace HomeMatch.Modules.Identity.Application.Features.Auth.Register;
@@ -11,17 +13,20 @@ public class RegisterHandler
     private readonly IIdentityAccountService _accountService;
     private readonly IUserProfileRepository _profileRepository;
     private readonly IEmailSender _emailSender;
+    private readonly EmailSettings _emailSettings;
     private readonly ILogger<RegisterHandler> _logger;
 
     public RegisterHandler(
         IIdentityAccountService accountService,
         IUserProfileRepository profileRepository,
         IEmailSender emailSender,
+        IOptions<EmailSettings> emailOptions,
         ILogger<RegisterHandler> logger)
     {
         _accountService = accountService;
         _profileRepository = profileRepository;
         _emailSender = emailSender;
+        _emailSettings = emailOptions.Value;
         _logger = logger;
     }
 
@@ -103,7 +108,8 @@ public class RegisterHandler
     private async Task SendConfirmationEmailAsync(string email, long userId, string token, CancellationToken cancellationToken)
     {
         var encodedToken = WebUtility.UrlEncode(token);
-        var confirmationLink = $"http://localhost:3000/verify-email?userId={userId}&token={encodedToken}";
+        var frontendUrl = string.IsNullOrWhiteSpace(_emailSettings.FrontendUrl) ? "http://localhost:3000" : _emailSettings.FrontendUrl.TrimEnd('/');
+        var confirmationLink = $"{frontendUrl}/verify-email?userId={userId}&token={encodedToken}";
 
         var subject = "[HomeMatch] Xác thực tài khoản của bạn";
         var body = $"""

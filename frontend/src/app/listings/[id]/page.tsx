@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { listingService, viewingService } from "@/lib/services";
+import { parseListingNumericId, viewingsApi } from "@/lib/api-client";
 import { PropertyListing } from "@/types";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useToast } from "@/components/Toast";
@@ -40,7 +41,8 @@ export default function ListingDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const isLandlord = role === "Landlord" || user?.role === "Landlord";
   const { showToast } = useToast();
 
   const [listing, setListing] = useState<PropertyListing | null>(null);
@@ -50,8 +52,13 @@ export default function ListingDetailPage() {
 
   // Booking Modal
   const [isBookingOpen, setIsBookingOpen] = useState(false);
-  const [bookingDate, setBookingDate] = useState("");
+  const [bookingDate, setBookingDate] = useState(() => {
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    return tomorrow.toISOString().split("T")[0];
+  });
   const [bookingTime, setBookingTime] = useState("10:00");
+  const [durationMinutes, setDurationMinutes] = useState<number>(30);
+  const [isVirtualViewing, setIsVirtualViewing] = useState<boolean>(false);
   const [tenantName, setTenantName] = useState(user?.displayName || "");
   const [tenantPhone, setTenantPhone] = useState(user?.phoneNumber || "");
   const [note, setNote] = useState("");
@@ -117,7 +124,7 @@ export default function ListingDetailPage() {
     }
   };
 
-  const handleBookViewing = (e: React.FormEvent) => {
+  const handleBookViewing = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bookingDate) {
       showToast("Vui lòng chọn ngày xem phòng!", "error");
@@ -125,27 +132,47 @@ export default function ListingDetailPage() {
     }
 
     setBookingLoading(true);
-    const scheduledTime = new Date(`${bookingDate}T${bookingTime}:00Z`).toISOString();
+    const scheduledTime = new Date(`${bookingDate}T${bookingTime}:00`).toISOString();
+    const numericListingId = parseListingNumericId(listing.id);
 
-    viewingService.book({
-      listingId: listing.id,
-      listingTitle: listing.title,
-      listingAddress: listing.address,
-      listingImage: listing.images[0] || "",
-      tenantId: user?.accountId || "demo-tenant-id",
-      tenantName,
-      tenantPhone,
-      landlordId: listing.landlordId,
-      scheduledTime,
-      note,
-    });
+    try {
+      const apiRes = await viewingsApi.bookAppointment({
+        listingId: numericListingId,
+        appointmentTime: scheduledTime,
+        durationMinutes,
+        notes: note.trim() || undefined,
+        isVirtualViewing,
+      });
 
-    setBookingLoading(false);
-    setIsBookingOpen(false);
-    showToast(
-      "Đặt lịch xem phòng thành công! Chủ nhà sẽ xác nhận lịch hẹn sớm nhất.",
-      "success"
-    );
+      if (!apiRes.isSuccess && apiRes.error && apiRes.error.code !== "HTTP_401" && apiRes.error.code !== "NETWORK_ERROR") {
+        showToast(apiRes.error.message || "Không thể đặt lịch xem phòng.", "error");
+        setBookingLoading(false);
+        return;
+      }
+
+      // Sync to local fallback for guest/demo mode
+      viewingService.book({
+        listingId: listing.id,
+        listingTitle: listing.title,
+        listingAddress: listing.address,
+        listingImage: listing.images[0] || "",
+        tenantId: user?.accountId || "demo-tenant-id",
+        tenantName,
+        tenantPhone,
+        landlordId: listing.landlordId,
+        scheduledTime,
+        note,
+      });
+
+      setIsBookingOpen(false);
+      showToast(
+        "Đặt lịch xem phòng thành công! Chủ nhà sẽ xác nhận lịch hẹn sớm nhất.",
+        "success"
+      );
+      router.push("/tenant/viewings");
+    } finally {
+      setBookingLoading(false);
+    }
   };
 
   // First month total cost calculation widget
@@ -455,18 +482,25 @@ export default function ListingDetailPage() {
           {/* Contact Box */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xl space-y-5">
             <div className="space-y-3">
-              <button
-                onClick={() => setIsBookingOpen(true)}
-                disabled={listing.status !== "Còn trống"}
-                className="w-full py-3.5 px-4 rounded-2xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Calendar className="w-4 h-4" />
-                <span>Đặt Lịch Xem Phòng Miễn Phí</span>
-              </button>
+              {!isLandlord ? (
+                <button
+                  onClick={() => setIsBookingOpen(true)}
+                  disabled={listing.status !== "Còn trống"}
+                  className="w-full py-3.5 px-4 rounded-2xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Đặt Lịch Xem Phòng Miễn Phí</span>
+                </button>
+              ) : (
+                <div className="w-full py-3 px-3.5 rounded-2xl text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200/80 text-center flex items-center justify-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-slate-400" />
+                  <span>Tài khoản Chủ nhà không đặt lịch xem phòng</span>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2">
                 <Link
-                  href="/messages"
+                  href={`/messages?listingId=${parseListingNumericId(listing.id)}`}
                   className="py-2.5 px-3 rounded-xl font-bold text-xs text-slate-800 bg-slate-100 hover:bg-slate-200 transition-all flex items-center justify-center gap-1.5"
                 >
                   <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
@@ -618,6 +652,36 @@ export default function ListingDetailPage() {
                 onChange={(e) => setBookingTime(e.target.value)}
                 className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Thời lượng xem
+              </label>
+              <select
+                value={durationMinutes}
+                onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
+              >
+                <option value={30}>30 phút (Tiêu chuẩn)</option>
+                <option value={45}>45 phút</option>
+                <option value={60}>60 phút (Xem kỹ)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Hình thức xem phòng
+              </label>
+              <select
+                value={isVirtualViewing ? "virtual" : "inperson"}
+                onChange={(e) => setIsVirtualViewing(e.target.value === "virtual")}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
+              >
+                <option value="inperson">Xem trực tiếp tại phòng</option>
+                <option value="virtual">Xem online (Video Call)</option>
+              </select>
             </div>
           </div>
 

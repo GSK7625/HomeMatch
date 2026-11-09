@@ -56,7 +56,28 @@ export const listingService = {
       setItem(STORAGE_KEYS.LISTINGS, INITIAL_LISTINGS);
       return INITIAL_LISTINGS;
     }
-    return list;
+    // Đồng bộ toàn bộ phòng trên hệ thống đứng tên 1 chủ trọ duy nhất (Nguyễn Văn Hoàng)
+    let needsSync = false;
+    const normalized = list.map((item) => {
+      if (
+        item.landlordId !== "landlord-1" ||
+        item.landlordName !== "Nguyễn Văn Hoàng (Chủ Trọ)" ||
+        item.landlordPhone !== "0902000002"
+      ) {
+        needsSync = true;
+        return {
+          ...item,
+          landlordId: "landlord-1",
+          landlordName: "Nguyễn Văn Hoàng (Chủ Trọ)",
+          landlordPhone: "0902000002",
+        };
+      }
+      return item;
+    });
+    if (needsSync) {
+      setItem(STORAGE_KEYS.LISTINGS, normalized);
+    }
+    return normalized;
   },
 
   getById: (id: string): PropertyListing | undefined => {
@@ -111,7 +132,10 @@ export const listingService = {
   },
 
   // Favorites
-  getFavorites: (): string[] => getItem<string[]>(STORAGE_KEYS.FAVORITES, ["lst-001"]),
+  getFavorites: (): string[] => {
+    const items = getItem<string[]>(STORAGE_KEYS.FAVORITES, []);
+    return items.filter((id) => id !== "lst-001");
+  },
   toggleFavorite: (id: string): boolean => {
     const favs = listingService.getFavorites();
     const exists = favs.includes(id);
@@ -122,7 +146,10 @@ export const listingService = {
   isFavorite: (id: string): boolean => listingService.getFavorites().includes(id),
 
   // Comparison (max 3 items as per Section 4.1)
-  getCompareList: (): string[] => getItem<string[]>(STORAGE_KEYS.COMPARE, ["lst-001", "lst-002"]),
+  getCompareList: (): string[] => {
+    const items = getItem<string[]>(STORAGE_KEYS.COMPARE, []);
+    return items.filter((id) => id !== "lst-001" && id !== "lst-002");
+  },
   addToCompare: (id: string): { success: boolean; message: string } => {
     const current = listingService.getCompareList();
     if (current.includes(id)) {

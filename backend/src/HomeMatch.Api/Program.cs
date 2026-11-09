@@ -7,11 +7,14 @@ using HomeMatch.Modules.Leasing;
 using HomeMatch.Modules.Listings;
 using HomeMatch.Modules.Listings.Infrastructure.Persistence;
 using HomeMatch.Modules.Messaging;
+using HomeMatch.Modules.Messaging.Infrastructure.Persistence;
 using HomeMatch.Modules.Notifications;
+using HomeMatch.Modules.Notifications.Infrastructure.Persistence;
 using HomeMatch.Modules.Properties;
 using HomeMatch.Modules.Properties.Infrastructure.Persistence;
 using HomeMatch.Modules.Properties.Infrastructure.Persistence.Seed;
 using HomeMatch.Modules.Viewings;
+using HomeMatch.Modules.Viewings.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 
@@ -106,20 +109,17 @@ var app = builder.Build();
 app.UseTraceId();
 app.UseCustomExceptionHandling();
 
-if (app.Environment.IsDevelopment())
+// OpenAPI & Swagger UI
+app.MapOpenApi();
+app.UseSwaggerUI(options =>
 {
-    // Native .NET 10 OpenAPI document endpoint (/openapi/v1.json)
-    app.MapOpenApi();
+    options.SwaggerEndpoint("/openapi/v1.json", "HomeMatch API v1");
+    options.RoutePrefix = "swagger";
+});
 
-    // Swagger UI visual client rendering from /openapi/v1.json
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/openapi/v1.json", "HomeMatch API v1");
-        options.RoutePrefix = "swagger";
-    });
-
-    // Tự động chạy Migration và Seed dữ liệu khi khởi động
-    using var scope = app.Services.CreateScope();
+// Tự động chạy Migration và Seed dữ liệu khi khởi động (trong mọi môi trường)
+using (var scope = app.Services.CreateScope())
+{
     var identityDb = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
     await identityDb.Database.MigrateAsync();
     var propertiesDb = scope.ServiceProvider.GetRequiredService<PropertiesDbContext>();
@@ -128,6 +128,16 @@ if (app.Environment.IsDevelopment())
     await listingsDb.Database.MigrateAsync();
     await PropertiesDataSeeder.SeedAsync(propertiesDb);
     await IdentityDataSeeder.SeedRolesAsync(scope.ServiceProvider);
+    await IdentityDataSeeder.SeedDefaultUsersAsync(scope.ServiceProvider);
+
+    var viewingsDb = scope.ServiceProvider.GetRequiredService<ViewingsDbContext>();
+    await viewingsDb.Database.MigrateAsync();
+
+    var messagingDb = scope.ServiceProvider.GetRequiredService<MessagingDbContext>();
+    await messagingDb.Database.MigrateAsync();
+
+    var notificationsDb = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
+    await notificationsDb.Database.MigrateAsync();
 }
 
 app.UseCors("AllowFrontend");

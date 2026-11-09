@@ -5,9 +5,12 @@ using HomeMatch.Modules.Identity.Infrastructure.Persistence;
 using HomeMatch.Modules.Identity.Infrastructure.Persistence.Seed;
 using HomeMatch.Modules.Leasing;
 using HomeMatch.Modules.Listings;
+using HomeMatch.Modules.Listings.Infrastructure.Persistence;
 using HomeMatch.Modules.Messaging;
 using HomeMatch.Modules.Notifications;
 using HomeMatch.Modules.Properties;
+using HomeMatch.Modules.Properties.Infrastructure.Persistence;
+using HomeMatch.Modules.Properties.Infrastructure.Persistence.Seed;
 using HomeMatch.Modules.Viewings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
@@ -119,6 +122,11 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     var identityDb = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
     await identityDb.Database.MigrateAsync();
+    var propertiesDb = scope.ServiceProvider.GetRequiredService<PropertiesDbContext>();
+    await propertiesDb.Database.MigrateAsync();
+    var listingsDb = scope.ServiceProvider.GetRequiredService<ListingsDbContext>();
+    await listingsDb.Database.MigrateAsync();
+    await PropertiesDataSeeder.SeedAsync(propertiesDb);
     await IdentityDataSeeder.SeedRolesAsync(scope.ServiceProvider);
 }
 

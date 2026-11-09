@@ -41,8 +41,13 @@ public sealed class Listing
     /// <summary>Giờ đóng cửa/giới nghiêm (nếu có, VD: 23:00)</summary>
     public TimeOnly? CurfewTime { get; set; }
 
-    /// <summary>Trạng thái tin đăng: DRAFT (Bản nháp), PUBLISHED (Công khai), HIDDEN (Tạm ẩn), EXPIRED (Hết hạn)</summary>
+    /// <summary>Trạng thái: DRAFT, PENDING_APPROVAL, REJECTED, PUBLISHED, HIDDEN, EXPIRED.</summary>
     public string Status { get; set; } = "DRAFT";
+
+    public long Revision { get; set; } = 1;
+    public long? ReviewedBy { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+    public string? RejectionReason { get; set; }
 
     /// <summary>Tổng lượt xem tin đăng</summary>
     public long ViewCount { get; set; }
@@ -50,7 +55,7 @@ public sealed class Listing
     /// <summary>Cờ đánh dấu tin đăng nổi bật được tài trợ / ưu tiên</summary>
     public bool IsFeatured { get; set; }
 
-    /// <summary>Thời điểm chủ nhà xuất bản tin công khai lên sàn</summary>
+    /// <summary>Thời điểm công khai tin đăng.</summary>
     public DateTimeOffset? PublishedAt { get; set; }
 
     /// <summary>Thời điểm tin đăng hết hạn hiển thị</summary>

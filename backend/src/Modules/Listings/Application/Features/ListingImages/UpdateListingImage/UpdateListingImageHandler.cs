@@ -14,6 +14,8 @@ public sealed class UpdateListingImageHandler(IListingRepository listings, IList
         if (error is not null) return Result.Failure<ListingImageResult>(error);
         var listing = await listings.GetOwnedAsync(command.LandlordId, command.ListingId, cancellationToken);
         if (listing is null) return Result.Failure<ListingImageResult>(ListingsErrors.ListingNotFound);
+        if (!ListingPublicationPolicy.CanEdit(listing.Status))
+            return Result.Failure<ListingImageResult>(ListingsErrors.EditLocked);
         var image = listing.Images.FirstOrDefault(item => item.Id == command.ImageId);
         if (image is null) return Result.Failure<ListingImageResult>(ListingsErrors.ImageNotFound);
         if (command.IsPrimary == false && image.IsPrimary)
@@ -24,7 +26,9 @@ public sealed class UpdateListingImageHandler(IListingRepository listings, IList
         image.ThumbnailUrl = command.ThumbnailUrl?.Trim() ?? image.ThumbnailUrl;
         image.DurationSeconds = command.DurationSeconds ?? image.DurationSeconds;
         listing.UpdatedAt = DateTimeOffset.UtcNow;
-        await images.SaveAsync(image, false, cancellationToken);
+        listing.Revision++;
+        var saved = await images.SaveAsync(image, false, cancellationToken);
+        if (saved.IsFailure) return Result.Failure<ListingImageResult>(saved.Error);
         return Result.Success(ListingMapping.ToImageResult(image));
     }
 }

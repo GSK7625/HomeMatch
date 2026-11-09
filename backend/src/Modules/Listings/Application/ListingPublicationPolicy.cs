@@ -5,13 +5,22 @@ namespace HomeMatch.Modules.Listings.Application;
 
 public static class ListingPublicationPolicy
 {
-    public static Error? ValidateCanPublish(
+    public static bool CanEdit(string status) => status is "DRAFT" or "HIDDEN" or "REJECTED";
+
+    public static Error? ValidateCanSubmit(
         string listingStatus, RoomListingSnapshot? room, long landlordId,
         bool hasCoordinates, IReadOnlyCollection<bool> imagePrimaryFlags,
         bool hasRequiredRates, bool anotherPublished)
     {
-        if (listingStatus is not ("DRAFT" or "HIDDEN"))
+        if (!CanEdit(listingStatus))
             return ListingsErrors.InvalidStatus;
+        return ValidateReadiness(room, landlordId, hasCoordinates, imagePrimaryFlags, hasRequiredRates, anotherPublished);
+    }
+
+    public static Error? ValidateReadiness(
+        RoomListingSnapshot? room, long landlordId, bool hasCoordinates,
+        IReadOnlyCollection<bool> imagePrimaryFlags, bool hasRequiredRates, bool anotherPublished)
+    {
         if (room is null || room.LandlordId != landlordId || room.Status != "AVAILABLE")
             return ListingsErrors.RoomUnavailable;
         if (!hasCoordinates || imagePrimaryFlags.Count == 0
@@ -24,17 +33,4 @@ public static class ListingPublicationPolicy
         return null;
     }
 
-    public static void EnsureCanPublish(
-        string listingStatus, RoomListingSnapshot? room, long landlordId,
-        bool hasCoordinates, IReadOnlyCollection<bool> imagePrimaryFlags,
-        bool hasRequiredRates, bool anotherPublished)
-    {
-        var error = ValidateCanPublish(listingStatus, room, landlordId, hasCoordinates, imagePrimaryFlags, hasRequiredRates, anotherPublished);
-        if (error is not null)
-        {
-            if (error.Code == "Listing.Incomplete" || error.Code == "Listing.MissingTariffs")
-                throw ApiException.BadRequest(error.Code, error.Message);
-            throw ApiException.Conflict(error.Code, error.Message);
-        }
-    }
 }

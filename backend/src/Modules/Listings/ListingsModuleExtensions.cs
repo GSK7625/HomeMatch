@@ -7,7 +7,11 @@ using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListings;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetPublicListingById;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetPublicListings;
 using HomeMatch.Modules.Listings.Application.Features.Listings.HideListing;
-using HomeMatch.Modules.Listings.Application.Features.Listings.PublishListing;
+using HomeMatch.Modules.Listings.Application.Features.Listings.SubmitListing;
+using HomeMatch.Modules.Listings.Application.Features.Moderation.ApproveListing;
+using HomeMatch.Modules.Listings.Application.Features.Moderation.RejectListing;
+using HomeMatch.Modules.Listings.Application.Features.Moderation.GetPendingListings;
+using HomeMatch.Modules.Listings.Application.Features.Moderation.GetReviewListing;
 using HomeMatch.Modules.Listings.Application.Features.Listings.UpdateListing;
 using HomeMatch.Modules.Listings.Application.Features.SavedListings.GetSavedListings;
 using HomeMatch.Modules.Listings.Application.Features.SavedListings.ToggleSaveListing;
@@ -52,7 +56,11 @@ public static class ListingsModuleExtensions
         // Listings Handlers
         services.AddScoped<CreateListingHandler>();
         services.AddScoped<UpdateListingHandler>();
-        services.AddScoped<PublishListingHandler>();
+        services.AddScoped<SubmitListingHandler>();
+        services.AddScoped<ApproveListingHandler>();
+        services.AddScoped<RejectListingHandler>();
+        services.AddScoped<GetPendingListingsHandler>();
+        services.AddScoped<GetReviewListingHandler>();
         services.AddScoped<HideListingHandler>();
         services.AddScoped<GetPublicListingsHandler>();
         services.AddScoped<GetPublicListingByIdHandler>();
@@ -79,6 +87,7 @@ public static class ListingsModuleExtensions
         group.MapGet("/ping", () => Results.Ok(new { module = "Listings", status = "Healthy", timestamp = DateTime.UtcNow }));
         group.MapListingEndpoints();
         group.MapListingImageEndpoints();
+        endpoints.MapAdminListingEndpoints();
 
         return endpoints;
     }

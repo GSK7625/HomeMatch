@@ -16,6 +16,8 @@ public sealed class AddListingImageHandler(IListingRepository listings, IListing
         if (error is not null) return Result.Failure<ListingImageResult>(error);
         var listing = await listings.GetOwnedAsync(command.LandlordId, command.ListingId, cancellationToken);
         if (listing is null) return Result.Failure<ListingImageResult>(ListingsErrors.ListingNotFound);
+        if (!ListingPublicationPolicy.CanEdit(listing.Status))
+            return Result.Failure<ListingImageResult>(ListingsErrors.EditLocked);
         var image = new ListingImage
         {
             ListingId = listing.Id, ImageUrl = command.ImageUrl.Trim(),
@@ -24,7 +26,9 @@ public sealed class AddListingImageHandler(IListingRepository listings, IListing
             DurationSeconds = command.DurationSeconds, CreatedAt = DateTimeOffset.UtcNow
         };
         listing.UpdatedAt = DateTimeOffset.UtcNow;
-        await images.SaveAsync(image, true, cancellationToken);
+        listing.Revision++;
+        var saved = await images.SaveAsync(image, true, cancellationToken);
+        if (saved.IsFailure) return Result.Failure<ListingImageResult>(saved.Error);
         return Result.Success(ListingMapping.ToImageResult(image));
     }
 }

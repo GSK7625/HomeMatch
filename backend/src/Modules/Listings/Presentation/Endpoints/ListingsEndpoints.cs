@@ -7,7 +7,7 @@ using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListings;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetPublicListingById;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetPublicListings;
 using HomeMatch.Modules.Listings.Application.Features.Listings.HideListing;
-using HomeMatch.Modules.Listings.Application.Features.Listings.PublishListing;
+using HomeMatch.Modules.Listings.Application.Features.Listings.SubmitListing;
 using HomeMatch.Modules.Listings.Application.Features.Listings.UpdateListing;
 using HomeMatch.Modules.Listings.Application.Features.SavedListings.GetSavedListings;
 using HomeMatch.Modules.Listings.Application.Features.SavedListings.ToggleSaveListing;
@@ -64,10 +64,18 @@ public static class ListingsEndpoints
             .Produces<ApiResponse<ListingResponse>>(StatusCodes.Status200OK)
             .Produces<ApiResponse<string>>(StatusCodes.Status400BadRequest);
 
-        group.MapPost("/{listingId:long}/publish", PublishAsync)
-            .RequireAuthorization()
+        group.MapPost("/{listingId:long}/submit", SubmitAsync)
+            .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Landlord"))
+            .WithName("Listings.Submit")
+            .WithSummary("Chủ nhà gửi tin đăng để Admin duyệt")
+            .Produces<ApiResponse<ListingResponse>>(StatusCodes.Status200OK)
+            .Produces<ApiResponse<string>>(StatusCodes.Status400BadRequest);
+
+        group.MapPost("/{listingId:long}/publish", SubmitAsync)
+            .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Landlord"))
+            .WithMetadata(new ObsoleteAttribute("Dùng POST /api/v1/listings/{listingId}/submit."))
             .WithName("Listings.Publish")
-            .WithSummary("Đăng công khai tin đăng")
+            .WithSummary("[Deprecated] Gửi duyệt tin; dùng /submit. Không tự công khai tin.")
             .Produces<ApiResponse<ListingResponse>>(StatusCodes.Status200OK)
             .Produces<ApiResponse<string>>(StatusCodes.Status400BadRequest);
 
@@ -144,7 +152,7 @@ public static class ListingsEndpoints
 
         var result = await handler.HandleAsync(command, cancellationToken);
         if (result.IsFailure) return ListingsHttpErrors.Failure(result.Error);
-        return Results.Created($"/api/v1/listings/mine/{result.Value.Id}", ApiResponse<ListingResponse>.Success(ListingResponseMapper.ToResponse(result.Value)));
+        return Results.Created($"/api/v1/listings/mine/{result.Value.Id}", ApiResponse<ListingResponse>.Success(ListingResponseMapper.ToResponse(result.Value, includeReview: true)));
     }
 
     private static async Task<IResult> GetMineAsync(
@@ -171,7 +179,7 @@ public static class ListingsEndpoints
 
         var result = await handler.HandleAsync(new GetMyListingByIdQuery(landlordId.Value, listingId), cancellationToken);
         if (result.IsFailure) return ListingsHttpErrors.Failure(result.Error);
-        return Results.Ok(ApiResponse<ListingResponse>.Success(ListingResponseMapper.ToResponse(result.Value)));
+        return Results.Ok(ApiResponse<ListingResponse>.Success(ListingResponseMapper.ToResponse(result.Value, includeReview: true)));
     }
 
     private static async Task<IResult> UpdateAsync(
@@ -202,21 +210,21 @@ public static class ListingsEndpoints
 
         var result = await handler.HandleAsync(command, cancellationToken);
         if (result.IsFailure) return ListingsHttpErrors.Failure(result.Error);
-        return Results.Ok(ApiResponse<ListingResponse>.Success(ListingResponseMapper.ToResponse(result.Value)));
+        return Results.Ok(ApiResponse<ListingResponse>.Success(ListingResponseMapper.ToResponse(result.Value, includeReview: true)));
     }
 
-    private static async Task<IResult> PublishAsync(
+    private static async Task<IResult> SubmitAsync(
         ClaimsPrincipal user,
         long listingId,
-        PublishListingHandler handler,
+        SubmitListingHandler handler,
         CancellationToken cancellationToken)
     {
         var landlordId = RequestActor.LandlordId(user);
         if (landlordId is null) return ListingsHttpErrors.MissingLandlord();
 
-        var result = await handler.HandleAsync(new PublishListingCommand(landlordId.Value, listingId), cancellationToken);
+        var result = await handler.HandleAsync(new SubmitListingCommand(landlordId.Value, listingId), cancellationToken);
         if (result.IsFailure) return ListingsHttpErrors.Failure(result.Error);
-        return Results.Ok(ApiResponse<ListingResponse>.Success(ListingResponseMapper.ToResponse(result.Value)));
+        return Results.Ok(ApiResponse<ListingResponse>.Success(ListingResponseMapper.ToResponse(result.Value, includeReview: true)));
     }
 
     private static async Task<IResult> HideAsync(
@@ -230,7 +238,7 @@ public static class ListingsEndpoints
 
         var result = await handler.HandleAsync(new HideListingCommand(landlordId.Value, listingId), cancellationToken);
         if (result.IsFailure) return ListingsHttpErrors.Failure(result.Error);
-        return Results.Ok(ApiResponse<ListingResponse>.Success(ListingResponseMapper.ToResponse(result.Value)));
+        return Results.Ok(ApiResponse<ListingResponse>.Success(ListingResponseMapper.ToResponse(result.Value, includeReview: true)));
     }
 
     private static async Task<IResult> ToggleSaveAsync(

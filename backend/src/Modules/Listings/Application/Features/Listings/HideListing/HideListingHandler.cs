@@ -12,7 +12,7 @@ public sealed class HideListingHandler(IListingRepository listings)
     {
         var listing = await listings.GetOwnedAsync(command.LandlordId, command.ListingId, cancellationToken);
         if (listing is null) return Result.Failure<ListingResult>(ListingsErrors.ListingNotFound);
-        if (listing.Status == "PUBLISHED")
+        if (listing.Status is "PUBLISHED" or "PENDING_APPROVAL")
         {
             listing.Status = "HIDDEN";
             listing.UpdatedAt = DateTimeOffset.UtcNow;

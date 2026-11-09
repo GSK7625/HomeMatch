@@ -23,6 +23,15 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
             .Where(item => item.LandlordId == landlordId)
             .OrderByDescending(item => item.CreatedAt).ThenByDescending(item => item.Id).ToListAsync(cancellationToken);
 
+    public async Task<(IReadOnlyList<Listing> Items, int TotalCount)> GetPendingAsync(int page, int pageSize, CancellationToken cancellationToken)
+    {
+        var pending = db.Listings.AsNoTracking().Where(item => item.Status == "PENDING_APPROVAL");
+        var total = await pending.CountAsync(cancellationToken);
+        var items = await pending.Include(item => item.Images).OrderBy(item => item.UpdatedAt).ThenBy(item => item.Id)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(cancellationToken);
+        return (items, total);
+    }
+
     public async Task<IReadOnlyList<Listing>> GetPublicCandidatesAsync(int offset, int limit, CancellationToken cancellationToken) =>
         await db.Listings.AsNoTracking().Include(item => item.Images)
             .Where(item => item.Status == "PUBLISHED")
@@ -61,6 +70,10 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
         {
             await db.SaveChangesAsync(cancellationToken);
             return Result.Success();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Failure(ListingsErrors.RevisionConflict);
         }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException
             { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "ux_listings_slug" })

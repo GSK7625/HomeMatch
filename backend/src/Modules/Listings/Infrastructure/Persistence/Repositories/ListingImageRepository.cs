@@ -1,12 +1,14 @@
 using HomeMatch.Modules.Listings.Application.Interfaces;
 using HomeMatch.Modules.Listings.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using HomeMatch.Modules.Listings.Application;
+using HomeMatch.Shared.Common;
 
 namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Repositories;
 
 public sealed class ListingImageRepository(ListingsDbContext db) : IListingImageRepository
 {
-    public async Task SaveAsync(ListingImage image, bool isNew, CancellationToken cancellationToken)
+    public async Task<Result> SaveAsync(ListingImage image, bool isNew, CancellationToken cancellationToken)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         if (image.IsPrimary)
@@ -22,14 +24,30 @@ public sealed class ListingImageRepository(ListingsDbContext db) : IListingImage
             }
         }
         if (isNew) db.ListingImages.Add(image);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Failure(ListingsErrors.RevisionConflict);
+        }
         await transaction.CommitAsync(cancellationToken);
+        return Result.Success();
     }
 
-    public async Task DeleteAsync(ListingImage image, ListingImage? replacement, CancellationToken cancellationToken)
+    public async Task<Result> DeleteAsync(ListingImage image, ListingImage? replacement, CancellationToken cancellationToken)
     {
         db.ListingImages.Remove(image);
         if (replacement is not null) replacement.IsPrimary = true;
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            return Result.Success();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Failure(ListingsErrors.RevisionConflict);
+        }
     }
 }

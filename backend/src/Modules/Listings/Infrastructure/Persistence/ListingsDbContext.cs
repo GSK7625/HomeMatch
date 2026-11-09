@@ -35,7 +35,9 @@ public sealed class ListingsDbContext(DbContextOptions<ListingsDbContext> option
                 table.HasCheckConstraint("ck_listings_deposit", "deposit_amount >= 0");
                 table.HasCheckConstraint("ck_listings_min_lease", "min_lease_months > 0");
                 table.HasCheckConstraint("ck_listings_view_count", "view_count >= 0");
-                table.HasCheckConstraint("ck_listings_status", "status IN ('DRAFT', 'PUBLISHED', 'HIDDEN', 'EXPIRED')");
+                table.HasCheckConstraint("ck_listings_status", "status IN ('DRAFT', 'PENDING_APPROVAL', 'REJECTED', 'PUBLISHED', 'HIDDEN', 'EXPIRED')");
+                table.HasCheckConstraint("ck_listings_rejection", "status <> 'REJECTED' OR (rejection_reason IS NOT NULL AND length(btrim(rejection_reason)) > 0)");
+                table.HasCheckConstraint("ck_listings_revision", "revision > 0");
             });
             listing.HasKey(x => x.Id);
             listing.Property(x => x.Title).HasMaxLength(255).IsRequired();
@@ -47,12 +49,16 @@ public sealed class ListingsDbContext(DbContextOptions<ListingsDbContext> option
             listing.Property(x => x.IsFeatured).HasDefaultValue(false);
             listing.Property(x => x.Status).HasMaxLength(20).HasDefaultValue("DRAFT").IsRequired();
             listing.Property(x => x.ViewCount).HasDefaultValue(0L);
+            listing.Property(x => x.Revision).HasDefaultValue(1L).IsConcurrencyToken();
+            listing.Property(x => x.RejectionReason).HasMaxLength(500);
             listing.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
             listing.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
             listing.HasIndex(x => x.Slug).IsUnique().HasDatabaseName("ux_listings_slug");
             listing.HasIndex(x => x.RoomId).IsUnique().HasFilter("status = 'PUBLISHED'")
                 .HasDatabaseName("ux_listings_published_room");
             listing.HasIndex(x => x.LandlordId).HasDatabaseName("ix_listings_landlord_id");
+            listing.HasIndex(x => new { x.UpdatedAt, x.Id }).HasFilter("status = 'PENDING_APPROVAL'")
+                .HasDatabaseName("ix_listings_pending_review");
         });
 
         modelBuilder.Entity<ListingImage>(image =>
@@ -118,6 +124,24 @@ public sealed class ListingsDbContext(DbContextOptions<ListingsDbContext> option
         });
 
         UseSnakeCaseColumns(modelBuilder);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        AdvanceRevisions();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        AdvanceRevisions();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    private void AdvanceRevisions()
+    {
+        foreach (var entry in ChangeTracker.Entries<Listing>().Where(entry => entry.State == EntityState.Modified))
+            entry.Entity.Revision = checked(entry.Property(item => item.Revision).OriginalValue + 1);
     }
 
     private static void UseSnakeCaseColumns(ModelBuilder modelBuilder)

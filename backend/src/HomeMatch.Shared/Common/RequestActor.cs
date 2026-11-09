@@ -16,4 +16,7 @@ public static class RequestActor
 
     public static long? TenantId(ClaimsPrincipal user) =>
         user.IsInRole("Tenant") ? UserId(user) : null;
+
+    public static long? AdminId(ClaimsPrincipal user) =>
+        user.IsInRole("Admin") ? UserId(user) : null;
 }

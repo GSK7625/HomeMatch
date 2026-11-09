@@ -21,7 +21,7 @@ public sealed class ListingResponse(
     string description, long price, long depositAmount, int minLeaseMonths,
     bool allowPets, bool hasCurfew, TimeOnly? curfewTime, string status,
     double? longitude, double? latitude, IReadOnlyList<ListingImageResponse> images,
-    bool isFeatured = false, long viewCount = 0)
+    bool isFeatured = false, long viewCount = 0, ListingReviewResponse? review = null)
 {
     public long Id { get; } = id;
     public long RoomId { get; } = roomId;
@@ -38,6 +38,8 @@ public sealed class ListingResponse(
     public string Status { get; } = status;
     public bool IsFeatured { get; } = isFeatured;
     public long ViewCount { get; } = viewCount;
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public ListingReviewResponse? Review { get; } = review;
     public double? Longitude { get; } = longitude;
     public double? Latitude { get; } = latitude;
     public IReadOnlyList<ListingImageResponse> Images { get; } = images;

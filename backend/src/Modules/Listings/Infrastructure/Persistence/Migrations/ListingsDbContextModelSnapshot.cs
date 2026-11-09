@@ -92,6 +92,26 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("published_at");
 
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("rejection_reason");
+
+                    b.Property<DateTimeOffset?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<long?>("ReviewedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L)
+                        .HasColumnName("revision");
+
                     b.Property<long>("RoomId")
                         .HasColumnType("bigint")
                         .HasColumnName("room_id");
@@ -142,6 +162,10 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ux_listings_slug");
 
+                    b.HasIndex("UpdatedAt", "Id")
+                        .HasDatabaseName("ix_listings_pending_review")
+                        .HasFilter("status = 'PENDING_APPROVAL'");
+
                     b.ToTable("listings", "listings", t =>
                         {
                             t.HasCheckConstraint("ck_listings_deposit", "deposit_amount >= 0");
@@ -150,7 +174,11 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_listings_price", "price > 0");
 
-                            t.HasCheckConstraint("ck_listings_status", "status IN ('DRAFT', 'PUBLISHED', 'HIDDEN', 'EXPIRED')");
+                            t.HasCheckConstraint("ck_listings_rejection", "status <> 'REJECTED' OR (rejection_reason IS NOT NULL AND length(btrim(rejection_reason)) > 0)");
+
+                            t.HasCheckConstraint("ck_listings_revision", "revision > 0");
+
+                            t.HasCheckConstraint("ck_listings_status", "status IN ('DRAFT', 'PENDING_APPROVAL', 'REJECTED', 'PUBLISHED', 'HIDDEN', 'EXPIRED')");
 
                             t.HasCheckConstraint("ck_listings_view_count", "view_count >= 0");
                         });

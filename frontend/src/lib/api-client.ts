@@ -18,6 +18,26 @@ import {
   SystemStatus,
   TenantDashboardSummaryDto,
   ViewingAppointmentDto,
+  PropertyDto,
+  RoomDto,
+  TariffDto,
+  AmenityDto,
+  ProvinceDto,
+  WardDto,
+  CreatePropertyBody,
+  UpdatePropertyBody,
+  CreateRoomBody,
+  UpdateRoomBody,
+  SetPropertyTariffsBody,
+  ListingSummaryDto,
+  ListingImageDto,
+  ListingDetailDto,
+  PublicListingDetailDto,
+  SavedListingDto,
+  CreateListingBody,
+  UpdateListingBody,
+  AddListingImageBody,
+  PendingListingsDto,
 } from "@/types";
 
 export const API_BASE = (() => {
@@ -564,3 +584,222 @@ export const tenantOverviewApi = {
   },
 };
 
+
+
+// ============================================================================
+// Properties & Rooms Module API (/api/v1/properties)
+// ============================================================================
+export const propertiesApi = {
+  getMyProperties: async () => {
+    return apiRequest<PropertyDto[]>("/api/v1/properties/mine", {
+      method: "GET",
+    });
+  },
+
+  getPropertyById: async (id: number) => {
+    return apiRequest<PropertyDto>(`/api/v1/properties/${id}`, {
+      method: "GET",
+    });
+  },
+
+  createProperty: async (payload: CreatePropertyBody) => {
+    return apiRequest<PropertyDto>("/api/v1/properties", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateProperty: async (id: number, payload: UpdatePropertyBody) => {
+    return apiRequest<PropertyDto>(`/api/v1/properties/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getRooms: async (propertyId: number) => {
+    return apiRequest<RoomDto[]>(`/api/v1/properties/${propertyId}/rooms`, {
+      method: "GET",
+    });
+  },
+
+  getRoomById: async (propertyId: number, roomId: number) => {
+    return apiRequest<RoomDto>(`/api/v1/properties/${propertyId}/rooms/${roomId}`, {
+      method: "GET",
+    });
+  },
+
+  createRoom: async (propertyId: number, payload: CreateRoomBody) => {
+    return apiRequest<RoomDto>(`/api/v1/properties/${propertyId}/rooms`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateRoom: async (propertyId: number, roomId: number, payload: UpdateRoomBody) => {
+    return apiRequest<RoomDto>(`/api/v1/properties/${propertyId}/rooms/${roomId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  setRoomStatus: async (propertyId: number, roomId: number, status: "AVAILABLE" | "RENTED" | "SUSPENDED") => {
+    return apiRequest<RoomDto>(`/api/v1/properties/${propertyId}/rooms/${roomId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  getTariffs: async (propertyId: number) => {
+    return apiRequest<TariffDto[]>(`/api/v1/properties/${propertyId}/tariffs`, {
+      method: "GET",
+    });
+  },
+
+  setTariffs: async (propertyId: number, payload: SetPropertyTariffsBody) => {
+    return apiRequest<TariffDto[]>(`/api/v1/properties/${propertyId}/tariffs`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+};
+
+// ============================================================================
+// Catalogs API (/api/v1/administrative-provinces, /api/v1/amenities)
+// ============================================================================
+export const catalogsApi = {
+  getProvinces: async () => {
+    return apiRequest<ProvinceDto[]>("/api/v1/administrative-provinces", {
+      method: "GET",
+    });
+  },
+
+  getWards: async (provinceCode: string) => {
+    return apiRequest<WardDto[]>(`/api/v1/administrative-provinces/${provinceCode}/wards`, {
+      method: "GET",
+    });
+  },
+
+  getAmenities: async () => {
+    return apiRequest<AmenityDto[]>("/api/v1/amenities", {
+      method: "GET",
+    });
+  },
+};
+
+// ============================================================================
+// Listings Module API (/api/v1/listings)
+// ============================================================================
+export const listingsApi = {
+  getPublicListings: async (limit = 50) => {
+    return apiRequest<ListingSummaryDto[]>(`/api/v1/listings?limit=${limit}`, {
+      method: "GET",
+    });
+  },
+
+  getPublicListingById: async (listingId: number) => {
+    return apiRequest<PublicListingDetailDto>(`/api/v1/listings/${listingId}`, {
+      method: "GET",
+    });
+  },
+
+  getMyListings: async () => {
+    return apiRequest<ListingSummaryDto[]>("/api/v1/listings/mine", {
+      method: "GET",
+    });
+  },
+
+  getMyListingById: async (listingId: number) => {
+    return apiRequest<ListingDetailDto>(`/api/v1/listings/mine/${listingId}`, {
+      method: "GET",
+    });
+  },
+
+  createListing: async (payload: CreateListingBody) => {
+    return apiRequest<ListingDetailDto>("/api/v1/listings", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateListing: async (listingId: number, payload: UpdateListingBody) => {
+    return apiRequest<ListingDetailDto>(`/api/v1/listings/${listingId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  submitListing: async (listingId: number) => {
+    return apiRequest<ListingDetailDto>(`/api/v1/listings/${listingId}/submit`, {
+      method: "POST",
+    });
+  },
+
+  hideListing: async (listingId: number) => {
+    return apiRequest<ListingDetailDto>(`/api/v1/listings/${listingId}/hide`, {
+      method: "POST",
+    });
+  },
+
+  getSavedListings: async () => {
+    return apiRequest<SavedListingDto[]>("/api/v1/listings/saved", {
+      method: "GET",
+    });
+  },
+
+  toggleSaveListing: async (listingId: number) => {
+    return apiRequest<SavedListingDto>(`/api/v1/listings/${listingId}/saved`, {
+      method: "POST",
+    });
+  },
+
+  addImage: async (listingId: number, payload: AddListingImageBody) => {
+    return apiRequest<ListingImageDto>(`/api/v1/listings/${listingId}/images`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateImage: async (listingId: number, imageId: number, payload: Partial<AddListingImageBody>) => {
+    return apiRequest<ListingImageDto>(`/api/v1/listings/${listingId}/images/${imageId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteImage: async (listingId: number, imageId: number) => {
+    return apiRequest<void>(`/api/v1/listings/${listingId}/images/${imageId}`, {
+      method: "DELETE",
+    });
+  },
+};
+
+// ============================================================================
+// Admin Listings Moderation API (/api/v1/admin/listings)
+// ============================================================================
+export const adminListingsApi = {
+  getPending: async (page = 1, pageSize = 20) => {
+    return apiRequest<PendingListingsDto>(
+      `/api/v1/admin/listings/pending?page=${page}&pageSize=${pageSize}`,
+      { method: "GET" }
+    );
+  },
+
+  getReviewListing: async (listingId: number) => {
+    return apiRequest<ListingDetailDto>(`/api/v1/admin/listings/${listingId}`, {
+      method: "GET",
+    });
+  },
+
+  approve: async (listingId: number) => {
+    return apiRequest<ListingDetailDto>(`/api/v1/admin/listings/${listingId}/approve`, {
+      method: "POST",
+    });
+  },
+
+  reject: async (listingId: number, reason: string) => {
+    return apiRequest<ListingDetailDto>(`/api/v1/admin/listings/${listingId}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+  },
+};

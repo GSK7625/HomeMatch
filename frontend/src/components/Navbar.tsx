@@ -25,7 +25,6 @@ import {
   X,
   PlusCircle,
   Loader2,
-  Laptop,
   Bell,
   Eye,
   CheckCheck,
@@ -39,7 +38,8 @@ interface NavItem {
 }
 
 export function Navbar() {
-  const pathname = usePathname();
+  const rawPathname = usePathname();
+  const pathname = rawPathname || "";
   const router = useRouter();
   const { user, role, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -170,7 +170,7 @@ export function Navbar() {
               <Link
                 href="/compare"
                 className={cn(
-                  "flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
+                  "hidden lg:flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
                   pathname === "/compare"
                     ? "text-blue-600 bg-blue-50/80 shadow-xs"
                     : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
@@ -191,7 +191,7 @@ export function Navbar() {
               <Link
                 href="/tenant/favorites"
                 className={cn(
-                  "flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
+                  "hidden lg:flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
                   pathname === "/tenant/favorites"
                     ? "text-rose-600 bg-rose-50/80 shadow-xs"
                     : "text-slate-600 hover:text-rose-600 hover:bg-slate-100/80"
@@ -211,7 +211,7 @@ export function Navbar() {
             <Link
               href="/messages"
               className={cn(
-                "flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
+                "hidden lg:flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
                 pathname === "/messages"
                   ? "text-blue-600 bg-blue-50/80 shadow-xs"
                   : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
@@ -253,7 +253,7 @@ export function Navbar() {
                       className="fixed inset-0 z-40"
                       onClick={() => setNotifDropdownOpen(false)}
                     />
-                    <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95">
+                    <div className="fixed inset-x-3 top-16 sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 w-auto sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 max-h-[80vh] flex flex-col">
                       <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-black text-slate-900">
@@ -361,13 +361,13 @@ export function Navbar() {
               </div>
             )}
 
-            <div className="h-5 w-px bg-slate-200 hidden sm:block mx-0.5" />
+            <div className="h-5 w-px bg-slate-200 hidden lg:block mx-0.5" />
 
             {/* Standout Commercial CTA Button */}
             {role === "Landlord" ? (
               <Link
                 href="/landlord/listings"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all whitespace-nowrap shrink-0"
+                className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all whitespace-nowrap shrink-0"
               >
                 <PlusCircle className="w-3.5 h-3.5 shrink-0" />
                 <span>Đăng tin</span>
@@ -375,7 +375,7 @@ export function Navbar() {
             ) : !user ? (
               <Link
                 href="/landlord/dashboard"
-                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50/90 hover:bg-blue-100 border border-blue-200/90 shadow-2xs transition-all whitespace-nowrap shrink-0"
+                className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50/90 hover:bg-blue-100 border border-blue-200/90 shadow-2xs transition-all whitespace-nowrap shrink-0"
               >
                 <Building2 className="w-3.5 h-3.5 shrink-0 text-blue-600" />
                 <span>Kênh Chủ Nhà</span>
@@ -384,7 +384,7 @@ export function Navbar() {
 
             {/* User Profile Menu or High-Contrast Auth Buttons */}
             {user ? (
-              <div className="relative shrink-0">
+              <div className="hidden lg:block relative shrink-0">
                 <button
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                   className="flex items-center gap-1.5 p-1 rounded-xl hover:bg-slate-100 text-slate-700 transition-colors shrink-0"
@@ -406,7 +406,7 @@ export function Navbar() {
                       className="fixed inset-0 z-40"
                       onClick={() => setUserDropdownOpen(false)}
                     />
-                    <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95">
+                    <div className="fixed inset-x-3 top-16 sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 w-auto sm:w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 max-h-[80vh] overflow-y-auto">
                       <div className="px-4 py-3 border-b border-slate-100">
                         <div className="flex items-center gap-2">
                           <p className="text-xs font-bold text-slate-900 truncate">{user.displayName}</p>
@@ -556,29 +556,12 @@ export function Navbar() {
                         )}
                         <span>{loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}</span>
                       </button>
-
-                      {/* Logout all sessions */}
-                      <button
-                        disabled={loggingOut}
-                        onClick={async () => {
-                          if (window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi tất cả các thiết bị?")) {
-                            setLoggingOut(true);
-                            await logout(true);
-                            setUserDropdownOpen(false);
-                            setLoggingOut(false);
-                          }
-                        }}
-                        className="w-full flex items-center gap-2.5 px-4 py-1.5 text-[11px] font-normal text-slate-500 hover:text-rose-600 hover:bg-rose-50/50 disabled:opacity-50 cursor-pointer"
-                      >
-                        <Laptop className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Đăng xuất tất cả thiết bị</span>
-                      </button>
                     </div>
                   </>
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2 ml-1">
+              <div className="hidden lg:flex items-center gap-2 ml-1">
                 <Link
                   href="/auth/login"
                   className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/90 rounded-xl transition-all whitespace-nowrap shadow-2xs"
@@ -636,20 +619,111 @@ export function Navbar() {
                 </div>
               )}
 
-              {currentNav.map((item) => {
-                const Icon = item.icon;
-                return (
+              {/* Mobile Extended Drawer Utilities (Không trùng lặp với Bottom Nav) */}
+              <div className="py-1 space-y-0.5">
+                {role === "Landlord" ? (
+                  <>
+                    <Link
+                      href="/landlord/contracts"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                      <FileText className="w-4 h-4 text-slate-500" />
+                      <span>Hợp đồng thuê & Cọc</span>
+                    </Link>
+                    <Link
+                      href="/landlord/utilities"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                      <Zap className="w-4 h-4 text-slate-500" />
+                      <span>Quản lý điện nước</span>
+                    </Link>
+                    <Link
+                      href="/listings"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                      <Search className="w-4 h-4 text-slate-500" />
+                      <span>Khám phá sàn tin thuê</span>
+                    </Link>
+                  </>
+                ) : role === "Admin" ? (
+                  <>
+                    <Link
+                      href="/admin/dashboard"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-slate-500" />
+                      <span>Quản trị hệ thống</span>
+                    </Link>
+                    <Link
+                      href="/listings"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                      <Search className="w-4 h-4 text-slate-500" />
+                      <span>Sàn tin phòng</span>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/tenant/viewings"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                      <Calendar className="w-4 h-4 text-slate-500" />
+                      <span>Lịch hẹn xem phòng</span>
+                    </Link>
+                    <Link
+                      href="/tenant/viewed-listings"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                      <Eye className="w-4 h-4 text-slate-500" />
+                      <span>Phòng đã xem gần đây</span>
+                    </Link>
+                    <Link
+                      href="/compare"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Scale className="w-4 h-4 text-blue-600" />
+                        <span>So sánh đối chiếu</span>
+                      </div>
+                      {compareCount > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-bold">
+                          {compareCount}
+                        </span>
+                      )}
+                    </Link>
+                    {!user && (
+                      <Link
+                        href="/landlord/dashboard"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100"
+                      >
+                        <Building2 className="w-4 h-4 text-slate-500" />
+                        <span>Kênh dành cho Chủ nhà</span>
+                      </Link>
+                    )}
+                  </>
+                )}
+
+                {user && (
                   <Link
-                    key={item.href}
-                    href={item.href}
+                    href="/settings"
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100"
                   >
-                    <Icon className="w-4 h-4 text-slate-500" />
-                    <span>{item.label}</span>
+                    <User className="w-4 h-4 text-slate-500" />
+                    <span>Cài đặt tài khoản</span>
                   </Link>
-                );
-              })}
+                )}
+              </div>
 
               {user && (
                 <div className="pt-2 border-t border-slate-100 space-y-1.5">
@@ -669,21 +743,6 @@ export function Navbar() {
                       <LogOut className="w-4 h-4" />
                     )}
                     <span>{loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}</span>
-                  </button>
-                  <button
-                    disabled={loggingOut}
-                    onClick={async () => {
-                      if (window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi tất cả các thiết bị?")) {
-                        setLoggingOut(true);
-                        await logout(true);
-                        setMobileMenuOpen(false);
-                        setLoggingOut(false);
-                      }
-                    }}
-                    className="flex items-center justify-center gap-2 w-full py-2 px-4 rounded-xl text-[11px] font-medium text-slate-500 hover:text-rose-600"
-                  >
-                    <Laptop className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Đăng xuất tất cả thiết bị</span>
                   </button>
                 </div>
               )}

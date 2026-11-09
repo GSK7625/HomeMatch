@@ -516,7 +516,7 @@ function MessagesContent() {
       </div>
 
       {/* Main 2-Column Chat Box */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm flex flex-col md:flex-row overflow-hidden h-[calc(100vh-210px)] min-h-[580px] max-h-[760px]">
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm flex flex-col md:flex-row overflow-hidden h-[calc(100dvh-175px)] sm:h-[calc(100vh-210px)] min-h-[460px] sm:min-h-[580px] max-h-[760px]">
         {/* Left Column: Conversation Sidebar (Fixed Width 320px) */}
         <div
           className={cn(

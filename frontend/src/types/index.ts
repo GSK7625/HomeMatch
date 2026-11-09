@@ -409,3 +409,244 @@ export interface PagedViewedListingsDto {
   totalCount: number;
 }
 
+
+// ============================================================================
+// Properties & Rooms Module DTOs (/api/v1/properties)
+// ============================================================================
+export interface PropertyDto {
+  id: number;
+  name: string;
+  provinceCode: string;
+  wardCode: string;
+  addressDetail: string;
+  propertyType: "APARTMENT" | "BOARDING_HOUSE" | "SERVICED_APARTMENT" | "HOMESTAY" | string;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export interface RoomDto {
+  id: number;
+  propertyId: number;
+  roomNumber: string;
+  floor: number;
+  areaSqm: number;
+  roomType: "SINGLE" | "STUDIO" | "1B1B" | "2B1B" | "DORMITORY" | string;
+  maxOccupants: number;
+  basePrice: number;
+  status: "AVAILABLE" | "RENTED" | "SUSPENDED" | string;
+  availableFrom: string;
+  amenityIds: number[];
+}
+
+export interface TariffDto {
+  id: number;
+  propertyId: number;
+  roomId?: number | null;
+  tariffType: "ELECTRICITY" | "WATER" | "INTERNET" | "SERVICE" | "CLEANING" | "PARKING" | string;
+  calcMethod: "PER_KWH" | "PER_M3" | "PER_PERSON" | "FIXED_PER_MONTH" | "FREE" | string;
+  unitPrice: number;
+}
+
+export interface AmenityDto {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export interface ProvinceDto {
+  code: string;
+  name: string;
+  fullName: string;
+}
+
+export interface WardDto {
+  code: string;
+  name: string;
+  fullName: string;
+  provinceCode: string;
+}
+
+export interface CreatePropertyBody {
+  name: string;
+  provinceCode: string;
+  wardCode: string;
+  addressDetail: string;
+  propertyType: string;
+}
+
+export interface UpdatePropertyBody {
+  name?: string;
+  provinceCode?: string;
+  wardCode?: string;
+  addressDetail?: string;
+  propertyType?: string;
+}
+
+export interface CreateRoomBody {
+  roomNumber: string;
+  floor: number;
+  areaSqm: number;
+  roomType: string;
+  maxOccupants: number;
+  basePrice: number;
+  availableFrom?: string | null;
+  amenityIds?: number[];
+}
+
+export interface UpdateRoomBody {
+  roomNumber?: string;
+  floor?: number;
+  areaSqm?: number;
+  roomType?: string;
+  maxOccupants?: number;
+  basePrice?: number;
+  availableFrom?: string | null;
+  amenityIds?: number[];
+}
+
+export interface TariffItemBody {
+  tariffType: string;
+  calcMethod: string;
+  unitPrice: number;
+}
+
+export interface SetPropertyTariffsBody {
+  tariffs: TariffItemBody[];
+}
+
+// ============================================================================
+// Listings Module DTOs (/api/v1/listings)
+// ============================================================================
+export interface ListingSummaryDto {
+  id: number;
+  roomId: number;
+  title: string;
+  slug: string;
+  price: number;
+  status: "Draft" | "PendingApproval" | "Published" | "Hidden" | "Rejected" | "Banned" | string;
+  coverImageUrl?: string | null;
+  isFeatured: boolean;
+}
+
+export interface ListingImageDto {
+  id: number;
+  imageUrl: string;
+  isPrimary: boolean;
+  sortOrder: number;
+  mediaType?: string;
+  thumbnailUrl?: string | null;
+  durationSeconds?: number | null;
+}
+
+export interface ListingReviewDto {
+  revision: number;
+  reviewedBy?: number | null;
+  reviewedAt?: string | null;
+  rejectionReason?: string | null;
+  publishedAt?: string | null;
+}
+
+export interface ListingDetailDto {
+  id: number;
+  roomId: number;
+  landlordId: number;
+  title: string;
+  slug: string;
+  description: string;
+  price: number;
+  depositAmount: number;
+  minLeaseMonths: number;
+  allowPets: boolean;
+  hasCurfew: boolean;
+  curfewTime?: string | null;
+  status: string;
+  isFeatured: boolean;
+  viewCount: number;
+  longitude?: number | null;
+  latitude?: number | null;
+  images: ListingImageDto[];
+  review?: ListingReviewDto | null;
+}
+
+export interface PublicListingDetailDto extends ListingDetailDto {
+  room: {
+    id: number;
+    roomNumber: string;
+    floor: number;
+    areaSqm: number;
+    roomType: string;
+    maxOccupants: number;
+    status: string;
+    availableFrom: string;
+    amenities: Array<{ id: number; code: string; name: string }>;
+  };
+  property: {
+    id: number;
+    name: string;
+    propertyType: string;
+    provinceCode: string;
+    provinceName: string;
+    wardCode: string;
+    wardName: string;
+    districtName?: string | null;
+    addressDetail: string;
+  };
+  tariffs: Array<{
+    id: number;
+    tariffType: string;
+    calcMethod: string;
+    unitPrice: number;
+  }>;
+}
+
+export interface SavedListingDto {
+  id: number;
+  listingId: number;
+  listing: ListingSummaryDto;
+  createdAt: string;
+}
+
+export interface CreateListingBody {
+  roomId: number;
+  title: string;
+  slug?: string;
+  description: string;
+  price: number;
+  depositAmount: number;
+  minLeaseMonths: number;
+  allowPets: boolean;
+  hasCurfew: boolean;
+  curfewTime?: string | null;
+  longitude?: number | null;
+  latitude?: number | null;
+}
+
+export interface UpdateListingBody {
+  title?: string;
+  slug?: string;
+  description?: string;
+  price?: number;
+  depositAmount?: number;
+  minLeaseMonths?: number;
+  allowPets?: boolean;
+  hasCurfew?: boolean;
+  curfewTime?: string | null;
+  longitude?: number | null;
+  latitude?: number | null;
+}
+
+export interface AddListingImageBody {
+  imageUrl: string;
+  isPrimary?: boolean;
+  sortOrder?: number;
+  mediaType?: string;
+  thumbnailUrl?: string | null;
+  durationSeconds?: number | null;
+}
+
+export interface PendingListingsDto {
+  items: ListingSummaryDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}

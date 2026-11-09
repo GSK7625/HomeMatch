@@ -110,13 +110,20 @@ export default function ComparePage() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto">
-          <table className="w-full text-xs text-left border-collapse min-w-[700px]">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/70">
-                <th className="p-4 w-48 font-bold text-slate-500 uppercase tracking-wider">
-                  Tiêu chí đối chiếu
-                </th>
+        <div className="space-y-2">
+          {/* Mobile Horizontal Scroll Hint */}
+          <div className="sm:hidden flex items-center justify-between px-1 text-[11px] text-slate-500 font-medium">
+            <span>👉 Vuốt ngang để so sánh các phòng</span>
+            <span className="font-bold text-blue-600">{comparedListings.length} phòng</span>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto">
+            <table className="w-full text-xs text-left border-collapse min-w-[650px]">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/70">
+                  <th className="p-4 w-40 sm:w-48 font-bold text-slate-500 uppercase tracking-wider sticky left-0 z-20 bg-slate-50 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">
+                    Tiêu chí đối chiếu
+                  </th>
                 {comparedListings.map((room) => (
                   <th key={room.id} className="p-4 w-72 align-top">
                     <div className="relative space-y-3">
@@ -158,7 +165,7 @@ export default function ComparePage() {
             <tbody className="divide-y divide-slate-100">
               {/* Row: Giá thuê */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50/40">Giá thuê / tháng</td>
+                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Giá thuê / tháng</td>
                 {comparedListings.map((r) => (
                   <td key={r.id} className="p-4 font-black text-blue-600 text-sm">
                     {(r.price / 1000000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} triệu đ
@@ -168,7 +175,7 @@ export default function ComparePage() {
 
               {/* Row: Tiền cọc */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50/40">Tiền đặt cọc</td>
+                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Tiền đặt cọc</td>
                 {comparedListings.map((r) => (
                   <td key={r.id} className="p-4 font-semibold text-slate-800">
                     {(r.deposit / 1000000).toFixed(1)} triệu đ
@@ -178,7 +185,7 @@ export default function ComparePage() {
 
               {/* Row: Diện tích */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50/40">Diện tích sử dụng</td>
+                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Diện tích sử dụng</td>
                 {comparedListings.map((r) => (
                   <td key={r.id} className="p-4 font-bold text-slate-800">
                     {r.area} m²
@@ -188,7 +195,7 @@ export default function ComparePage() {
 
               {/* Row: Loại hình */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50/40">Loại hình phòng</td>
+                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Loại hình phòng</td>
                 {comparedListings.map((r) => (
                   <td key={r.id} className="p-4">
                     <span className="px-2 py-0.5 rounded-md bg-slate-100 font-bold text-slate-700">
@@ -200,7 +207,7 @@ export default function ComparePage() {
 
               {/* Row: Vị trí */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50/40">Khu vực / Quận huyện</td>
+                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Khu vực / Quận huyện</td>
                 {comparedListings.map((r) => (
                   <td key={r.id} className="p-4 font-medium text-slate-700">
                     {r.district}, {r.city}
@@ -210,7 +217,7 @@ export default function ComparePage() {
 
               {/* Row: Giá điện */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50/40">Giá điện (đ/kWh)</td>
+                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Giá điện (đ/kWh)</td>
                 {comparedListings.map((r) => (
                   <td key={r.id} className="p-4 font-semibold text-amber-700">
                     {r.electricityPrice.toLocaleString()} đ
@@ -220,7 +227,7 @@ export default function ComparePage() {
 
               {/* Row: Giá nước */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50/40">Giá nước (đ/m³)</td>
+                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Giá nước (đ/m³)</td>
                 {comparedListings.map((r) => (
                   <td key={r.id} className="p-4 font-semibold text-sky-700">
                     {r.waterPrice.toLocaleString()} đ
@@ -230,7 +237,7 @@ export default function ComparePage() {
 
               {/* Row: Phí dịch vụ */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50/40">Phí dịch vụ / tháng</td>
+                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Phí dịch vụ / tháng</td>
                 {comparedListings.map((r) => (
                   <td key={r.id} className="p-4 font-semibold text-slate-800">
                     {r.serviceFee.toLocaleString()} đ
@@ -247,7 +254,7 @@ export default function ComparePage() {
 
               {COMPARISON_AMENITIES.map((amenity) => (
                 <tr key={amenity} className="hover:bg-slate-50/50">
-                  <td className="p-3.5 font-medium text-slate-600 bg-slate-50/40">{amenity}</td>
+                  <td className="p-3.5 font-medium text-slate-600 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">{amenity}</td>
                   {comparedListings.map((r) => {
                     const hasAmenity = r.amenities.includes(amenity);
                     return (
@@ -270,6 +277,7 @@ export default function ComparePage() {
               ))}
             </tbody>
           </table>
+        </div>
         </div>
       )}
     </div>

@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { listingService } from "@/lib/services";
+import { listingsApi } from "@/lib/api-client";
 import { PropertyListing } from "@/types";
 import { ListingCard } from "@/features/listings/ListingCard";
 import { useToast } from "@/components/Toast";
@@ -61,10 +62,89 @@ function ListingsContent() {
   const pageSize = 10; // Requirement Section 4.1: Max 10 items/page
 
   const [compareList, setCompareList] = useState<string[]>([]);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (city !== "Tất cả") count++;
+    if (district !== "Tất cả") count++;
+    if (selectedTypes.length > 0) count += selectedTypes.length;
+    if (priceRange !== "all") count++;
+    if (areaRange !== "all") count++;
+    if (selectedAmenities.length > 0) count += selectedAmenities.length;
+    return count;
+  }, [city, district, selectedTypes, priceRange, areaRange, selectedAmenities]);
 
   useEffect(() => {
-    setAllListings(listingService.getAll());
-    setCompareList(listingService.getCompareList());
+    let isMounted = true;
+    async function fetchPublicListings() {
+      try {
+        const res = await listingsApi.getPublicListings(50);
+        if (isMounted && res.isSuccess && res.data && res.data.length > 0) {
+          const localItems = listingService.getAll();
+          const backendMapped: PropertyListing[] = res.data.map((b) => {
+            const localMatch = localItems.find((l) => String(l.id) === String(b.id));
+            if (localMatch) {
+              return {
+                ...localMatch,
+                title: b.title,
+                price: b.price,
+                isFeatured: b.isFeatured,
+                status: b.status === "Published" ? ("Còn trống" as const) : ("Tạm ngừng" as const),
+              };
+            }
+            return {
+              id: String(b.id),
+              title: b.title,
+              description: "Phòng trọ cho thuê trên hệ thống HomeMatch",
+              address: "Cầu Giấy, Hà Nội",
+              ward: "Dịch Vọng",
+              district: "Cầu Giấy",
+              city: "Hà Nội",
+              price: b.price,
+              deposit: b.price,
+              area: 25,
+              roomType: "Chung cư mini" as const,
+              electricityPrice: 3800,
+              waterPrice: 28000,
+              serviceFee: 150000,
+              amenities: ["Điều hòa", "Nóng lạnh", "Máy giặt"],
+              images: [
+                b.coverImageUrl ||
+                  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
+              ],
+              status: b.status === "Published" ? ("Còn trống" as const) : ("Tạm ngừng" as const),
+              landlordId: "landlord-1",
+              landlordName: "Chủ Nhà HomeMatch",
+              landlordPhone: "0902000002",
+              latitude: 21.034,
+              longitude: 105.793,
+              createdAt: new Date().toISOString(),
+              viewCount: 15,
+              isFeatured: b.isFeatured,
+            };
+          });
+
+          const combined = [
+            ...backendMapped,
+            ...localItems.filter((l) => !backendMapped.some((bm) => bm.id === l.id)),
+          ];
+          setAllListings(combined);
+          setCompareList(listingService.getCompareList());
+          return;
+        }
+      } catch (err) {
+        console.warn("Could not fetch public listings from backend", err);
+      }
+      if (isMounted) {
+        setAllListings(listingService.getAll());
+        setCompareList(listingService.getCompareList());
+      }
+    }
+    fetchPublicListings();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleNearMe = () => {
@@ -162,10 +242,178 @@ function ListingsContent() {
     return filteredListings.slice(start, start + pageSize);
   }, [filteredListings, page, pageSize]);
 
+  const renderFilterFormContent = () => (
+    <>
+      {/* City */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+          Tỉnh / Thành phố
+        </label>
+        <select
+          value={city}
+          onChange={(e) => {
+            setCity(e.target.value);
+            setDistrict("Tất cả");
+            setPage(1);
+          }}
+          className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium"
+        >
+          <option value="Tất cả">Tất cả địa điểm</option>
+          <option value="Hà Nội">Hà Nội</option>
+          <option value="Hồ Chí Minh">TP. Hồ Chí Minh</option>
+        </select>
+      </div>
+
+      {/* District */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+          Quận / Huyện
+        </label>
+        <select
+          value={district}
+          onChange={(e) => {
+            setDistrict(e.target.value);
+            setPage(1);
+          }}
+          className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium"
+        >
+          <option value="Tất cả">Tất cả quận huyện</option>
+          {city === "Hà Nội" && (
+            <>
+              <option value="Cầu Giấy">Cầu Giấy</option>
+              <option value="Đống Đa">Đống Đa</option>
+              <option value="Hai Bà Trưng">Hai Bà Trưng</option>
+              <option value="Thanh Xuân">Thanh Xuân</option>
+            </>
+          )}
+          {city === "Hồ Chí Minh" && (
+            <>
+              <option value="Bình Thạnh">Bình Thạnh</option>
+              <option value="Quận 1">Quận 1</option>
+              <option value="Quận 7">Quận 7</option>
+            </>
+          )}
+        </select>
+      </div>
+
+      {/* Room Type */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+          Loại hình phòng
+        </label>
+        <div className="space-y-2 text-xs">
+          {["Phòng trọ", "Chung cư mini", "Căn hộ dịch vụ"].map((t) => (
+            <label key={t} className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={selectedTypes.includes(t)}
+                onChange={() => {
+                  toggleType(t);
+                  setPage(1);
+                }}
+                className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
+              />
+              <span className="text-slate-700">{t}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Price Range */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+          Khoảng giá thuê
+        </label>
+        <div className="space-y-2 text-xs">
+          {[
+            { id: "all", label: "Tất cả mức giá" },
+            { id: "under3", label: "Dưới 3 triệu" },
+            { id: "3to5", label: "3 - 5 triệu" },
+            { id: "5to8", label: "5 - 8 triệu" },
+            { id: "over8", label: "Trên 8 triệu" },
+          ].map((p) => (
+            <label key={p.id} className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="radio"
+                name="price"
+                checked={priceRange === p.id}
+                onChange={() => {
+                  setPriceRange(p.id);
+                  setPage(1);
+                }}
+                className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+              />
+              <span className="text-slate-700">{p.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Area Range */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+          Diện tích
+        </label>
+        <div className="space-y-2 text-xs">
+          {[
+            { id: "all", label: "Tất cả diện tích" },
+            { id: "under25", label: "Dưới 25 m²" },
+            { id: "25to40", label: "25 - 40 m²" },
+            { id: "over40", label: "Trên 40 m²" },
+          ].map((a) => (
+            <label key={a.id} className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="radio"
+                name="area"
+                checked={areaRange === a.id}
+                onChange={() => {
+                  setAreaRange(a.id);
+                  setPage(1);
+                }}
+                className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+              />
+              <span className="text-slate-700">{a.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Amenities Pills */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+          Tiện ích đi kèm
+        </label>
+        <div className="flex flex-wrap gap-1.5">
+          {ALL_AMENITIES.map((amenity) => {
+            const isChecked = selectedAmenities.includes(amenity);
+            return (
+              <button
+                key={amenity}
+                type="button"
+                onClick={() => {
+                  toggleAmenity(amenity);
+                  setPage(1);
+                }}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors",
+                  isChecked
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                )}
+              >
+                {amenity}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 w-full flex-1">
       {/* Top Search & Actions bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-6 sm:mb-8 flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4">
         <div className="relative w-full md:max-w-md">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
@@ -180,32 +428,48 @@ function ListingsContent() {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-end">
+        <div className="grid grid-cols-3 gap-2 w-full sm:flex sm:items-center sm:w-auto sm:justify-end">
+          {/* Mobile Filter Button */}
+          <button
+            onClick={() => setIsMobileFilterOpen(true)}
+            className="col-span-1 lg:hidden flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
+            <span>Bộ lọc</span>
+            {activeFilterCount > 0 && (
+              <span className="w-4 h-4 rounded-full bg-white text-blue-600 text-[10px] font-black flex items-center justify-center shrink-0">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+
           {/* Near me button */}
           <button
             onClick={handleNearMe}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+            className="col-span-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200/80 transition-colors"
           >
-            <Navigation className="w-3.5 h-3.5 text-blue-600" />
-            <span>Tìm phòng gần tôi</span>
+            <Navigation className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <span className="hidden sm:inline">Tìm phòng gần tôi</span>
+            <span className="sm:hidden">Gần tôi</span>
           </button>
 
           {/* Map toggle */}
           <button
             onClick={() => setShowMap(!showMap)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors",
+              "col-span-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors",
               showMap
                 ? "bg-slate-900 text-white border-slate-900"
-                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                : "bg-white text-slate-700 border-slate-200/80 hover:bg-slate-50"
             )}
           >
-            <MapIcon className="w-3.5 h-3.5" />
-            <span>{showMap ? "Ẩn bản đồ" : "Xem trên bản đồ"}</span>
+            <MapIcon className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">{showMap ? "Ẩn bản đồ" : "Xem trên bản đồ"}</span>
+            <span className="sm:hidden">{showMap ? "Ẩn map" : "Bản đồ"}</span>
           </button>
 
-          {/* View Mode */}
-          <div className="flex items-center border border-slate-200 rounded-xl p-0.5 bg-slate-50">
+          {/* View Mode (Only on desktop/tablet where multi-column view actually toggles) */}
+          <div className="hidden sm:flex items-center border border-slate-200 rounded-xl p-0.5 bg-slate-50">
             <button
               onClick={() => setViewMode("grid")}
               className={cn(
@@ -230,8 +494,8 @@ function ListingsContent() {
 
       {/* Main Grid: Sidebar Filters + Listings */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Sidebar Filter */}
-        <aside className="lg:col-span-1 space-y-6">
+        {/* Sidebar Filter - Desktop only */}
+        <aside className="hidden lg:block lg:col-span-1 space-y-6">
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-6 sticky top-20">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
@@ -246,171 +510,60 @@ function ListingsContent() {
               </button>
             </div>
 
-            {/* City */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Tỉnh / Thành phố
-              </label>
-              <select
-                value={city}
-                onChange={(e) => {
-                  setCity(e.target.value);
-                  setDistrict("Tất cả");
-                  setPage(1);
-                }}
-                className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium"
-              >
-                <option value="Tất cả">Tất cả địa điểm</option>
-                <option value="Hà Nội">Hà Nội</option>
-                <option value="Hồ Chí Minh">TP. Hồ Chí Minh</option>
-              </select>
-            </div>
+            {renderFilterFormContent()}
+          </div>
+        </aside>
 
-            {/* District */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Quận / Huyện
-              </label>
-              <select
-                value={district}
-                onChange={(e) => {
-                  setDistrict(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium"
-              >
-                <option value="Tất cả">Tất cả quận huyện</option>
-                {city === "Hà Nội" && (
-                  <>
-                    <option value="Cầu Giấy">Cầu Giấy</option>
-                    <option value="Đống Đa">Đống Đa</option>
-                    <option value="Hai Bà Trưng">Hai Bà Trưng</option>
-                    <option value="Thanh Xuân">Thanh Xuân</option>
-                  </>
-                )}
-                {city === "Hồ Chí Minh" && (
-                  <>
-                    <option value="Bình Thạnh">Bình Thạnh</option>
-                    <option value="Quận 1">Quận 1</option>
-                    <option value="Quận 7">Quận 7</option>
-                  </>
-                )}
-              </select>
-            </div>
-
-            {/* Room Type */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Loại hình phòng
-              </label>
-              <div className="space-y-2 text-xs">
-                {["Phòng trọ", "Chung cư mini", "Căn hộ dịch vụ"].map((t) => (
-                  <label key={t} className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={selectedTypes.includes(t)}
-                      onChange={() => {
-                        toggleType(t);
-                        setPage(1);
-                      }}
-                      className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
-                    />
-                    <span className="text-slate-700">{t}</span>
-                  </label>
-                ))}
+        {/* Mobile Slide-Over Filter Drawer */}
+        {isMobileFilterOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden flex justify-end">
+            <div
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+              onClick={() => setIsMobileFilterOpen(false)}
+            />
+            <div className="relative w-full max-w-sm sm:max-w-md bg-white h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-200">
+              <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-white">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="w-4 h-4 text-blue-600" />
+                  <h3 className="font-bold text-sm text-slate-900">Bộ Lọc Tìm Kiếm</h3>
+                  {activeFilterCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setIsMobileFilterOpen(false)}
+                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500"
+                  aria-label="Đóng bộ lọc"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-            </div>
 
-            {/* Price Range */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Khoảng giá thuê
-              </label>
-              <div className="space-y-2 text-xs">
-                {[
-                  { id: "all", label: "Tất cả mức giá" },
-                  { id: "under3", label: "Dưới 3 triệu" },
-                  { id: "3to5", label: "3 - 5 triệu" },
-                  { id: "5to8", label: "5 - 8 triệu" },
-                  { id: "over8", label: "Trên 8 triệu" },
-                ].map((p) => (
-                  <label key={p.id} className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="radio"
-                      name="price"
-                      checked={priceRange === p.id}
-                      onChange={() => {
-                        setPriceRange(p.id);
-                        setPage(1);
-                      }}
-                      className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
-                    />
-                    <span className="text-slate-700">{p.label}</span>
-                  </label>
-                ))}
+              <div className="flex-1 overflow-y-auto p-4 space-y-5">
+                {renderFilterFormContent()}
               </div>
-            </div>
 
-            {/* Area Range */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Diện tích
-              </label>
-              <div className="space-y-2 text-xs">
-                {[
-                  { id: "all", label: "Tất cả diện tích" },
-                  { id: "under25", label: "Dưới 25 m²" },
-                  { id: "25to40", label: "25 - 40 m²" },
-                  { id: "over40", label: "Trên 40 m²" },
-                ].map((a) => (
-                  <label key={a.id} className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="radio"
-                      name="area"
-                      checked={areaRange === a.id}
-                      onChange={() => {
-                        setAreaRange(a.id);
-                        setPage(1);
-                      }}
-                      className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
-                    />
-                    <span className="text-slate-700">{a.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Amenities Pills */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Tiện ích đi kèm
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {ALL_AMENITIES.map((amenity) => {
-                  const isChecked = selectedAmenities.includes(amenity);
-                  return (
-                    <button
-                      key={amenity}
-                      type="button"
-                      onClick={() => {
-                        toggleAmenity(amenity);
-                        setPage(1);
-                      }}
-                      className={cn(
-                        "px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors",
-                        isChecked
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                      )}
-                    >
-                      {amenity}
-                    </button>
-                  );
-                })}
+              <div className="p-4 border-t border-slate-200 bg-white flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 font-bold text-xs text-slate-700 hover:bg-slate-50"
+                >
+                  Xóa tất cả
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileFilterOpen(false)}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-sm"
+                >
+                  Xem {filteredListings.length} phòng
+                </button>
               </div>
             </div>
           </div>
-        </aside>
+        )}
 
         {/* Listings Result View */}
         <div className="lg:col-span-3 space-y-6">
@@ -463,17 +616,18 @@ function ListingsContent() {
             <span className="text-slate-400 font-semibold text-[11px] whitespace-nowrap">Lọc nhanh:</span>
             <button
               onClick={() => {
-                setPriceRange("3to5");
+                setPriceRange((prev) => (prev === "3to5" ? "all" : "3to5"));
                 setPage(1);
               }}
               className={cn(
-                "px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap",
+                "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap flex items-center gap-1.5",
                 priceRange === "3to5"
-                  ? "bg-blue-600 text-white border-blue-600"
+                  ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
               )}
             >
-              💵 3 - 5 triệu/tháng
+              <span>💵 3 - 5 triệu/tháng</span>
+              {priceRange === "3to5" && <X className="w-3 h-3 text-white/90 shrink-0" />}
             </button>
             <button
               onClick={() => {
@@ -481,13 +635,14 @@ function ListingsContent() {
                 setPage(1);
               }}
               className={cn(
-                "px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap",
+                "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap flex items-center gap-1.5",
                 selectedAmenities.includes("Máy giặt riêng")
-                  ? "bg-blue-600 text-white border-blue-600"
+                  ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
               )}
             >
-              🧺 Máy giặt riêng
+              <span>🧺 Máy giặt riêng</span>
+              {selectedAmenities.includes("Máy giặt riêng") && <X className="w-3 h-3 text-white/90 shrink-0" />}
             </button>
             <button
               onClick={() => {
@@ -495,13 +650,14 @@ function ListingsContent() {
                 setPage(1);
               }}
               className={cn(
-                "px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap",
+                "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap flex items-center gap-1.5",
                 selectedAmenities.includes("Ban công")
-                  ? "bg-blue-600 text-white border-blue-600"
+                  ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
               )}
             >
-              🌿 Ban công thoáng
+              <span>🌿 Ban công thoáng</span>
+              {selectedAmenities.includes("Ban công") && <X className="w-3 h-3 text-white/90 shrink-0" />}
             </button>
             <button
               onClick={() => {
@@ -509,13 +665,14 @@ function ListingsContent() {
                 setPage(1);
               }}
               className={cn(
-                "px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap",
+                "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap flex items-center gap-1.5",
                 selectedAmenities.includes("Nuôi thú cưng")
-                  ? "bg-blue-600 text-white border-blue-600"
+                  ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
               )}
             >
-              🐾 Cho nuôi pet
+              <span>🐾 Cho nuôi pet</span>
+              {selectedAmenities.includes("Nuôi thú cưng") && <X className="w-3 h-3 text-white/90 shrink-0" />}
             </button>
             <button
               onClick={() => {
@@ -523,13 +680,14 @@ function ListingsContent() {
                 setPage(1);
               }}
               className={cn(
-                "px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap",
+                "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap flex items-center gap-1.5",
                 selectedTypes.includes("Căn hộ dịch vụ")
-                  ? "bg-blue-600 text-white border-blue-600"
+                  ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
               )}
             >
-              ✨ Căn hộ dịch vụ
+              <span>✨ Căn hộ dịch vụ</span>
+              {selectedTypes.includes("Căn hộ dịch vụ") && <X className="w-3 h-3 text-white/90 shrink-0" />}
             </button>
           </div>
 

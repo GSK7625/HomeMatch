@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { listingService } from "@/lib/services";
+import { listingsApi } from "@/lib/api-client";
 import { PropertyListing } from "@/types";
 import { useToast } from "@/components/Toast";
 import {
@@ -38,11 +39,54 @@ export default function ComparePage() {
   const { showToast } = useToast();
   const [comparedListings, setComparedListings] = useState<PropertyListing[]>([]);
 
-  const loadData = () => {
+  const loadData = async () => {
     const ids = listingService.getCompareList();
-    const all = listingService.getAll();
-    const matches = ids.map((id) => all.find((x) => x.id === id)).filter(Boolean) as PropertyListing[];
-    setComparedListings(matches);
+    if (ids.length === 0) {
+      setComparedListings([]);
+      return;
+    }
+    const promises = ids.map(async (id) => {
+      const numericId = parseInt(id, 10);
+      if (!isNaN(numericId) && numericId > 0) {
+        try {
+          const res = await listingsApi.getPublicListingById(numericId);
+          if (res.isSuccess && res.data) {
+            const d = res.data;
+            const mapped: PropertyListing = {
+              id: String(d.id),
+              title: d.title,
+              description: d.description,
+              address: `${d.property.addressDetail}, ${d.property.wardName}, ${d.property.districtName || d.property.provinceName}`,
+              ward: d.property.wardName || "",
+              district: d.property.districtName || "",
+              city: d.property.provinceName || "Hà Nội",
+              price: d.price,
+              deposit: d.depositAmount,
+              area: Number(d.room.areaSqm),
+              roomType: "Chung cư mini",
+              electricityPrice: 3800,
+              waterPrice: 28000,
+              serviceFee: 150000,
+              amenities: d.room.amenities.map((a) => a.name),
+              images: d.images.map((i) => i.imageUrl),
+              status: d.status === "Published" ? ("Còn trống" as const) : ("Tạm ngừng" as const),
+              landlordId: "landlord-1",
+              landlordName: "Chủ Nhà HomeMatch",
+              landlordPhone: "0902000002",
+              latitude: 21.034,
+              longitude: 105.793,
+              createdAt: new Date().toISOString(),
+              viewCount: d.viewCount || 0,
+              isFeatured: d.isFeatured,
+            };
+            return mapped;
+          }
+        } catch {}
+      }
+      return null;
+    });
+    const results = (await Promise.all(promises)).filter(Boolean) as PropertyListing[];
+    setComparedListings(results);
   };
 
   useEffect(() => {

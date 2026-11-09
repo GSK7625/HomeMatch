@@ -4,8 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
-import { listingService } from "@/lib/services";
-import { fetchHealth } from "@/lib/api-client";
+import { fetchHealth, listingsApi } from "@/lib/api-client";
 import { PropertyListing, HealthCheck } from "@/types";
 import { ListingCard } from "@/features/listings/ListingCard";
 import {
@@ -63,9 +62,61 @@ export default function HomePage() {
   const [calcRooms, setCalcRooms] = useState(6);
   const [calcRent, setCalcRent] = useState(4500000);
 
+  const [isLoadingListings, setIsLoadingListings] = useState(true);
+
   useEffect(() => {
-    setListings(listingService.getAll());
+    let isMounted = true;
+    listingsApi
+      .getPublicListings(20)
+      .then((res) => {
+        if (!isMounted) return;
+        if (res.isSuccess && res.data && res.data.length > 0) {
+          const mapped: PropertyListing[] = res.data.map((b) => ({
+            id: String(b.id),
+            title: b.title,
+            description: "Phòng trọ cho thuê trên hệ thống HomeMatch",
+            address: "Hà Nội",
+            ward: "Dịch Vọng",
+            district: "Cầu Giấy",
+            city: "Hà Nội",
+            price: b.price,
+            deposit: b.price,
+            area: 25,
+            roomType: "Chung cư mini" as const,
+            electricityPrice: 3800,
+            waterPrice: 28000,
+            serviceFee: 150000,
+            amenities: ["Điều hòa", "Nóng lạnh", "Máy giặt"],
+            images: [
+              b.coverImageUrl ||
+                "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
+            ],
+            status: b.status === "Published" ? ("Còn trống" as const) : ("Tạm ngừng" as const),
+            landlordId: "landlord-1",
+            landlordName: "Chủ Nhà HomeMatch",
+            landlordPhone: "0902000002",
+            latitude: 21.034,
+            longitude: 105.793,
+            createdAt: new Date().toISOString(),
+            viewCount: 0,
+            isFeatured: b.isFeatured,
+          }));
+          setListings(mapped);
+        } else {
+          setListings([]);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setListings([]);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingListings(false);
+      });
+
     fetchHealth().then(setHealth).catch(() => null);
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -342,11 +393,19 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featuredListings.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
-          ))}
-        </div>
+        {featuredListings.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {featuredListings.map((listing) => (
+              <ListingCard key={listing.id} listing={listing} />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center">
+            <Building className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-slate-700">Chưa có tin nổi bật nào</p>
+            <p className="text-xs text-slate-500 mt-1">Các tin đăng mới nhất sẽ tự động hiển thị khi chủ nhà đăng phòng.</p>
+          </div>
+        )}
       </section>
 
       {/* Curated Collection: Affordable Rooms */}
@@ -372,11 +431,19 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {affordableListings.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
-          ))}
-        </div>
+        {affordableListings.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {affordableListings.map((listing) => (
+              <ListingCard key={listing.id} listing={listing} />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center">
+            <Building className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-slate-700">Chưa có phòng trong mức giá này</p>
+            <p className="text-xs text-slate-500 mt-1">Khám phá thêm nhiều lựa chọn tại trang danh sách phòng.</p>
+          </div>
+        )}
       </section>
 
       {/* Commercial Landlord ROI Calculator Widget */}

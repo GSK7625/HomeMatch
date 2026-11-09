@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
-import { listingService, viewingService } from "@/lib/services";
 import { getStoredToken, parseListingNumericId, viewingsApi } from "@/lib/api-client";
 import { BackendViewingStatus, ViewingAppointmentDto } from "@/types";
 import { useToast } from "@/components/Toast";
@@ -54,43 +53,6 @@ const STATUS_CONFIG: Record<
   },
 };
 
-function mapLocalMockToDto(): ViewingAppointmentDto[] {
-  const localItems = viewingService.getAll();
-  return localItems.map((item, idx) => {
-    const statusMap: Record<string, BackendViewingStatus> = {
-      "Chờ xác nhận": "PENDING",
-      "Đã xác nhận": "CONFIRMED",
-      "Đã hoàn thành": "COMPLETED",
-      "Đã hủy": "CANCELLED",
-    };
-    return {
-      id: idx + 1,
-      tenantId: 3,
-      tenantName: item.tenantName || "Trần Bình An",
-      tenantPhone: item.tenantPhone || "0977123456",
-      listingId: parseListingNumericId(item.listingId),
-      listingTitle: item.listingTitle,
-      listingPrice: 4500000,
-      listingAddress: item.listingAddress,
-      listingPrimaryImageUrl: item.listingImage,
-      landlordId: 2,
-      landlordName: "Nguyễn Văn Hoàng (Chủ Trọ)",
-      landlordPhone: "0902000002",
-      appointmentTime: item.scheduledTime,
-      durationMinutes: 30,
-      notes: item.note || null,
-      status: statusMap[item.status] || "PENDING",
-      cancelledBy: null,
-      cancelledReason: null,
-      remindAt: null,
-      isReminded: false,
-      virtualViewing: null,
-      createdAt: item.createdAt,
-      updatedAt: item.createdAt,
-    };
-  });
-}
-
 export default function TenantViewingsPage() {
   const { user, role } = useAuth();
   const router = useRouter();
@@ -119,7 +81,6 @@ export default function TenantViewingsPage() {
   const [cancelTarget, setCancelTarget] = useState<ViewingAppointmentDto | null>(null);
   const [cancelReason, setCancelReason] = useState("");
 
-  const availableListings = listingService.getAll();
 
   useEffect(() => {
     if (role === "Landlord") {
@@ -198,26 +159,7 @@ export default function TenantViewingsPage() {
         return;
       }
 
-      // Demo fallback
-      const matchedListing = availableListings.find(
-        (l) => parseListingNumericId(l.id) === selectedListingId
-      );
-      viewingService.book({
-        listingId: matchedListing?.id || `lst-00${selectedListingId}`,
-        listingTitle: matchedListing?.title || `Phòng trọ mã #${selectedListingId}`,
-        listingAddress: matchedListing?.address || "TP. Hồ Chí Minh",
-        listingImage: matchedListing?.images?.[0] || "",
-        tenantId: user?.accountId || "demo-tenant-id",
-        tenantName: user?.displayName || "Người thuê",
-        tenantPhone: user?.phoneNumber || "0977123456",
-        landlordId: matchedListing?.landlordId || "landlord-1",
-        scheduledTime: scheduledIso,
-        note: bookingNotes,
-      });
-      showToast("Đặt lịch xem phòng thành công!", "success");
-      setIsBookModalOpen(false);
-      setBookingNotes("");
-      await loadAppointments();
+      showToast("Vui lòng đăng nhập để đặt lịch xem phòng.", "error");
     } finally {
       setBookingSubmitting(false);
     }
@@ -244,11 +186,7 @@ export default function TenantViewingsPage() {
           showToast(res.error?.message || "Không thể hủy lịch hẹn.", "error");
         }
       } else {
-        viewingService.updateStatus(`vw-${cancelTarget.id}`, "Đã hủy");
-        showToast("Đã hủy lịch hẹn xem phòng.", "info");
-        setCancelTarget(null);
-        setCancelReason("");
-        await loadAppointments();
+        showToast("Vui lòng đăng nhập lại để thực hiện thao tác.", "error");
       }
     } finally {
       setActionLoadingId(null);

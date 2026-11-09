@@ -80,56 +80,38 @@ function ListingsContent() {
     async function fetchPublicListings() {
       try {
         const res = await listingsApi.getPublicListings(50);
-        if (isMounted && res.isSuccess && res.data && res.data.length > 0) {
-          const localItems = listingService.getAll();
-          const backendMapped: PropertyListing[] = res.data.map((b) => {
-            const localMatch = localItems.find((l) => String(l.id) === String(b.id));
-            if (localMatch) {
-              return {
-                ...localMatch,
-                title: b.title,
-                price: b.price,
-                isFeatured: b.isFeatured,
-                status: b.status === "Published" ? ("Còn trống" as const) : ("Tạm ngừng" as const),
-              };
-            }
-            return {
-              id: String(b.id),
-              title: b.title,
-              description: "Phòng trọ cho thuê trên hệ thống HomeMatch",
-              address: "Cầu Giấy, Hà Nội",
-              ward: "Dịch Vọng",
-              district: "Cầu Giấy",
-              city: "Hà Nội",
-              price: b.price,
-              deposit: b.price,
-              area: 25,
-              roomType: "Chung cư mini" as const,
-              electricityPrice: 3800,
-              waterPrice: 28000,
-              serviceFee: 150000,
-              amenities: ["Điều hòa", "Nóng lạnh", "Máy giặt"],
-              images: [
-                b.coverImageUrl ||
-                  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
-              ],
-              status: b.status === "Published" ? ("Còn trống" as const) : ("Tạm ngừng" as const),
-              landlordId: "landlord-1",
-              landlordName: "Chủ Nhà HomeMatch",
-              landlordPhone: "0902000002",
-              latitude: 21.034,
-              longitude: 105.793,
-              createdAt: new Date().toISOString(),
-              viewCount: 15,
-              isFeatured: b.isFeatured,
-            };
-          });
-
-          const combined = [
-            ...backendMapped,
-            ...localItems.filter((l) => !backendMapped.some((bm) => bm.id === l.id)),
-          ];
-          setAllListings(combined);
+        if (isMounted && res.isSuccess && res.data) {
+          const backendMapped: PropertyListing[] = res.data.map((b) => ({
+            id: String(b.id),
+            title: b.title,
+            description: "Phòng trọ cho thuê trên hệ thống HomeMatch",
+            address: "Hà Nội",
+            ward: "Dịch Vọng",
+            district: "Cầu Giấy",
+            city: "Hà Nội",
+            price: b.price,
+            deposit: b.price,
+            area: 25,
+            roomType: "Chung cư mini" as const,
+            electricityPrice: 3800,
+            waterPrice: 28000,
+            serviceFee: 150000,
+            amenities: ["Điều hòa", "Nóng lạnh", "Máy giặt"],
+            images: [
+              b.coverImageUrl ||
+                "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
+            ],
+            status: b.status === "Published" ? ("Còn trống" as const) : ("Tạm ngừng" as const),
+            landlordId: "landlord-1",
+            landlordName: "Chủ Nhà HomeMatch",
+            landlordPhone: "0902000002",
+            latitude: 21.034,
+            longitude: 105.793,
+            createdAt: new Date().toISOString(),
+            viewCount: 0,
+            isFeatured: b.isFeatured,
+          }));
+          setAllListings(backendMapped);
           setCompareList(listingService.getCompareList());
           return;
         }
@@ -137,7 +119,7 @@ function ListingsContent() {
         console.warn("Could not fetch public listings from backend", err);
       }
       if (isMounted) {
-        setAllListings(listingService.getAll());
+        setAllListings([]);
         setCompareList(listingService.getCompareList());
       }
     }
@@ -413,9 +395,9 @@ function ListingsContent() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 w-full flex-1">
       {/* Top Search & Actions bar */}
-      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-6 sm:mb-8 flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4">
+      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-6 sm:mb-8 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4">
         <div className="relative w-full md:max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             placeholder="Tìm theo tên đường, quận huyện, trường học..."
@@ -424,15 +406,15 @@ function ListingsContent() {
               setKeyword(e.target.value);
               setPage(1);
             }}
-            className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            className="w-full h-10 pl-10 pr-4 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-2 w-full sm:flex sm:items-center sm:w-auto sm:justify-end">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto justify-end">
           {/* Mobile Filter Button */}
           <button
             onClick={() => setIsMobileFilterOpen(true)}
-            className="col-span-1 lg:hidden flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors"
+            className="h-10 lg:hidden flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors whitespace-nowrap shrink-0"
           >
             <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
             <span>Bộ lọc</span>
@@ -446,7 +428,7 @@ function ListingsContent() {
           {/* Near me button */}
           <button
             onClick={handleNearMe}
-            className="col-span-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200/80 transition-colors"
+            className="h-10 flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200/80 transition-colors whitespace-nowrap shrink-0"
           >
             <Navigation className="w-3.5 h-3.5 text-blue-600 shrink-0" />
             <span className="hidden sm:inline">Tìm phòng gần tôi</span>
@@ -457,7 +439,7 @@ function ListingsContent() {
           <button
             onClick={() => setShowMap(!showMap)}
             className={cn(
-              "col-span-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors",
+              "h-10 flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 rounded-xl text-xs font-bold border transition-colors whitespace-nowrap shrink-0",
               showMap
                 ? "bg-slate-900 text-white border-slate-900"
                 : "bg-white text-slate-700 border-slate-200/80 hover:bg-slate-50"
@@ -469,22 +451,24 @@ function ListingsContent() {
           </button>
 
           {/* View Mode (Only on desktop/tablet where multi-column view actually toggles) */}
-          <div className="hidden sm:flex items-center border border-slate-200 rounded-xl p-0.5 bg-slate-50">
+          <div className="hidden sm:inline-flex items-center h-10 border border-slate-200 rounded-xl p-1 bg-slate-50 shrink-0 gap-0.5">
             <button
               onClick={() => setViewMode("grid")}
               className={cn(
-                "p-1.5 rounded-lg text-slate-600 transition-colors",
+                "h-8 w-8 rounded-lg flex items-center justify-center text-slate-600 transition-colors",
                 viewMode === "grid" && "bg-white text-blue-600 shadow-xs"
               )}
+              title="Xem dạng lưới"
             >
               <Grid className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode("list")}
               className={cn(
-                "p-1.5 rounded-lg text-slate-600 transition-colors",
+                "h-8 w-8 rounded-lg flex items-center justify-center text-slate-600 transition-colors",
                 viewMode === "list" && "bg-white text-blue-600 shadow-xs"
               )}
+              title="Xem dạng danh sách"
             >
               <List className="w-4 h-4" />
             </button>

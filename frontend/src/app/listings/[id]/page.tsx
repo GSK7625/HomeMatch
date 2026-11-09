@@ -137,14 +137,9 @@ export default function ListingDetailPage() {
         }
       }
 
-      // Fallback local
+      // If not found in backend
       if (isMounted) {
-        const localData = listingService.getById(id);
-        if (localData) {
-          setListing(localData);
-          listingService.incrementView(id);
-          setIsFav(listingService.isFavorite(id));
-        }
+        setListing(null);
       }
     }
     loadDetail();
@@ -223,25 +218,11 @@ export default function ListingDetailPage() {
         isVirtualViewing,
       });
 
-      if (!apiRes.isSuccess && apiRes.error && apiRes.error.code !== "HTTP_401" && apiRes.error.code !== "NETWORK_ERROR") {
-        showToast(apiRes.error.message || "Không thể đặt lịch xem phòng.", "error");
+      if (!apiRes.isSuccess) {
+        showToast(apiRes.error?.message || "Không thể đặt lịch xem phòng.", "error");
         setBookingLoading(false);
         return;
       }
-
-      // Sync to local fallback for guest/demo mode
-      viewingService.book({
-        listingId: listing.id,
-        listingTitle: listing.title,
-        listingAddress: listing.address,
-        listingImage: listing.images[0] || "",
-        tenantId: user?.accountId || "demo-tenant-id",
-        tenantName,
-        tenantPhone,
-        landlordId: listing.landlordId,
-        scheduledTime,
-        note,
-      });
 
       setIsBookingOpen(false);
       showToast(

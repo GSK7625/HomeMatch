@@ -67,9 +67,7 @@ export default function LandlordPropertiesPage() {
   const [loading, setLoading] = useState(false);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 
-  // Fallback mock state (khi offline hoặc chưa có nhà trong DB)
-  const [mockRooms, setMockRooms] = useState<PropertyListing[]>([]);
-  const [editingMockRoom, setEditingMockRoom] = useState<PropertyListing | null>(null);
+  // Properties & Rooms state
 
   // Modals
   const [isCreatePropOpen, setIsCreatePropOpen] = useState(false);
@@ -138,24 +136,33 @@ export default function LandlordPropertiesPage() {
     setLoading(true);
     const token = getStoredToken();
     if (!token) {
-      setMockRooms(listingService.getAll());
+      setProperties([]);
+      setRooms([]);
+      setIsBackendConnected(false);
       setLoading(false);
       return;
     }
 
     try {
       const res = await propertiesApi.getMyProperties();
-      if (res.isSuccess && res.data && res.data.length > 0) {
+      if (res.isSuccess && res.data) {
         setProperties(res.data);
         setIsBackendConnected(true);
-        setSelectedPropertyId((prev) => (prev ? prev : res.data![0].id));
+        if (res.data.length > 0) {
+          setSelectedPropertyId((prev) => (prev && res.data!.some((p) => p.id === prev) ? prev : res.data![0].id));
+        } else {
+          setSelectedPropertyId(null);
+          setRooms([]);
+        }
       } else {
-        setIsBackendConnected(false);
-        setMockRooms(listingService.getAll());
+        setProperties([]);
+        setSelectedPropertyId(null);
+        setRooms([]);
       }
     } catch {
-      setIsBackendConnected(false);
-      setMockRooms(listingService.getAll());
+      setProperties([]);
+      setSelectedPropertyId(null);
+      setRooms([]);
     } finally {
       setLoading(false);
     }
@@ -298,12 +305,6 @@ export default function LandlordPropertiesPage() {
     }
   };
 
-  // Fallback Mock handlers
-  const handleMockStatusChange = (id: string, newStatus: RoomStatus) => {
-    listingService.update(id, { status: newStatus });
-    setMockRooms(listingService.getAll());
-    showToast(`Đã chuyển trạng thái phòng sang "${newStatus}"!`, "success");
-  };
 
   const selectedProperty = properties.find((p) => p.id === selectedPropertyId);
 
@@ -498,107 +499,23 @@ export default function LandlordPropertiesPage() {
           </table>
         </div>
       ) : (
-        /* Fallback Mock View */
-        <div className="space-y-4">
-          <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 flex items-center justify-between text-xs text-amber-800">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>
-                Đang hiển thị phòng từ bộ nhớ tạm. Bấm <strong>&quot;Thêm Tòa Nhà / Dãy Trọ&quot;</strong> để kết nối dữ liệu thật trên cơ sở dữ liệu PostgreSQL!
-              </span>
-            </div>
-            <button
-              onClick={() => setIsCreatePropOpen(true)}
-              className="px-3 py-1.5 rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700"
-            >
-              Tạo Tòa Nhà
-            </button>
+        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center max-w-2xl mx-auto space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+            <Building2 className="w-8 h-8" />
           </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse min-w-[800px]">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500 uppercase tracking-wider">
-                  <th className="p-4">Hình ảnh & Tên phòng</th>
-                  <th className="p-4">Khu vực</th>
-                  <th className="p-4">Giá thuê / tháng</th>
-                  <th className="p-4">Biểu phí điện / nước</th>
-                  <th className="p-4">Trạng thái hiện tại</th>
-                  <th className="p-4 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {mockRooms.map((room) => (
-                  <tr key={room.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={room.images[0]}
-                          alt={room.title}
-                          className="w-14 h-10 rounded-lg object-cover bg-slate-100 shrink-0"
-                        />
-                        <div className="max-w-xs">
-                          <h4 className="font-bold text-slate-900 line-clamp-1">{room.title}</h4>
-                          <span className="text-[11px] text-slate-400">
-                            {room.roomType} • {room.area} m²
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4 font-medium text-slate-700">
-                      {room.district}, {room.city}
-                    </td>
-                    <td className="p-4 font-black text-blue-600 text-sm">
-                      {room.price.toLocaleString()} đ
-                    </td>
-                    <td className="p-4 text-slate-600 space-y-0.5 text-[11px]">
-                      <div>Điện: {room.electricityPrice.toLocaleString()} đ/kWh</div>
-                      <div>Nước: {room.waterPrice.toLocaleString()} đ/m³</div>
-                    </td>
-                    <td className="p-4">
-                      <select
-                        value={room.status}
-                        onChange={(e) =>
-                          handleMockStatusChange(room.id, e.target.value as RoomStatus)
-                        }
-                        className={cn(
-                          "px-3 py-1.5 rounded-xl text-xs font-bold border focus:outline-none cursor-pointer",
-                          room.status === "Còn trống" &&
-                            "bg-emerald-50 text-emerald-700 border-emerald-300",
-                          room.status === "Đã thuê" &&
-                            "bg-slate-100 text-slate-700 border-slate-300",
-                          room.status === "Tạm ngừng" &&
-                            "bg-rose-50 text-rose-700 border-rose-300"
-                        )}
-                      >
-                        <option value="Còn trống">Còn trống</option>
-                        <option value="Đã thuê">Đã thuê</option>
-                        <option value="Tạm ngừng">Tạm ngừng</option>
-                      </select>
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setEditingMockRoom(room)}
-                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Chỉnh sửa thông số"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <Link
-                          href={`/listings/${room.id}`}
-                          className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-                          title="Xem trang công khai"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Bạn chưa có tòa nhà / dãy trọ nào</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto leading-relaxed">
+              Bắt đầu số hóa khu trọ của bạn bằng cách thêm tòa nhà đầu tiên, phân chia từng phòng và thiết lập biểu giá điện nước.
+            </p>
           </div>
+          <button
+            onClick={() => setIsCreatePropOpen(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Thêm Tòa Nhà / Dãy Trọ Mới</span>
+          </button>
         </div>
       )}
 

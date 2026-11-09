@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { listingService } from "@/lib/services";
 import { listingsApi, propertiesApi, getStoredToken } from "@/lib/api-client";
 import {
   PropertyListing,
@@ -100,8 +99,6 @@ export default function LandlordListingsPage() {
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Fallback mock listings
-  const [mockListings, setMockListings] = useState<PropertyListing[]>([]);
 
   // Properties & Rooms for dropdown in Create Listing
   const [properties, setProperties] = useState<PropertyDto[]>([]);
@@ -146,23 +143,22 @@ export default function LandlordListingsPage() {
     setLoading(true);
     const token = getStoredToken();
     if (!token) {
-      setMockListings(listingService.getAll());
+      setBackendListings([]);
+      setIsBackendConnected(false);
       setLoading(false);
       return;
     }
 
     try {
       const res = await listingsApi.getMyListings();
-      if (res.isSuccess && res.data && res.data.length > 0) {
+      if (res.isSuccess && res.data) {
         setBackendListings(res.data);
         setIsBackendConnected(true);
       } else {
-        setIsBackendConnected(false);
-        setMockListings(listingService.getAll());
+        setBackendListings([]);
       }
     } catch {
-      setIsBackendConnected(false);
-      setMockListings(listingService.getAll());
+      setBackendListings([]);
     } finally {
       setLoading(false);
     }
@@ -281,16 +277,7 @@ export default function LandlordListingsPage() {
     }
   };
 
-  // Handle Mock Toggle Hide
-  const handleToggleHideMock = (listing: PropertyListing) => {
-    const newStatus = listing.status === "Tạm ngừng" ? "Còn trống" : "Tạm ngừng";
-    listingService.update(listing.id, { status: newStatus });
-    setMockListings(listingService.getAll());
-    showToast(
-      newStatus === "Tạm ngừng" ? "Đã ẩn tin đăng khỏi trang tìm kiếm." : "Đã kích hoạt hiển thị tin đăng!",
-      "info"
-    );
-  };
+
 
   // Create Listing
   const handleCreateListing = async (e: React.FormEvent) => {
@@ -313,7 +300,6 @@ export default function LandlordListingsPage() {
         });
 
         if (res.isSuccess && res.data) {
-          // If image URL is provided, add it
           if (imageUrl) {
             await listingsApi.addImage(res.data.id, {
               imageUrl,
@@ -321,48 +307,26 @@ export default function LandlordListingsPage() {
               sortOrder: 1,
             });
           }
-          // Submit for approval automatically
           await listingsApi.submitListing(res.data.id);
           showToast("Đã tạo tin và gửi kiểm duyệt lên Admin thành công!", "success");
           setIsCreateOpen(false);
           await loadData();
           setSubmitting(false);
           return;
+        } else {
+          showToast(res.error?.message || "Không thể tạo tin đăng.", "error");
+          setSubmitting(false);
+          return;
         }
       } catch (err) {
-        console.warn("Backend create failed, fallback to local", err);
+        showToast("Không thể tạo tin đăng. Vui lòng kiểm tra lại kết nối.", "error");
+        setSubmitting(false);
+        return;
       }
+    } else {
+      showToast("Vui lòng chọn phòng cần tạo tin đăng!", "error");
+      setSubmitting(false);
     }
-
-    // Fallback local create
-    listingService.create({
-      title,
-      description,
-      address,
-      ward: ward || "Dịch Vọng",
-      district,
-      city,
-      price: Number(price),
-      deposit: Number(deposit),
-      area: Number(area),
-      roomType,
-      status: "Còn trống",
-      images: [imageUrl],
-      amenities: selectedAmenities,
-      landlordId: user?.accountId || "landlord-1",
-      landlordName: user?.displayName || "Nguyễn Văn Hoàng (Chủ Trọ)",
-      landlordPhone: user?.phoneNumber || "0902000002",
-      electricityPrice: Number(electricityPrice),
-      waterPrice: Number(waterPrice),
-      serviceFee: Number(serviceFee),
-      latitude: 21.034,
-      longitude: 105.793,
-    });
-
-    setIsCreateOpen(false);
-    setMockListings(listingService.getAll());
-    showToast("Tạo tin đăng cho thuê mới thành công!", "success");
-    setSubmitting(false);
   };
 
   if (!user || user.role === "Tenant") {
@@ -428,7 +392,7 @@ export default function LandlordListingsPage() {
       </div>
 
       {/* Backend Listings Grid */}
-      {isBackendConnected ? (
+      {isBackendConnected && backendListings.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {backendListings.map((item) => {
             const badge = STATUS_BADGES[item.status] || {
@@ -535,84 +499,23 @@ export default function LandlordListingsPage() {
           })}
         </div>
       ) : (
-        /* Fallback Mock Listings */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockListings.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow overflow-hidden flex flex-col justify-between"
-            >
-              <div>
-                <div className="relative aspect-[16/10] bg-slate-100">
-                  <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" />
-                  <div className="absolute top-3 left-3 flex gap-2">
-                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-900/80 text-white">
-                      {item.roomType}
-                    </span>
-                    <span
-                      className={cn(
-                        "px-2.5 py-1 rounded-full text-[11px] font-bold border",
-                        item.status === "Tạm ngừng"
-                          ? "bg-rose-50 text-rose-700 border-rose-200"
-                          : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                      )}
-                    >
-                      {item.status === "Tạm ngừng" ? "Đã ẩn" : "Đang công khai"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-4 space-y-2">
-                  <h3 className="font-bold text-slate-900 text-sm line-clamp-2">{item.title}</h3>
-                  <p className="text-xs text-slate-500 flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>{item.address}</span>
-                  </p>
-
-                  <div className="flex items-center justify-between pt-2 text-xs font-semibold">
-                    <span className="text-blue-600 font-black text-sm">
-                      {item.price.toLocaleString()} đ/tháng
-                    </span>
-                    <span className="text-slate-500">{item.area} m²</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-2">
-                <Link
-                  href={`/listings/${item.id}`}
-                  className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>Xem tin</span>
-                </Link>
-
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => handleToggleHideMock(item)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1",
-                      item.status === "Tạm ngừng"
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                        : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
-                    )}
-                  >
-                    {item.status === "Tạm ngừng" ? (
-                      <>
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>Hiện tin</span>
-                      </>
-                    ) : (
-                      <>
-                        <EyeOff className="w-3.5 h-3.5" />
-                        <span>Ẩn tin</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center max-w-2xl mx-auto space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+            <FileText className="w-8 h-8" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Bạn chưa đăng tin cho thuê nào</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto leading-relaxed">
+              Tạo tin đăng cho thuê phòng để tiếp cận hàng ngàn người thuê tiềm năng trên HomeMatch.
+            </p>
+          </div>
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Đăng Tin Cho Thuê Mới</span>
+          </button>
         </div>
       )}
 

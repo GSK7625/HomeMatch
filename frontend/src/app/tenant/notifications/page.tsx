@@ -20,41 +20,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const DEMO_FALLBACK_NOTIFICATIONS: NotificationDto[] = [
-  {
-    id: 1,
-    userId: 3,
-    title: "Chủ nhà đã xác nhận lịch xem phòng",
-    content: "Chủ nhà Nguyễn Văn Hoàng đã xác nhận lịch hẹn xem phòng Studio Ban Công Quận 7 của bạn.",
-    type: "VIEWING_CONFIRMED",
-    referenceType: "VIEWING_APPOINTMENT",
-    referenceId: 1,
-    isRead: false,
-    createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 2,
-    userId: 3,
-    title: "Tin nhắn mới từ Nguyễn Văn Hoàng (Chủ Trọ)",
-    content: "Dạ phòng hiện vẫn còn trống, bạn có thể ghé xem trực tiếp nhé!",
-    type: "NEW_MESSAGE",
-    referenceType: "CONVERSATION",
-    referenceId: 1,
-    isRead: false,
-    createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 3,
-    userId: 3,
-    title: "Chào mừng bạn đến với HomeMatch",
-    content: "Hệ thống gợi ý phòng trọ và đặt lịch xem phòng miễn phí đã sẵn sàng phục vụ bạn.",
-    type: "SYSTEM",
-    referenceType: null,
-    referenceId: null,
-    isRead: true,
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
 
 function getNotificationMeta(type: string) {
   const upper = (type || "").toUpperCase();

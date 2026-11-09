@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useToast } from "@/components/Toast";
 import { viewingsApi, getStoredToken } from "@/lib/api-client";
-import { viewingService, listingService } from "@/lib/services";
 import { ViewingAppointmentDto, BackendViewingStatus } from "@/types";
 import {
   Calendar,
@@ -59,52 +58,6 @@ const STATUS_BADGES: Record<
   },
 };
 
-function mapLocalMockToDto(): ViewingAppointmentDto[] {
-  const all = viewingService.getAll();
-  const statusMap: Record<string, BackendViewingStatus> = {
-    "Chờ xác nhận": "PENDING",
-    "Đã xác nhận": "CONFIRMED",
-    "Đã hoàn thành": "COMPLETED",
-    "Đã hủy": "CANCELLED",
-  };
-
-  return all.map((m, idx) => {
-    const matchedListing = listingService.getById(m.listingId);
-    const status: BackendViewingStatus = statusMap[m.status] || "PENDING";
-
-    return {
-      id: idx + 1,
-      tenantId: 3,
-      tenantName: m.tenantName || "Trần Bình An",
-      tenantPhone: m.tenantPhone || "0903000003",
-      listingId: parseInt(m.listingId.replace(/\D/g, "") || "1", 10),
-      listingTitle: m.listingTitle || matchedListing?.title || "Phòng trọ cao cấp",
-      listingAddress: m.listingAddress || matchedListing?.address || "Hà Nội",
-      listingPrice: matchedListing?.price || 4200000,
-      listingPrimaryImageUrl: matchedListing?.images?.[0] || m.listingImage || "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600",
-      landlordId: 2,
-      landlordName: "Nguyễn Văn Hoàng (Chủ Trọ)",
-      landlordPhone: "0902000002",
-      appointmentTime: m.scheduledTime,
-      durationMinutes: 30,
-      notes: m.note || "Khách hẹn xem vào buổi chiều.",
-      status,
-      cancelledBy: m.status === "Đã hủy" ? "LANDLORD" : null,
-      cancelledReason: m.status === "Đã hủy" ? "Chủ nhà bận lịch đột xuất" : null,
-      remindAt: null,
-      isReminded: false,
-      virtualViewing: idx % 2 === 1 ? {
-        id: idx + 1,
-        roomUrl: `https://meet.homematch.vn/viewing-${idx + 1}`,
-        status: "WAITING",
-        createdAt: new Date().toISOString(),
-      } : null,
-      createdAt: m.createdAt || new Date().toISOString(),
-      updatedAt: m.createdAt || new Date().toISOString(),
-    };
-  });
-}
-
 export default function LandlordViewingsPage() {
   const { user, role } = useAuth();
   const router = useRouter();
@@ -140,12 +93,8 @@ export default function LandlordViewingsPage() {
         }
       }
 
-      // Demo fallback: only show appointments on landlord's properties
-      const fallback = mapLocalMockToDto().filter((x) =>
-        statusFilter === "ALL" ? true : x.status === statusFilter
-      );
-      setAppointments(fallback);
-      setTotalCount(fallback.length);
+      setAppointments([]);
+      setTotalCount(0);
     } finally {
       setIsLoading(false);
     }
@@ -208,12 +157,7 @@ export default function LandlordViewingsPage() {
         }
       }
 
-      // Local mock fallback
-      viewingService.updateStatus(String(cancelTarget.id), "Đã hủy");
-      showToast("Đã hủy lịch hẹn xem phòng.", "success");
-      setCancelTarget(null);
-      setCancelReason("");
-      await loadAppointments();
+      showToast("Vui lòng đăng nhập lại để thực hiện thao tác.", "error");
     } finally {
       setActionLoadingId(null);
     }

@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/AuthContext";
-import { listingService, leasingService, billingService, viewingService } from "@/lib/services";
-import { LeaseContract, MonthlyBill, PropertyListing } from "@/types";
+import { leasingService, billingService } from "@/lib/services";
+import { propertiesApi, listingsApi } from "@/lib/api-client";
+import { LeaseContract, MonthlyBill, PropertyDto, ListingSummaryDto } from "@/types";
 import {
   Building2,
   Home,
@@ -23,14 +24,22 @@ import { cn } from "@/lib/utils";
 
 export default function LandlordDashboardPage() {
   const { user, role } = useAuth();
-  const [listings, setListings] = useState<PropertyListing[]>([]);
+  const [properties, setProperties] = useState<PropertyDto[]>([]);
+  const [listings, setListings] = useState<ListingSummaryDto[]>([]);
   const [contracts, setContracts] = useState<LeaseContract[]>([]);
   const [bills, setBills] = useState<MonthlyBill[]>([]);
   const [selectedBuilding, setSelectedBuilding] = useState("all");
   const [selectedPeriod, setSelectedPeriod] = useState("11/2026");
 
   useEffect(() => {
-    setListings(listingService.getAll());
+    propertiesApi.getMyProperties().then((res) => {
+      if (res.isSuccess && res.data) setProperties(res.data);
+    }).catch(() => null);
+
+    listingsApi.getMyListings().then((res) => {
+      if (res.isSuccess && res.data) setListings(res.data);
+    }).catch(() => null);
+
     setContracts(leasingService.getAll());
     setBills(billingService.getAll());
   }, []);
@@ -79,11 +88,11 @@ export default function LandlordDashboardPage() {
     );
   }
 
-  // Compute metrics (Section 3.9)
+  // Compute metrics from real data
   const totalRooms = listings.length;
-  const vacantRooms = listings.filter((x) => x.status === "Còn trống").length;
-  const rentedRooms = listings.filter((x) => x.status === "Đã thuê").length;
-  const activeListings = listings.filter((x) => x.status !== "Tạm ngừng").length;
+  const vacantRooms = listings.filter((x) => x.status === "Published").length;
+  const rentedRooms = totalRooms > vacantRooms ? totalRooms - vacantRooms : 0;
+  const activeListings = listings.filter((x) => x.status === "Published").length;
 
   // Financial aggregates
   const totalReceivables = bills.reduce((acc, b) => acc + b.totalDue, 0);
@@ -122,10 +131,12 @@ export default function LandlordDashboardPage() {
               onChange={(e) => setSelectedBuilding(e.target.value)}
               className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50"
             >
-              <option value="all">Tất cả bất động sản</option>
-              <option value="caugiay">Tòa Ngõ 165 Cầu Giấy</option>
-              <option value="dongda">Tòa Đặng Văn Ngữ, Đống Đa</option>
-              <option value="binhthanh">Tòa Điện Biên Phủ, HCM</option>
+              <option value="all">Tất cả bất động sản ({properties.length})</option>
+              {properties.map((p) => (
+                <option key={p.id} value={String(p.id)}>
+                  {p.name} ({p.addressDetail})
+                </option>
+              ))}
             </select>
           </div>
 

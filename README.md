@@ -186,16 +186,26 @@ cd frontend && npm run build
 
 ---
 
-## 5. Quy Trình Phối Hợp Nhóm & CI/CD (Jenkins Git Flow)
+## 5. Quy Trình Phối Hợp Nhóm & CI/CD (GitHub Actions Git Flow)
 
-1. Nhánh `main` là nhánh chính, luôn ở trạng thái ổn định và được bảo vệ (Protected Branch).
-2. Khi phát triển tính năng mới:
-   - Tạo nhánh theo cú pháp: `feature/<module-name>-<task-name>` (ví dụ: `feature/listings-search-filter`, `feature/identity-jwt-login`).
-   - Tạo Pull Request (PR) trỏ vào `main`.
-3. Hệ thống **Jenkins CI** (thông qua `Jenkinsfile`) sẽ tự động kích hoạt để kiểm thử toàn diện:
-   - Restore, build và chạy toàn bộ unit & integration tests cho Solution Backend (.NET 10).
-   - Type-check và build ứng dụng Next.js 15 Frontend (Node.js 22).
-   - Kiểm tra tính hợp lệ của cấu hình Docker Compose.
-4. Sau khi Jenkins Pipeline báo **SUCCESS** (xanh) và có ít nhất 1 thành viên review chấp thuận, tiến hành merge vào `main`.
+Dự án áp dụng mô hình phân nhánh với 2 nhánh trọng yếu: **`dev`** (Môi trường tích hợp/Staging) và **`main`** (Môi trường Production) được kiểm soát chất lượng tự động 100% bằng **GitHub Actions**:
 
-> 📖 **Xem hướng dẫn chi tiết:** [Hướng dẫn thiết lập Jenkins CI & Kích hoạt Webhook](docs/guides/jenkins-setup.md).
+1. **Nhánh `main` (Production):** 
+   - Nhánh chính của sản phẩm, luôn ở trạng thái ổn định và được bảo vệ nghiêm ngặt (Protected Branch).
+   - Khi có commit hoặc Pull Request được merge vào `main`, workflow CD tự động kích hoạt để đóng gói và đẩy Production Docker Images lên **GitHub Container Registry (`ghcr.io`)**.
+2. **Nhánh `dev` (Development / Integration):** 
+   - Nhánh tích hợp tập trung, nơi tập hợp các tính năng mới trước khi đưa lên Production.
+   - Nhánh `dev` được cấu hình kiểm thử tự động liên tục qua GitHub Actions mỗi khi có commit hoặc Pull Request mới.
+3. **Quy trình phát triển tính năng mới:**
+   - Tạo nhánh tính năng từ `dev` theo cú pháp: `feature/<module-name>-<task-name>` (ví dụ: `feature/listings-search-filter`, `feature/identity-jwt-login`).
+   - Khi hoàn thành, tạo Pull Request (PR) trỏ vào nhánh **`dev`** (thay vì trực tiếp vào `main`).
+4. **Cơ chế GitHub Actions CI/CD Pipeline:**
+   - **Continuous Integration (`.github/workflows/ci.yml`):** Chạy đồng thời 3 jobs độc lập trên mọi nhánh (`dev`, `main`, `feature/*`):
+     - `backend-ci`: Restore, build và chạy toàn bộ unit & integration tests cho Backend (.NET 10).
+     - `frontend-ci`: Cài đặt dependencies, type-check và build tối ưu hóa ứng dụng Frontend Next.js 15 (Node.js 22).
+     - `docker-compose-validate`: Kiểm tra tính hợp lệ của cấu hình [compose.yaml](compose.yaml).
+   - **Continuous Delivery (`.github/workflows/cd.yml`):** Khi merge vào `main`, tự động build và push 2 Docker Images (`backend` & `frontend`) lên GitHub Container Registry (`ghcr.io`).
+5. **Quy tắc Merge & Branch Protection:**
+   - Cả 2 nhánh `dev` và `main` đều được bật **Branch Protection Rules**: Bắt buộc toàn bộ các jobs CI phải báo xanh (Passed) và có ít nhất 1 thành viên review chấp thuận thì nút Merge trên GitHub mới được mở.
+
+> 📖 **Xem hướng dẫn chi tiết:** [Hướng dẫn thiết lập CI/CD Với GitHub Actions & GHCR](docs/guides/github-actions-setup.md).

@@ -88,9 +88,6 @@ export function Navbar() {
   // Tenant / Public navigation (Mục 3.3 & 3.4)
   const tenantNav: NavItem[] = [
     { label: "Tìm phòng", href: "/listings", icon: Search },
-    { label: "Lịch xem", href: "/tenant/viewings", icon: Calendar },
-    { label: "Phòng đã xem", href: "/tenant/viewed-listings", icon: Eye },
-    { label: "Tổng quan", href: "/tenant/dashboard", icon: FileText },
   ];
 
   // Landlord dedicated navigation
@@ -207,20 +204,22 @@ export function Navbar() {
               </Link>
             )}
 
-            {/* Messages Quick Button (Mục 3.3.2) */}
-            <Link
-              href="/messages"
-              className={cn(
-                "hidden lg:flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
-                pathname === "/messages"
-                  ? "text-blue-600 bg-blue-50/80 shadow-xs"
-                  : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
-              )}
-              title="Hộp thư tin nhắn trực tiếp"
-            >
-              <MessageSquare className="w-4 h-4 shrink-0" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
-            </Link>
+            {/* Messages Quick Button (Mục 3.3.2) - Ẩn hoàn toàn với Quản trị viên (Admin) */}
+            {role !== "Admin" && user?.role !== "Admin" && (
+              <Link
+                href="/messages"
+                className={cn(
+                  "hidden lg:flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
+                  pathname === "/messages"
+                    ? "text-blue-600 bg-blue-50/80 shadow-xs"
+                    : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
+                )}
+                title="Hộp thư tin nhắn trực tiếp"
+              >
+                <MessageSquare className="w-4 h-4 shrink-0" />
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
+              </Link>
+            )}
 
             {/* Notifications Bell Dropdown (Mục 3.4.3) */}
             {user && (
@@ -439,49 +438,27 @@ export function Navbar() {
 
                       {/* Direct role dashboard links */}
                       {role === "Landlord" && (
-                        <>
-                          <Link
-                            href="/landlord/dashboard"
-                            onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
-                          >
-                            <Building2 className="w-4 h-4 text-slate-400" />
-                            <span>Kênh quản lý Chủ nhà</span>
-                          </Link>
-                          <Link
-                            href="/landlord/viewings"
-                            onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
-                          >
-                            <Calendar className="w-4 h-4 text-slate-400" />
-                            <span>Lịch hẹn xem phòng của khách</span>
-                          </Link>
-                          <Link
-                            href="/landlord/listings"
-                            onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
-                          >
-                            <FileText className="w-4 h-4 text-slate-400" />
-                            <span>Quản lý tin đăng cho thuê</span>
-                          </Link>
-                          <Link
-                            href="/landlord/properties"
-                            onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
-                          >
-                            <Home className="w-4 h-4 text-slate-400" />
-                            <span>Quản lý phòng trọ & căn hộ</span>
-                          </Link>
-                          <Link
-                            href="/landlord/contracts"
-                            onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
-                          >
-                            <FileText className="w-4 h-4 text-slate-400" />
-                            <span>Hợp đồng & Điện nước</span>
-                          </Link>
-                        </>
+                        <Link
+                          href="/listings"
+                          onClick={() => setUserDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+                        >
+                          <Search className="w-4 h-4 text-slate-400" />
+                          <span>Xem sàn tin (Khám phá phòng)</span>
+                        </Link>
                       )}
+
+                      {role === "Admin" && (
+                        <Link
+                          href="/admin/dashboard"
+                          onClick={() => setUserDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+                        >
+                          <ShieldCheck className="w-4 h-4 text-slate-400" />
+                          <span>Bảng điều khiển Quản trị</span>
+                        </Link>
+                      )}
+
                       {role === "Tenant" && (
                         <>
                           <Link
@@ -510,22 +487,6 @@ export function Navbar() {
                           </Link>
                         </>
                       )}
-
-                      <Link
-                        href="/tenant/notifications"
-                        onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center justify-between px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
-                      >
-                        <span className="flex items-center gap-2.5">
-                          <Bell className="w-4 h-4 text-slate-400" />
-                          <span>Trung tâm thông báo</span>
-                        </span>
-                        {unreadNotifCount > 0 && (
-                          <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-bold">
-                            {unreadNotifCount}
-                          </span>
-                        )}
-                      </Link>
 
                       <Link
                         href="/settings"

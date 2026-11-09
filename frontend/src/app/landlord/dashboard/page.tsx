@@ -146,32 +146,79 @@ export default function LandlordDashboardPage() {
         </div>
       </div>
 
-      {/* 30-Day Contract Expiration Alert (Section 3.7) */}
-      {expiringContracts.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 flex items-start sm:items-center justify-between gap-4 text-amber-900 animate-in fade-in">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5 sm:mt-0">
-              <AlertTriangle className="w-5 h-5" />
+      {/* Quick Action Alerts: Viewing Appointments & Contract Expiration */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Viewing appointments quick card */}
+        <div className="bg-blue-50/80 border border-blue-200/90 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 text-blue-950 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <Calendar className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-bold text-sm text-amber-950">
-                Có {expiringContracts.length} hợp đồng thuê sắp hết hạn trong 30 ngày tới!
+              <h4 className="font-bold text-sm text-blue-950">
+                Lịch Hẹn Xem Phòng Của Khách
               </h4>
-              <p className="text-xs text-amber-800/90 mt-0.5">
-                Vui lòng chủ động liên hệ khách thuê để tái ký hợp đồng mới hoặc lên lịch sẵn sàng tìm
-                khách mới khi phòng trống.
+              <p className="text-xs text-blue-800/80 mt-0.5">
+                Xem yêu cầu đặt lịch cho các phòng của bạn và duyệt lịch hẹn.
               </p>
             </div>
           </div>
-
           <Link
-            href="/landlord/contracts"
-            className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shrink-0 transition-colors shadow-xs"
+            href="/landlord/viewings"
+            className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shrink-0 shadow-xs transition-all flex items-center gap-1"
           >
-            Kiểm tra ngay →
+            <span>Xem lịch</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
-      )}
+
+        {/* 30-Day Contract Expiration Alert (Section 3.7) */}
+        {expiringContracts.length > 0 ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 text-amber-900 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-amber-950">
+                  Có {expiringContracts.length} hợp đồng sắp hết hạn!
+                </h4>
+                <p className="text-xs text-amber-800/90 mt-0.5">
+                  Cần liên hệ gia hạn hoặc chuẩn bị bàn giao phòng.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/landlord/contracts"
+              className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 shadow-xs transition-all"
+            >
+              Xem ngay →
+            </Link>
+          </div>
+        ) : (
+          <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 text-emerald-950 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-emerald-950">
+                  Hợp Đồng Đang Ổn Định
+                </h4>
+                <p className="text-xs text-emerald-800/80 mt-0.5">
+                  Không có hợp đồng nào đến hạn thanh lý trong 30 ngày.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/landlord/contracts"
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shrink-0 shadow-xs transition-all"
+            >
+              Hợp đồng →
+            </Link>
+          </div>
+        )}
+      </div>
 
       {/* 6 Key Operational & Financial Metrics Cards (Section 3.9) */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">

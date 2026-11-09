@@ -224,3 +224,188 @@ export interface SystemReport {
   status: "Chờ xử lý" | "Đã xử lý" | "Đã bác bỏ";
   createdAt: string;
 }
+
+// ============================================================================
+// Backend API DTOs for Mục 3.3 (Viewings & Messaging) & Mục 3.4 (Tenant Overview & Notifications)
+// ============================================================================
+
+export type BackendViewingStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+
+export interface VirtualViewingDto {
+  id: number;
+  roomUrl: string;
+  status: string;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  createdAt: string;
+}
+
+export interface ViewingAppointmentDto {
+  id: number;
+  tenantId: number;
+  tenantName: string;
+  tenantPhone?: string | null;
+  listingId: number;
+  listingTitle: string;
+  listingPrice: number;
+  listingAddress?: string | null;
+  listingPrimaryImageUrl?: string | null;
+  landlordId: number;
+  landlordName: string;
+  landlordPhone?: string | null;
+  appointmentTime: string;
+  durationMinutes: number;
+  notes?: string | null;
+  status: BackendViewingStatus;
+  cancelledBy?: string | null;
+  cancelledReason?: string | null;
+  remindAt?: string | null;
+  isReminded: boolean;
+  virtualViewing?: VirtualViewingDto | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PagedViewingAppointmentsDto {
+  items: ViewingAppointmentDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface BookViewingAppointmentBody {
+  listingId: number;
+  appointmentTime: string;
+  durationMinutes?: number;
+  notes?: string;
+  isVirtualViewing?: boolean;
+}
+
+// Mục 3.3.2: Messaging DTOs
+export interface MessageDto {
+  id: number;
+  conversationId: number;
+  senderId: number;
+  senderName: string;
+  messageType: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface ConversationDto {
+  id: number;
+  conversationType: string;
+  listingId?: number | null;
+  listingTitle?: string | null;
+  listingPrice?: number | null;
+  listingPrimaryImageUrl?: string | null;
+  initiatorId: number;
+  initiatorName: string;
+  recipientId: number;
+  recipientName: string;
+  partnerId: number;
+  partnerName: string;
+  partnerPhone?: string | null;
+  lastMessageContent?: string | null;
+  lastMessageSenderId?: number | null;
+  unreadCount: number;
+  lastMessageAt: string;
+  createdAt: string;
+}
+
+export interface MessageDraftDto {
+  id: number;
+  conversationId: number;
+  authorId: number;
+  source: string;
+  content: string;
+  updatedAt: string;
+}
+
+export interface PagedConversationsDto {
+  items: ConversationDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface PagedMessagesDto {
+  conversation: ConversationDto;
+  items: MessageDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface StartConversationBody {
+  listingId: number;
+  recipientUserId?: number;
+  initialMessage?: string;
+}
+
+export interface SendMessageBody {
+  content: string;
+  messageType?: string;
+}
+
+export interface SaveMessageDraftBody {
+  content: string;
+  source?: string;
+}
+
+// Mục 3.4.3: Notifications DTOs
+export interface NotificationDto {
+  id: number;
+  userId: number;
+  title: string;
+  content: string;
+  type: string;
+  referenceType?: string | null;
+  referenceId?: number | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface PagedNotificationsDto {
+  items: NotificationDto[];
+  unreadCount: number;
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+// Mục 3.4.1 & 3.4.2: Tenant Dashboard & Viewed Listings DTOs
+export interface TenantDashboardSummaryDto {
+  tenantId: number;
+  fullName: string;
+  email: string;
+  phoneNumber?: string | null;
+  totalViewedListings: number;
+  totalSavedListings: number;
+  totalAppointments: number;
+  totalConversations: number;
+}
+
+export interface ViewedListingContractItem {
+  viewId: number;
+  listingId: number;
+  roomId: number;
+  landlordId: number;
+  landlordName: string;
+  title: string;
+  price: number;
+  areaSqm: number;
+  address?: string | null;
+  primaryImageUrl?: string | null;
+  isPublished: boolean;
+  viewedAt: string;
+}
+
+export interface PagedViewedListingsDto {
+  items: ViewedListingContractItem[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+

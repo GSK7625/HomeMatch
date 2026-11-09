@@ -1,11 +1,55 @@
-import { ApiResponse, CurrentUserProfile, HealthCheck, SystemStatus } from "@/types";
+import {
+  ApiResponse,
+  BookViewingAppointmentBody,
+  ConversationDto,
+  CurrentUserProfile,
+  HealthCheck,
+  MessageDraftDto,
+  MessageDto,
+  NotificationDto,
+  PagedConversationsDto,
+  PagedMessagesDto,
+  PagedNotificationsDto,
+  PagedViewedListingsDto,
+  PagedViewingAppointmentsDto,
+  SaveMessageDraftBody,
+  SendMessageBody,
+  StartConversationBody,
+  SystemStatus,
+  TenantDashboardSummaryDto,
+  ViewingAppointmentDto,
+} from "@/types";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL !== undefined && process.env.NEXT_PUBLIC_API_URL !== ""
-    ? process.env.NEXT_PUBLIC_API_URL
-    : process.env.NODE_ENV === "production"
-      ? ""
-      : "http://localhost:5000";
+export const API_BASE = (() => {
+  const configuredUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (typeof window !== "undefined") {
+    const isLocalBrowser =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+
+    // Nếu người dùng đang mở trực tiếp trên cổng 3000 ở máy local (Docker hoặc npm run dev)
+    if (isLocalBrowser && window.location.port === "3000") {
+      if (
+        configuredUrl &&
+        (configuredUrl.includes("localhost") || configuredUrl.includes("127.0.0.1"))
+      ) {
+        return configuredUrl;
+      }
+      return `${window.location.protocol}//${window.location.hostname}:5000`;
+    }
+
+    // Nếu truy cập qua Nginx Reverse Proxy (cổng 80 / 443) trên localhost hoặc domain
+    if (isLocalBrowser && window.location.port === "") {
+      return "";
+    }
+  }
+
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  return process.env.NODE_ENV === "production" ? "" : "http://localhost:5000";
+})();
 
 let csrfTokenCache: string | null = null;
 let csrfPromise: Promise<string | null> | null = null;
@@ -333,3 +377,190 @@ export const authApi = {
     });
   },
 };
+
+/**
+ * Helper to convert listing IDs like "lst-001", "lst-002", or "101" into a valid numeric ListingId (> 0)
+ */
+export function parseListingNumericId(rawId: string | number | undefined | null): number {
+  if (typeof rawId === "number" && Number.isFinite(rawId) && rawId > 0) {
+    return Math.floor(rawId);
+  }
+  if (typeof rawId === "string") {
+    const digits = rawId.replace(/\D+/g, "");
+    const parsed = parseInt(digits, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return 1;
+}
+
+// ============================================================================
+// Mục 3.3.1: Viewings Module API (/api/v1/viewings/appointments)
+// ============================================================================
+export const viewingsApi = {
+  getAppointments: async (params?: {
+    status?: string;
+    roleView?: "TENANT" | "LANDLORD";
+    page?: number;
+    pageSize?: number;
+  }) => {
+    const search = new URLSearchParams();
+    if (params?.status && params.status !== "ALL") search.set("status", params.status);
+    if (params?.roleView) search.set("roleView", params.roleView);
+    if (params?.page) search.set("page", String(params.page));
+    if (params?.pageSize) search.set("pageSize", String(params.pageSize));
+    const queryString = search.toString();
+    return apiRequest<PagedViewingAppointmentsDto>(
+      `/api/v1/viewings/appointments${queryString ? `?${queryString}` : ""}`,
+      { method: "GET" }
+    );
+  },
+
+  getById: async (id: number) => {
+    return apiRequest<ViewingAppointmentDto>(`/api/v1/viewings/appointments/${id}`, {
+      method: "GET",
+    });
+  },
+
+  bookAppointment: async (payload: BookViewingAppointmentBody) => {
+    return apiRequest<ViewingAppointmentDto>("/api/v1/viewings/appointments", {
+      method: "POST",
+      body: JSON.stringify({
+        listingId: payload.listingId,
+        appointmentTime: payload.appointmentTime,
+        durationMinutes: payload.durationMinutes ?? 30,
+        notes: payload.notes || null,
+        isVirtualViewing: payload.isVirtualViewing ?? false,
+      }),
+    });
+  },
+
+  confirmAppointment: async (id: number, virtualRoomUrl?: string) => {
+    return apiRequest<ViewingAppointmentDto>(`/api/v1/viewings/appointments/${id}/confirm`, {
+      method: "PATCH",
+      body: JSON.stringify({ virtualRoomUrl: virtualRoomUrl || null }),
+    });
+  },
+
+  cancelAppointment: async (id: number, reason?: string) => {
+    return apiRequest<ViewingAppointmentDto>(`/api/v1/viewings/appointments/${id}/cancel`, {
+      method: "PATCH",
+      body: JSON.stringify({ reason: reason || null }),
+    });
+  },
+
+  completeAppointment: async (id: number) => {
+    return apiRequest<ViewingAppointmentDto>(`/api/v1/viewings/appointments/${id}/complete`, {
+      method: "PATCH",
+    });
+  },
+};
+
+// ============================================================================
+// Mục 3.3.2: Messaging Module API (/api/v1/messaging/conversations)
+// ============================================================================
+export const messagingApi = {
+  getConversations: async (page = 1, pageSize = 20) => {
+    return apiRequest<PagedConversationsDto>(
+      `/api/v1/messaging/conversations?page=${page}&pageSize=${pageSize}`,
+      { method: "GET" }
+    );
+  },
+
+  startOrGetConversation: async (payload: StartConversationBody) => {
+    return apiRequest<ConversationDto>("/api/v1/messaging/conversations", {
+      method: "POST",
+      body: JSON.stringify({
+        listingId: payload.listingId,
+        recipientUserId: payload.recipientUserId ?? null,
+        initialMessage: payload.initialMessage || null,
+      }),
+    });
+  },
+
+  getMessages: async (conversationId: number, page = 1, pageSize = 50) => {
+    return apiRequest<PagedMessagesDto>(
+      `/api/v1/messaging/conversations/${conversationId}/messages?page=${page}&pageSize=${pageSize}`,
+      { method: "GET" }
+    );
+  },
+
+  sendMessage: async (conversationId: number, payload: SendMessageBody) => {
+    return apiRequest<MessageDto>(`/api/v1/messaging/conversations/${conversationId}/messages`, {
+      method: "POST",
+      body: JSON.stringify({
+        content: payload.content,
+        messageType: payload.messageType || "TEXT",
+      }),
+    });
+  },
+
+  markConversationRead: async (conversationId: number) => {
+    return apiRequest<{ conversationId: number; markedReadCount: number }>(
+      `/api/v1/messaging/conversations/${conversationId}/read`,
+      { method: "PATCH" }
+    );
+  },
+
+  saveDraft: async (conversationId: number, payload: SaveMessageDraftBody) => {
+    return apiRequest<MessageDraftDto>(
+      `/api/v1/messaging/conversations/${conversationId}/draft`,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          content: payload.content,
+          source: payload.source || "MANUAL",
+        }),
+      }
+    );
+  },
+};
+
+// ============================================================================
+// Mục 3.4.3: Notifications Module API (/api/v1/notifications)
+// ============================================================================
+export const notificationsApi = {
+  getNotifications: async (params?: { isRead?: boolean; page?: number; pageSize?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.isRead !== undefined) search.set("isRead", String(params.isRead));
+    if (params?.page) search.set("page", String(params.page));
+    if (params?.pageSize) search.set("pageSize", String(params.pageSize));
+    const queryString = search.toString();
+    return apiRequest<PagedNotificationsDto>(
+      `/api/v1/notifications${queryString ? `?${queryString}` : ""}`,
+      { method: "GET" }
+    );
+  },
+
+  markAsRead: async (id: number) => {
+    return apiRequest<NotificationDto>(`/api/v1/notifications/${id}/read`, {
+      method: "PATCH",
+    });
+  },
+
+  markAllAsRead: async () => {
+    return apiRequest<{ markedReadCount: number }>("/api/v1/notifications/read-all", {
+      method: "PATCH",
+    });
+  },
+};
+
+// ============================================================================
+// Mục 3.4.1 & 3.4.2: Tenant Overview API (/api/v1/identity/tenant/*)
+// ============================================================================
+export const tenantOverviewApi = {
+  getDashboard: async () => {
+    return apiRequest<TenantDashboardSummaryDto>("/api/v1/identity/tenant/dashboard", {
+      method: "GET",
+    });
+  },
+
+  getViewedListings: async (page = 1, pageSize = 20) => {
+    return apiRequest<PagedViewedListingsDto>(
+      `/api/v1/identity/tenant/viewed-listings?page=${page}&pageSize=${pageSize}`,
+      { method: "GET" }
+    );
+  },
+};
+

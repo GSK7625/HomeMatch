@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/features/auth/AuthContext";
 import { listingService } from "@/lib/services";
 import { fetchHealth } from "@/lib/api-client";
 import { PropertyListing, HealthCheck } from "@/types";
@@ -41,8 +42,15 @@ const QUICK_LOCATIONS = [
 
 export default function HomePage() {
   const router = useRouter();
+  const { role } = useAuth();
   const [listings, setListings] = useState<PropertyListing[]>([]);
   const [health, setHealth] = useState<HealthCheck | null>(null);
+
+  useEffect(() => {
+    if (role === "Landlord") {
+      router.replace("/landlord/dashboard");
+    }
+  }, [role, router]);
 
   // Search State
   const [activeCategoryTab, setActiveCategoryTab] = useState<string>("all");
@@ -81,6 +89,19 @@ export default function HomePage() {
   // Computed landlord projected income
   const monthlyRevenue = calcRooms * calcRent * 0.95; // 95% occupancy rate
   const annualRevenue = monthlyRevenue * 12;
+
+  if (role === "Landlord") {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-8">
+        <div className="text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto animate-pulse shadow-xs">
+            <Building className="w-6 h-6" />
+          </div>
+          <p className="text-xs font-bold text-slate-700">Đang chuyển đến Kênh Quản Lý Dành Cho Chủ Nhà...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-16 pb-20">

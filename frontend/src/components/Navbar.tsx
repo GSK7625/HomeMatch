@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
 import { listingService } from "@/lib/services";
+import { getStoredToken, notificationsApi } from "@/lib/api-client";
+import { NotificationDto } from "@/types";
 import {
   Home,
   Search,
@@ -22,10 +24,11 @@ import {
   Menu,
   X,
   PlusCircle,
-  HelpCircle,
-  Sparkles,
   Loader2,
   Laptop,
+  Bell,
+  Eye,
+  CheckCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,12 +40,29 @@ interface NavItem {
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, role, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [favCount, setFavCount] = useState(0);
   const [compareCount, setCompareCount] = useState(0);
+  const [notifications, setNotifications] = useState<NotificationDto[]>([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+
+  const fetchNotificationsSummary = useCallback(async () => {
+    if (!user || !getStoredToken()) {
+      setNotifications([]);
+      setUnreadNotifCount(0);
+      return;
+    }
+    const res = await notificationsApi.getNotifications({ page: 1, pageSize: 6 });
+    if (res.isSuccess && res.data) {
+      setNotifications(res.data.items);
+      setUnreadNotifCount(res.data.unreadCount);
+    }
+  }, [user]);
 
   useEffect(() => {
     const updateCounters = () => {
@@ -54,16 +74,23 @@ export function Navbar() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    fetchNotificationsSummary();
+    const notifInterval = setInterval(fetchNotificationsSummary, 15000);
+    return () => clearInterval(notifInterval);
+  }, [fetchNotificationsSummary, pathname]);
+
   // Guest navigation
   const guestNav: NavItem[] = [
     { label: "Tìm phòng", href: "/listings", icon: Search },
   ];
 
-  // Tenant / Public navigation
+  // Tenant / Public navigation (Mục 3.3 & 3.4)
   const tenantNav: NavItem[] = [
     { label: "Tìm phòng", href: "/listings", icon: Search },
     { label: "Lịch xem", href: "/tenant/viewings", icon: Calendar },
-    { label: "Hợp đồng", href: "/tenant/dashboard", icon: FileText },
+    { label: "Phòng đã xem", href: "/tenant/viewed-listings", icon: Eye },
+    { label: "Tổng quan", href: "/tenant/dashboard", icon: FileText },
   ];
 
   // Landlord dedicated navigation
@@ -71,6 +98,7 @@ export function Navbar() {
     { label: "Tổng quan", href: "/landlord/dashboard", icon: Building2 },
     { label: "Phòng trọ", href: "/landlord/properties", icon: Home },
     { label: "Tin đăng", href: "/landlord/listings", icon: FileText },
+    { label: "Lịch xem phòng", href: "/landlord/viewings", icon: Calendar },
     { label: "Hợp đồng", href: "/landlord/contracts", icon: FileText },
     { label: "Điện nước", href: "/landlord/utilities", icon: Zap },
   ];
@@ -95,7 +123,10 @@ export function Navbar() {
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-3 sm:gap-4">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 shrink-0 group">
+          <Link
+            href={role === "Landlord" ? "/landlord/dashboard" : "/"}
+            className="flex items-center gap-2 shrink-0 group"
+          >
             <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-lg shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform">
               <Home className="w-4.5 h-4.5" />
             </div>
@@ -176,7 +207,7 @@ export function Navbar() {
               </Link>
             )}
 
-            {/* Messages Quick Button */}
+            {/* Messages Quick Button (Mục 3.3.2) */}
             <Link
               href="/messages"
               className={cn(
@@ -185,11 +216,150 @@ export function Navbar() {
                   ? "text-blue-600 bg-blue-50/80 shadow-xs"
                   : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
               )}
-              title="Hộp thư tin nhắn"
+              title="Hộp thư tin nhắn trực tiếp"
             >
               <MessageSquare className="w-4 h-4 shrink-0" />
               <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
             </Link>
+
+            {/* Notifications Bell Dropdown (Mục 3.4.3) */}
+            {user && (
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotifDropdownOpen(!notifDropdownOpen);
+                    if (!notifDropdownOpen) fetchNotificationsSummary();
+                  }}
+                  className={cn(
+                    "flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
+                    pathname === "/tenant/notifications" || notifDropdownOpen
+                      ? "text-blue-600 bg-blue-50/80 shadow-xs"
+                      : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
+                  )}
+                  title="Thông báo tài khoản"
+                >
+                  <Bell className="w-4 h-4 shrink-0" />
+                  {unreadNotifCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                      {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                    </span>
+                  )}
+                </button>
+
+                {notifDropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setNotifDropdownOpen(false)}
+                    />
+                    <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95">
+                      <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-slate-900">
+                            Thông báo của bạn
+                          </span>
+                          {unreadNotifCount > 0 && (
+                            <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 text-[10px] font-bold">
+                              {unreadNotifCount} mới
+                            </span>
+                          )}
+                        </div>
+                        {unreadNotifCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await notificationsApi.markAllAsRead();
+                              setUnreadNotifCount(0);
+                              setNotifications((prev) =>
+                                prev.map((n) => ({ ...n, isRead: true }))
+                              );
+                            }}
+                            className="text-[11px] font-bold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
+                          >
+                            <CheckCheck className="w-3 h-3" />
+                            <span>Đọc tất cả</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                        {notifications.length === 0 ? (
+                          <div className="p-6 text-center text-xs text-slate-400">
+                            Bạn chưa có thông báo mới nào.
+                          </div>
+                        ) : (
+                          notifications.map((n) => (
+                            <button
+                              key={n.id}
+                              type="button"
+                              onClick={async () => {
+                                if (!n.isRead) {
+                                  await notificationsApi.markAsRead(n.id);
+                                  setUnreadNotifCount((prev) => Math.max(0, prev - 1));
+                                }
+                                setNotifDropdownOpen(false);
+                                const t = (n.type || "").toUpperCase();
+                                if (t.includes("VIEWING")) {
+                                  router.push(role === "Landlord" ? "/landlord/viewings" : "/tenant/viewings");
+                                } else if (t.includes("MESSAGE")) {
+                                  router.push(
+                                    n.referenceId
+                                      ? `/messages?conversationId=${n.referenceId}`
+                                      : "/messages"
+                                  );
+                                } else {
+                                  router.push("/tenant/notifications");
+                                }
+                              }}
+                              className={cn(
+                                "w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors flex items-start gap-2.5",
+                                !n.isRead ? "bg-blue-50/40" : ""
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "w-2 h-2 rounded-full mt-1.5 shrink-0",
+                                  !n.isRead ? "bg-blue-600" : "bg-slate-200"
+                                )}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p
+                                  className={cn(
+                                    "text-xs truncate",
+                                    !n.isRead
+                                      ? "font-bold text-slate-900"
+                                      : "font-medium text-slate-700"
+                                  )}
+                                >
+                                  {n.title}
+                                </p>
+                                <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">
+                                  {n.content}
+                                </p>
+                                <span className="text-[10px] text-slate-400 block mt-1">
+                                  {new Date(n.createdAt).toLocaleString("vi-VN")}
+                                </span>
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+
+                      <div className="px-4 pt-2 pb-1 border-t border-slate-100 text-center">
+                        <Link
+                          href="/tenant/notifications"
+                          onClick={() => setNotifDropdownOpen(false)}
+                          className="text-xs font-bold text-blue-600 hover:text-blue-700 block py-1"
+                        >
+                          Xem tất cả thông báo →
+                        </Link>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="h-5 w-px bg-slate-200 hidden sm:block mx-0.5" />
 
@@ -269,25 +439,93 @@ export function Navbar() {
 
                       {/* Direct role dashboard links */}
                       {role === "Landlord" && (
-                        <Link
-                          href="/landlord/dashboard"
-                          onClick={() => setUserDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
-                        >
-                          <Building2 className="w-4 h-4 text-slate-400" />
-                          <span>Kênh quản lý Chủ nhà</span>
-                        </Link>
+                        <>
+                          <Link
+                            href="/landlord/dashboard"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+                          >
+                            <Building2 className="w-4 h-4 text-slate-400" />
+                            <span>Kênh quản lý Chủ nhà</span>
+                          </Link>
+                          <Link
+                            href="/landlord/viewings"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+                          >
+                            <Calendar className="w-4 h-4 text-slate-400" />
+                            <span>Lịch hẹn xem phòng của khách</span>
+                          </Link>
+                          <Link
+                            href="/landlord/listings"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+                          >
+                            <FileText className="w-4 h-4 text-slate-400" />
+                            <span>Quản lý tin đăng cho thuê</span>
+                          </Link>
+                          <Link
+                            href="/landlord/properties"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+                          >
+                            <Home className="w-4 h-4 text-slate-400" />
+                            <span>Quản lý phòng trọ & căn hộ</span>
+                          </Link>
+                          <Link
+                            href="/landlord/contracts"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+                          >
+                            <FileText className="w-4 h-4 text-slate-400" />
+                            <span>Hợp đồng & Điện nước</span>
+                          </Link>
+                        </>
                       )}
                       {role === "Tenant" && (
-                        <Link
-                          href="/tenant/dashboard"
-                          onClick={() => setUserDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
-                        >
-                          <FileText className="w-4 h-4 text-slate-400" />
-                          <span>Phòng thuê & Hợp đồng</span>
-                        </Link>
+                        <>
+                          <Link
+                            href="/tenant/dashboard"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+                          >
+                            <FileText className="w-4 h-4 text-slate-400" />
+                            <span>Dashboard tìm phòng & Hợp đồng</span>
+                          </Link>
+                          <Link
+                            href="/tenant/viewings"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+                          >
+                            <Calendar className="w-4 h-4 text-slate-400" />
+                            <span>Quản lý lịch xem phòng</span>
+                          </Link>
+                          <Link
+                            href="/tenant/viewed-listings"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+                          >
+                            <Eye className="w-4 h-4 text-slate-400" />
+                            <span>Danh sách phòng đã xem</span>
+                          </Link>
+                        </>
                       )}
+
+                      <Link
+                        href="/tenant/notifications"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center justify-between px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+                      >
+                        <span className="flex items-center gap-2.5">
+                          <Bell className="w-4 h-4 text-slate-400" />
+                          <span>Trung tâm thông báo</span>
+                        </span>
+                        {unreadNotifCount > 0 && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-bold">
+                            {unreadNotifCount}
+                          </span>
+                        )}
+                      </Link>
 
                       <Link
                         href="/settings"

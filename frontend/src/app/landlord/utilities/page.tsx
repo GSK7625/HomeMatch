@@ -56,12 +56,26 @@ export default function LandlordUtilitiesPage() {
 
   // Tariff Edit Form State
   const [formElecPrice, setFormElecPrice] = useState(3800);
+  const [formElecMethod, setFormElecMethod] = useState("PER_KWH");
   const [formWaterPrice, setFormWaterPrice] = useState(28000);
+  const [formWaterMethod, setFormWaterMethod] = useState("PER_M3");
   const [formInternetPrice, setFormInternetPrice] = useState(100000);
+  const [formInternetMethod, setFormInternetMethod] = useState("FIXED_PER_MONTH");
   const [formServicePrice, setFormServicePrice] = useState(150000);
+  const [formServiceMethod, setFormServiceMethod] = useState("FIXED_PER_MONTH");
   const [formCleaningPrice, setFormCleaningPrice] = useState(50000);
+  const [formCleaningMethod, setFormCleaningMethod] = useState("FIXED_PER_MONTH");
   const [formParkingPrice, setFormParkingPrice] = useState(100000);
+  const [formParkingMethod, setFormParkingMethod] = useState("FIXED_PER_MONTH");
   const [savingTariffs, setSavingTariffs] = useState(false);
+
+  const CALC_METHOD_LABELS: Record<string, string> = {
+    PER_KWH: "Theo số điện (kWh)",
+    PER_M3: "Theo khối nước (m³)",
+    PER_PERSON: "Theo đầu người / tháng",
+    FIXED_PER_MONTH: "Cố định / phòng / tháng",
+    FREE: "Miễn phí (0đ)",
+  };
 
   const loadData = () => {
     setBills(billingService.getAll());
@@ -107,18 +121,30 @@ export default function LandlordUtilitiesPage() {
         if (e) {
           setElecUnitPrice(e.unitPrice);
           setFormElecPrice(e.unitPrice);
+          setFormElecMethod(e.calcMethod || "PER_KWH");
         }
         if (w) {
           setWaterUnitPrice(w.unitPrice);
           setFormWaterPrice(w.unitPrice);
+          setFormWaterMethod(w.calcMethod || "PER_M3");
         }
-        if (net) setFormInternetPrice(net.unitPrice);
+        if (net) {
+          setFormInternetPrice(net.unitPrice);
+          setFormInternetMethod(net.calcMethod || "FIXED_PER_MONTH");
+        }
         if (s) {
           setServiceFee(s.unitPrice);
           setFormServicePrice(s.unitPrice);
+          setFormServiceMethod(s.calcMethod || "FIXED_PER_MONTH");
         }
-        if (c) setFormCleaningPrice(c.unitPrice);
-        if (p) setFormParkingPrice(p.unitPrice);
+        if (c) {
+          setFormCleaningPrice(c.unitPrice);
+          setFormCleaningMethod(c.calcMethod || "FIXED_PER_MONTH");
+        }
+        if (p) {
+          setFormParkingPrice(p.unitPrice);
+          setFormParkingMethod(p.calcMethod || "FIXED_PER_MONTH");
+        }
       }
     } catch (err) {
       console.warn("Could not load tariffs", err);
@@ -149,12 +175,36 @@ export default function LandlordUtilitiesPage() {
     try {
       const payload = {
         tariffs: [
-          { tariffType: "ELECTRICITY", calcMethod: "PER_KWH", unitPrice: Number(formElecPrice) },
-          { tariffType: "WATER", calcMethod: "PER_M3", unitPrice: Number(formWaterPrice) },
-          { tariffType: "INTERNET", calcMethod: "FIXED_PER_MONTH", unitPrice: Number(formInternetPrice) },
-          { tariffType: "SERVICE", calcMethod: "FIXED_PER_MONTH", unitPrice: Number(formServicePrice) },
-          { tariffType: "CLEANING", calcMethod: "FIXED_PER_MONTH", unitPrice: Number(formCleaningPrice) },
-          { tariffType: "PARKING", calcMethod: "FIXED_PER_MONTH", unitPrice: Number(formParkingPrice) },
+          {
+            tariffType: "ELECTRICITY",
+            calcMethod: formElecMethod,
+            unitPrice: formElecMethod === "FREE" ? 0 : Number(formElecPrice),
+          },
+          {
+            tariffType: "WATER",
+            calcMethod: formWaterMethod,
+            unitPrice: formWaterMethod === "FREE" ? 0 : Number(formWaterPrice),
+          },
+          {
+            tariffType: "INTERNET",
+            calcMethod: formInternetMethod,
+            unitPrice: formInternetMethod === "FREE" ? 0 : Number(formInternetPrice),
+          },
+          {
+            tariffType: "SERVICE",
+            calcMethod: formServiceMethod,
+            unitPrice: formServiceMethod === "FREE" ? 0 : Number(formServicePrice),
+          },
+          {
+            tariffType: "CLEANING",
+            calcMethod: formCleaningMethod,
+            unitPrice: formCleaningMethod === "FREE" ? 0 : Number(formCleaningPrice),
+          },
+          {
+            tariffType: "PARKING",
+            calcMethod: formParkingMethod,
+            unitPrice: formParkingMethod === "FREE" ? 0 : Number(formParkingPrice),
+          },
         ],
       };
       const res = await propertiesApi.setTariffs(selectedPropId, payload);
@@ -437,96 +487,186 @@ export default function LandlordUtilitiesPage() {
           maxWidth="lg"
         >
           <form onSubmit={handleSaveTariffs} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1 flex items-center gap-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Đơn giá Điện (đ/kWh)</span>
+                  <span>Tiền Điện (ELECTRICITY)</span>
                 </label>
+                <select
+                  value={formElecMethod}
+                  onChange={(e) => {
+                    setFormElecMethod(e.target.value);
+                    if (e.target.value === "FREE") setFormElecPrice(0);
+                  }}
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
+                >
+                  {Object.entries(CALC_METHOD_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
                 <input
                   type="number"
                   min={0}
                   required
-                  value={formElecPrice}
+                  disabled={formElecMethod === "FREE"}
+                  value={formElecMethod === "FREE" ? 0 : formElecPrice}
                   onChange={(e) => setFormElecPrice(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold bg-white disabled:bg-slate-100"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1 flex items-center gap-1.5">
+              <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase flex items-center gap-1.5">
                   <Droplet className="w-3.5 h-3.5 text-sky-500" />
-                  <span>Đơn giá Nước (đ/m³)</span>
+                  <span>Tiền Nước (WATER)</span>
                 </label>
+                <select
+                  value={formWaterMethod}
+                  onChange={(e) => {
+                    setFormWaterMethod(e.target.value);
+                    if (e.target.value === "FREE") setFormWaterPrice(0);
+                  }}
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
+                >
+                  {Object.entries(CALC_METHOD_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
                 <input
                   type="number"
                   min={0}
                   required
-                  value={formWaterPrice}
+                  disabled={formWaterMethod === "FREE"}
+                  value={formWaterMethod === "FREE" ? 0 : formWaterPrice}
                   onChange={(e) => setFormWaterPrice(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold bg-white disabled:bg-slate-100"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1 flex items-center gap-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase flex items-center gap-1.5">
                   <Wifi className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>Phí Mạng Internet (đ/tháng)</span>
+                  <span>Mạng Internet (INTERNET)</span>
                 </label>
+                <select
+                  value={formInternetMethod}
+                  onChange={(e) => {
+                    setFormInternetMethod(e.target.value);
+                    if (e.target.value === "FREE") setFormInternetPrice(0);
+                  }}
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
+                >
+                  {Object.entries(CALC_METHOD_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
                 <input
                   type="number"
                   min={0}
                   required
-                  value={formInternetPrice}
+                  disabled={formInternetMethod === "FREE"}
+                  value={formInternetMethod === "FREE" ? 0 : formInternetPrice}
                   onChange={(e) => setFormInternetPrice(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold bg-white disabled:bg-slate-100"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1 flex items-center gap-1.5">
+              <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Phí Dịch Vụ Chung (đ/tháng)</span>
+                  <span>Dịch Vụ Chung (SERVICE)</span>
                 </label>
+                <select
+                  value={formServiceMethod}
+                  onChange={(e) => {
+                    setFormServiceMethod(e.target.value);
+                    if (e.target.value === "FREE") setFormServicePrice(0);
+                  }}
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
+                >
+                  {Object.entries(CALC_METHOD_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
                 <input
                   type="number"
                   min={0}
                   required
-                  value={formServicePrice}
+                  disabled={formServiceMethod === "FREE"}
+                  value={formServiceMethod === "FREE" ? 0 : formServicePrice}
                   onChange={(e) => setFormServicePrice(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold bg-white disabled:bg-slate-100"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Phí Vệ Sinh (đ/tháng)
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase">
+                  Phí Vệ Sinh (CLEANING)
                 </label>
+                <select
+                  value={formCleaningMethod}
+                  onChange={(e) => {
+                    setFormCleaningMethod(e.target.value);
+                    if (e.target.value === "FREE") setFormCleaningPrice(0);
+                  }}
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
+                >
+                  {Object.entries(CALC_METHOD_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
                 <input
                   type="number"
                   min={0}
                   required
-                  value={formCleaningPrice}
+                  disabled={formCleaningMethod === "FREE"}
+                  value={formCleaningMethod === "FREE" ? 0 : formCleaningPrice}
                   onChange={(e) => setFormCleaningPrice(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold bg-white disabled:bg-slate-100"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Phí Gửi Xe (đ/xe/tháng)
+              <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase">
+                  Phí Gửi Xe (PARKING)
                 </label>
+                <select
+                  value={formParkingMethod}
+                  onChange={(e) => {
+                    setFormParkingMethod(e.target.value);
+                    if (e.target.value === "FREE") setFormParkingPrice(0);
+                  }}
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
+                >
+                  {Object.entries(CALC_METHOD_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
                 <input
                   type="number"
                   min={0}
                   required
-                  value={formParkingPrice}
+                  disabled={formParkingMethod === "FREE"}
+                  value={formParkingMethod === "FREE" ? 0 : formParkingPrice}
                   onChange={(e) => setFormParkingPrice(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold bg-white disabled:bg-slate-100"
                 />
               </div>
             </div>

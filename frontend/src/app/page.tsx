@@ -28,7 +28,7 @@ import {
   Award,
   ChevronDown,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, mapListingSummaryToCard } from "@/lib/utils";
 
 const QUICK_LOCATIONS = [
   { label: "Cầu Giấy, HN", city: "Hà Nội", district: "Cầu Giấy" },
@@ -71,36 +71,7 @@ export default function HomePage() {
       .then((res) => {
         if (!isMounted) return;
         if (res.isSuccess && res.data && res.data.length > 0) {
-          const mapped: PropertyListing[] = res.data.map((b) => ({
-            id: String(b.id),
-            title: b.title,
-            description: "Phòng trọ cho thuê trên hệ thống HomeMatch",
-            address: "Hà Nội",
-            ward: "Dịch Vọng",
-            district: "Cầu Giấy",
-            city: "Hà Nội",
-            price: b.price,
-            deposit: b.price,
-            area: 25,
-            roomType: "Chung cư mini" as const,
-            electricityPrice: 3800,
-            waterPrice: 28000,
-            serviceFee: 150000,
-            amenities: ["Điều hòa", "Nóng lạnh", "Máy giặt"],
-            images: [
-              b.coverImageUrl ||
-                "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
-            ],
-            status: b.status === "Published" ? ("Còn trống" as const) : ("Tạm ngừng" as const),
-            landlordId: "landlord-1",
-            landlordName: "Chủ Nhà HomeMatch",
-            landlordPhone: "0902000002",
-            latitude: 21.034,
-            longitude: 105.793,
-            createdAt: new Date().toISOString(),
-            viewCount: 0,
-            isFeatured: b.isFeatured,
-          }));
+          const mapped: PropertyListing[] = res.data.map((b) => mapListingSummaryToCard(b));
           setListings(mapped);
         } else {
           setListings([]);
@@ -165,11 +136,10 @@ export default function HomePage() {
 
         <div className="relative max-w-5xl mx-auto text-center space-y-6">
           {/* Trust Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-blue-200">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Nền tảng thuê phòng & quản lý trọ thông minh số 1</span>
-            <span className="text-white/40">•</span>
-            <span>Bảo chứng 100% phòng thật</span>
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-blue-200 max-w-full">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="hidden sm:inline">Nền tảng thuê phòng số 1 •</span>
+            <span className="truncate">100% phòng thật, không phí môi giới</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight sm:leading-none text-white">
@@ -179,9 +149,8 @@ export default function HomePage() {
             </span>
           </h1>
 
-          <p className="max-w-2xl mx-auto text-sm sm:text-base text-blue-100/80 font-normal leading-relaxed">
-            Không phí môi giới, minh bạch từng số điện nước, đặt lịch xem phòng trực tiếp trong 1 phút
-            và quản lý hợp đồng điện tử bảo vệ tiền cọc.
+          <p className="max-w-xl mx-auto text-xs sm:text-base text-blue-100/80 font-normal leading-relaxed">
+            Thuê phòng trực tiếp từ chủ nhà, minh bạch chi phí và an tâm tiền cọc.
           </p>
 
           {/* Search Box with Tabs */}
@@ -190,11 +159,12 @@ export default function HomePage() {
               {/* Category tabs */}
               <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 border-b border-slate-100 scrollbar-none">
                 {[
-                  { id: "all", label: "Tất cả phòng" },
-                  { id: "Phòng trọ", label: "Phòng trọ sinh viên" },
+                  { id: "all", label: "Tất cả" },
+                  { id: "Phòng trọ", label: "Phòng trọ" },
+                  { id: "Studio", label: "Studio" },
                   { id: "Chung cư mini", label: "Chung cư mini" },
-                  { id: "Căn hộ dịch vụ", label: "Căn hộ dịch vụ" },
-                  { id: "Ở ghép", label: "Tìm người ở ghép" },
+                  { id: "Căn hộ dịch vụ", label: "Căn hộ" },
+                  { id: "Ở ghép", label: "Ở ghép" },
                 ].map((tab) => (
                   <button
                     key={tab.id}

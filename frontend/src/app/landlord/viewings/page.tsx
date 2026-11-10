@@ -74,6 +74,10 @@ export default function LandlordViewingsPage() {
   const [cancelReason, setCancelReason] = useState("");
   const [isRejecting, setIsRejecting] = useState(false);
 
+  // Confirm Viewing Modal (supports virtualRoomUrl for PATCH /api/v1/viewings/appointments/{id}/confirm)
+  const [confirmTarget, setConfirmTarget] = useState<ViewingAppointmentDto | null>(null);
+  const [virtualRoomUrl, setVirtualRoomUrl] = useState("");
+
   const loadAppointments = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
@@ -104,12 +108,17 @@ export default function LandlordViewingsPage() {
     loadAppointments();
   }, [loadAppointments]);
 
-  const handleConfirmViewing = async (item: ViewingAppointmentDto) => {
+  const handleConfirmViewing = async (item: ViewingAppointmentDto, customVirtualUrl?: string) => {
     setActionLoadingId(item.id);
     try {
-      const res = await viewingsApi.confirmAppointment(item.id);
+      const res = await viewingsApi.confirmAppointment(
+        item.id,
+        customVirtualUrl?.trim() || undefined
+      );
       if (res.isSuccess) {
         showToast("Đã xác nhận lịch hẹn! Khách thuê đã nhận được thông báo.", "success");
+        setConfirmTarget(null);
+        setVirtualRoomUrl("");
         await loadAppointments();
       } else {
         showToast(res.error?.message || "Không thể xác nhận lịch hẹn.", "error");
@@ -370,7 +379,7 @@ export default function LandlordViewingsPage() {
 
                   {/* Room Info */}
                   <div>
-                    <Link href={`/listings/lst-00${item.listingId}`} target="_blank">
+                    <Link href={`/listings/${item.listingId}`} target="_blank">
                       <h3 className="font-bold text-slate-900 text-base hover:text-blue-600 transition-colors line-clamp-1">
                         {item.listingTitle}
                       </h3>
@@ -494,7 +503,14 @@ export default function LandlordViewingsPage() {
                       <button
                         type="button"
                         disabled={isBusy}
-                        onClick={() => handleConfirmViewing(item)}
+                        onClick={() => {
+                          if (item.virtualViewing) {
+                            setConfirmTarget(item);
+                            setVirtualRoomUrl(item.virtualViewing.roomUrl || "");
+                          } else {
+                            handleConfirmViewing(item);
+                          }
+                        }}
                         className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors disabled:opacity-50 shadow-xs"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
@@ -536,6 +552,75 @@ export default function LandlordViewingsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Confirm Virtual Viewing Modal */}
+      {confirmTarget && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                  <Video className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    Xác Nhận Lịch Hẹn Video Call
+                  </h3>
+                  <p className="text-xs text-slate-500">Mã lịch hẹn #{confirmTarget.id}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmTarget(null)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleConfirmViewing(confirmTarget, virtualRoomUrl);
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Đường dẫn phòng họp trực tuyến (Google Meet / Zoom / Jitsi):
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://meet.google.com/..."
+                  value={virtualRoomUrl}
+                  onChange={(e) => setVirtualRoomUrl(e.target.value)}
+                  className="w-full text-xs rounded-xl border border-slate-200 p-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  Có thể giữ nguyên đường dẫn tự động hoặc dán link Google Meet/Zoom của bạn.
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmTarget(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  Đóng
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoadingId === confirmTarget.id}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 disabled:opacity-50"
+                >
+                  {actionLoadingId === confirmTarget.id ? "Đang xác nhận..." : "Xác nhận duyệt lịch"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

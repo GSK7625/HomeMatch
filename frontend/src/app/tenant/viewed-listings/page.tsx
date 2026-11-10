@@ -211,7 +211,7 @@ export default function TenantViewedListingsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredAndSorted.map((item) => {
-            const listingSlug = `lst-00${item.listingId <= 3 ? item.listingId : 1}`;
+            const listingSlug = String(item.listingId);
             const defaultImg =
               item.primaryImageUrl ||
               "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80";

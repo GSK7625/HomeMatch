@@ -7,7 +7,7 @@ import { useToast } from "@/components/Toast";
 import { User, Lock, Bell, ShieldCheck, CheckCircle2, AlertCircle, Save, Calendar, Hash } from "lucide-react";
 
 export default function SettingsPage() {
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, logout } = useAuth();
   const { showToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<"profile" | "password" | "notifications">("profile");
@@ -270,6 +270,27 @@ export default function SettingsPage() {
             >
               <Lock className="w-4 h-4" />
               <span>Cập nhật mật khẩu mới</span>
+            </button>
+          </div>
+
+          <div className="pt-5 mt-5 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                Quản lý phiên đăng nhập trên mọi thiết bị
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Thu hồi toàn bộ Refresh Token đang hoạt động trên tất cả các thiết bị và trình duyệt khác.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                await logout(true);
+                showToast("Đã đăng xuất khỏi tất cả các thiết bị!", "success");
+              }}
+              className="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all shrink-0"
+            >
+              Đăng xuất khỏi tất cả thiết bị
             </button>
           </div>
         </form>

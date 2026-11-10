@@ -4,8 +4,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
-import { getStoredToken, parseListingNumericId, viewingsApi } from "@/lib/api-client";
-import { BackendViewingStatus, ViewingAppointmentDto } from "@/types";
+import { getStoredToken, parseListingNumericId, viewingsApi, listingsApi } from "@/lib/api-client";
+import { BackendViewingStatus, ViewingAppointmentDto, ListingSummaryDto } from "@/types";
 import { useToast } from "@/components/Toast";
 import { Modal } from "@/components/Modal";
 import {
@@ -66,6 +66,7 @@ export default function TenantViewingsPage() {
 
   // Book New Viewing Modal
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
+  const [publicListings, setPublicListings] = useState<ListingSummaryDto[]>([]);
   const [selectedListingId, setSelectedListingId] = useState<number>(1);
   const [bookingDate, setBookingDate] = useState(() => {
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -118,6 +119,12 @@ export default function TenantViewingsPage() {
 
   useEffect(() => {
     loadAppointments();
+    listingsApi.getPublicListings(30).then((res) => {
+      if (res.isSuccess && res.data && res.data.length > 0) {
+        setPublicListings(res.data);
+        setSelectedListingId(res.data[0].id);
+      }
+    }).catch(() => null);
   }, [loadAppointments]);
 
   const handleBookAppointment = async (e: React.FormEvent) => {
@@ -264,13 +271,14 @@ export default function TenantViewingsPage() {
             <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
           </button>
 
-          <Link
-            href="/listings"
+          <button
+            type="button"
+            onClick={() => setIsBookModalOpen(true)}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all"
           >
             <Plus className="w-4 h-4" />
             <span>Đặt lịch xem phòng mới</span>
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -386,7 +394,7 @@ export default function TenantViewingsPage() {
 
                   {/* Listing Title & Price */}
                   <div>
-                    <Link href={`/listings/lst-00${item.listingId}`}>
+                    <Link href={`/listings/${item.listingId}`}>
                       <h3 className="font-bold text-slate-900 text-base hover:text-blue-600 transition-colors line-clamp-1">
                         {item.listingTitle}
                       </h3>
@@ -546,15 +554,25 @@ export default function TenantViewingsPage() {
               onChange={(e) => setSelectedListingId(Number(e.target.value))}
               className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-semibold text-slate-800"
             >
-              <option value={1}>
-                Phòng #1 — Studio Ban Công Quận 7 (4.500.000 đ/tháng)
-              </option>
-              <option value={2}>
-                Phòng #2 — Căn Hộ Dịch Vụ Gần ĐH Bách Khoa (5.200.000 đ/tháng)
-              </option>
-              <option value={3}>
-                Phòng #3 — Phòng Trọ Cao Cấp Bình Thạnh (3.800.000 đ/tháng)
-              </option>
+              {publicListings.length > 0 ? (
+                publicListings.map((lst) => (
+                  <option key={lst.id} value={lst.id}>
+                    #{lst.id} — {lst.title} ({lst.price.toLocaleString("vi-VN")} đ/tháng)
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value={1}>
+                    Phòng #1 — Studio Ban Công Quận 7 (4.500.000 đ/tháng)
+                  </option>
+                  <option value={2}>
+                    Phòng #2 — Căn Hộ Dịch Vụ Gần ĐH Bách Khoa (5.200.000 đ/tháng)
+                  </option>
+                  <option value={3}>
+                    Phòng #3 — Phòng Trọ Cao Cấp Bình Thạnh (3.800.000 đ/tháng)
+                  </option>
+                </>
+              )}
             </select>
           </div>
 

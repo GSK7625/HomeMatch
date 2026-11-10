@@ -17,7 +17,7 @@ public sealed class Listing
     /// <summary>Tiêu đề bài viết tin đăng (VD: "Phòng trọ khép kín full đồ ban công thoáng ngõ 165 Cầu Giấy")</summary>
     public string Title { get; set; } = string.Empty;
 
-    /// <summary>Đường dẫn thân thiện SEO (Slug URL, VD: "phong-tro-khep-kin-cau-giay-p201")</summary>
+    /// <summary>Đường dẫn thân thiện SEO (Slug URL, VD: "phong-tro-khep-kin-cau-giay-a8f2c1")</summary>
     public string Slug { get; set; } = string.Empty;
 
     /// <summary>Mô tả chi tiết phòng trọ, tiện ích, quy định giờ giấc</summary>
@@ -32,14 +32,8 @@ public sealed class Listing
     /// <summary>Thời hạn hợp đồng tối thiểu theo tháng (Mặc định: 6 tháng)</summary>
     public int MinLeaseMonths { get; set; } = 6;
 
-    /// <summary>Cho phép nuôi thú cưng hay không (true: Được phép, false: Cấm)</summary>
-    public bool AllowPets { get; set; }
-
-    /// <summary>Có giới nghiêm giờ giấc đóng cổng hay không (true: Có giới nghiêm, false: Tự do giờ giấc)</summary>
-    public bool HasCurfew { get; set; }
-
-    /// <summary>Giờ đóng cửa/giới nghiêm (nếu có, VD: 23:00)</summary>
-    public TimeOnly? CurfewTime { get; set; }
+    /// <summary>Nội quy, quy định phòng trọ (VD: Giờ giấc tự do, cho nuôi thú cưng nhỏ, giữ yên tĩnh sau 23h)</summary>
+    public string? HouseRules { get; set; }
 
     /// <summary>Trạng thái: DRAFT, PENDING_APPROVAL, REJECTED, PUBLISHED, HIDDEN, EXPIRED.</summary>
     public string Status { get; set; } = "DRAFT";
@@ -51,9 +45,6 @@ public sealed class Listing
 
     /// <summary>Tổng lượt xem tin đăng</summary>
     public long ViewCount { get; set; }
-
-    /// <summary>Cờ đánh dấu tin đăng nổi bật được tài trợ / ưu tiên</summary>
-    public bool IsFeatured { get; set; }
 
     /// <summary>Thời điểm công khai tin đăng.</summary>
     public DateTimeOffset? PublishedAt { get; set; }

@@ -82,7 +82,6 @@ public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> op
             {
                 table.HasCheckConstraint("ck_rooms_area", "area_sqm > 0");
                 table.HasCheckConstraint("ck_rooms_max_occupants", "max_occupants > 0");
-                table.HasCheckConstraint("ck_rooms_base_price", "base_price >= 0");
                 table.HasCheckConstraint("ck_rooms_status", "status IN ('AVAILABLE', 'RENTED', 'SUSPENDED')");
                 table.HasCheckConstraint("ck_rooms_type", "room_type IN ('SINGLE', 'STUDIO', '1B1B', '2B1B', 'DORMITORY')");
             });

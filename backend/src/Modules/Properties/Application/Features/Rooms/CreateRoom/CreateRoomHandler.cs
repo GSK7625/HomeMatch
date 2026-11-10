@@ -21,7 +21,7 @@ public sealed class CreateRoomHandler
         if (!await _properties.IsOwnedAsync(command.LandlordId, command.PropertyId, cancellationToken))
             return Result.Failure<RoomResult>(PropertiesErrors.PropertyNotFound);
         var error = RoomValidation.Validate(command.RoomNumber, command.Floor, command.AreaSqm,
-            command.RoomType, command.MaxOccupants, command.BasePrice);
+            command.RoomType, command.MaxOccupants);
         if (error is not null) return Result.Failure<RoomResult>(error);
         var number = command.RoomNumber.Trim();
         if (await _rooms.NumberExistsAsync(command.PropertyId, number, null, cancellationToken))
@@ -44,7 +44,6 @@ public sealed class CreateRoomHandler
             AreaSqm = command.AreaSqm,
             RoomType = command.RoomType,
             MaxOccupants = command.MaxOccupants,
-            BasePrice = command.BasePrice,
             Status = "AVAILABLE",
             AvailableFrom = command.AvailableFrom ?? BusinessDate.Today(),
             CreatedAt = now,

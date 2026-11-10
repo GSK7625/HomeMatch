@@ -13,8 +13,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ListingsDbContext))]
-    [Migration("20261108165743_RequireAdminApproval")]
-    partial class RequireAdminApproval
+    [Migration("20261110070613_RemoveFeaturedAndIndexExpiration")]
+    partial class RemoveFeaturedAndIndexExpiration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -36,21 +36,11 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<bool>("AllowPets")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("allow_pets");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
-
-                    b.Property<TimeOnly?>("CurfewTime")
-                        .HasColumnType("time without time zone")
-                        .HasColumnName("curfew_time");
 
                     b.Property<long>("DepositAmount")
                         .HasColumnType("bigint")
@@ -65,23 +55,10 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
 
-                    b.Property<bool>("HasCurfew")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("has_curfew");
-
-                    b.Property<bool>("IsFeatured")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_featured");
-
-                    b.Property<bool>("IsLegacyPublished")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_legacy_published");
+                    b.Property<string>("HouseRules")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("house_rules");
 
                     b.Property<long>("LandlordId")
                         .HasColumnType("bigint")
@@ -159,6 +136,10 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("ix_listings_published_expires_at")
+                        .HasFilter("status = 'PUBLISHED'");
+
                     b.HasIndex("LandlordId")
                         .HasDatabaseName("ix_listings_landlord_id");
 
@@ -177,11 +158,7 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
 
                     b.ToTable("listings", "listings", t =>
                         {
-                            t.HasCheckConstraint("ck_listings_approval", "status <> 'PUBLISHED' OR is_legacy_published OR (reviewed_by IS NOT NULL AND reviewed_by > 0 AND reviewed_at IS NOT NULL)");
-
                             t.HasCheckConstraint("ck_listings_deposit", "deposit_amount >= 0");
-
-                            t.HasCheckConstraint("ck_listings_legacy", "NOT is_legacy_published OR status = 'PUBLISHED'");
 
                             t.HasCheckConstraint("ck_listings_min_lease", "min_lease_months > 0");
 

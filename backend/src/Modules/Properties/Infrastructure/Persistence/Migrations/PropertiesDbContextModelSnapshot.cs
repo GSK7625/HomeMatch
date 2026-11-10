@@ -223,10 +223,6 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
                         .HasColumnName("available_from")
                         .HasDefaultValueSql("CURRENT_DATE");
 
-                    b.Property<long>("BasePrice")
-                        .HasColumnType("bigint")
-                        .HasColumnName("base_price");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -291,8 +287,6 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
                     b.ToTable("rooms", "properties", t =>
                         {
                             t.HasCheckConstraint("ck_rooms_area", "area_sqm > 0");
-
-                            t.HasCheckConstraint("ck_rooms_base_price", "base_price >= 0");
 
                             t.HasCheckConstraint("ck_rooms_max_occupants", "max_occupants > 0");
 

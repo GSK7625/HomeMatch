@@ -14,6 +14,7 @@ public sealed class ApproveListingHandler(IListingRepository listings, IRoomList
         var listing = await listings.GetByIdAsync(command.ListingId, cancellationToken);
         if (listing is null) return Result.Failure<ListingResult>(ListingsErrors.ListingNotFound);
         if (listing.Status != "PENDING_APPROVAL") return Result.Failure<ListingResult>(ListingsErrors.InvalidStatus);
+        await listings.ExpirePublishedAsync(DateTimeOffset.UtcNow, listing.RoomId, cancellationToken);
         var room = await rooms.GetRoomAsync(listing.RoomId, cancellationToken);
         var coordinates = await listings.GetCoordinatesAsync(listing.Id, cancellationToken);
         var hasRates = await rooms.HasElectricityAndWaterRatesAsync(listing.RoomId, BusinessDate.Today(), cancellationToken);
@@ -27,6 +28,7 @@ public sealed class ApproveListingHandler(IListingRepository listings, IRoomList
         listing.ReviewedAt = now;
         listing.RejectionReason = null;
         listing.PublishedAt = now;
+        listing.ExpiresAt = now.AddDays(30);
         listing.UpdatedAt = now;
         var saved = await listings.SaveChangesAsync(cancellationToken);
         if (saved.IsFailure) return Result.Failure<ListingResult>(saved.Error);

@@ -12,7 +12,7 @@ internal static class PropertyMapping
     /// Đóng gói đối tượng RoomResult kèm danh sách ID tiện ích
     public static RoomResult ToResult(Room room, IReadOnlyList<long> amenityIds) =>
         new(room.Id, room.PropertyId, room.RoomNumber, room.Floor, room.AreaSqm,
-            room.RoomType, room.MaxOccupants, room.BasePrice, room.Status, room.AvailableFrom, amenityIds);
+            room.RoomType, room.MaxOccupants, room.Status, room.AvailableFrom, amenityIds);
 
     public static TariffResult ToResult(UtilityTariff tariff) =>
         new(tariff.Id, tariff.PropertyId, tariff.RoomId, tariff.TariffType,

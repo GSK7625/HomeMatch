@@ -19,9 +19,9 @@ public sealed class ListingImageResult(
 public sealed class ListingResult(
     long id, long roomId, long landlordId, string title, string slug,
     string description, long price, long depositAmount, int minLeaseMonths,
-    bool allowPets, bool hasCurfew, TimeOnly? curfewTime, string status,
+    string? houseRules, string status,
     double? longitude, double? latitude, IReadOnlyList<ListingImageResult> images,
-    bool isFeatured = false, long viewCount = 0, ListingReviewResult? review = null)
+    long viewCount = 0, ListingReviewResult? review = null, DateTimeOffset? expiresAt = null)
 {
     public long Id { get; } = id;
     public long RoomId { get; } = roomId;
@@ -32,11 +32,9 @@ public sealed class ListingResult(
     public long Price { get; } = price;
     public long DepositAmount { get; } = depositAmount;
     public int MinLeaseMonths { get; } = minLeaseMonths;
-    public bool AllowPets { get; } = allowPets;
-    public bool HasCurfew { get; } = hasCurfew;
-    public TimeOnly? CurfewTime { get; } = curfewTime;
+    public string? HouseRules { get; } = houseRules;
     public string Status { get; } = status;
-    public bool IsFeatured { get; } = isFeatured;
+    public DateTimeOffset? ExpiresAt { get; } = expiresAt;
     public long ViewCount { get; } = viewCount;
     public ListingReviewResult? Review { get; } = review;
     public double? Longitude { get; } = longitude;
@@ -45,19 +43,32 @@ public sealed class ListingResult(
 }
 
 
-/// <summary>Result DTO tóm tắt tin đăng (dùng cho danh sách)</summary>
+/// <summary>Result DTO tóm tắt tin đăng (dùng cho danh sách và thẻ tìm kiếm)</summary>
 public sealed class ListingSummaryResult(
     long id, long roomId, string title, string slug, long price,
-    string status, string? coverImageUrl, bool isFeatured = false)
+    string status, string? coverImageUrl,
+    long depositAmount = 0,
+    decimal? areaSqm = null, string? roomType = null,
+    string? districtName = null, string? provinceName = null, string? addressDetail = null,
+    long? electricityPrice = null, long? waterPrice = null,
+    IReadOnlyList<string>? amenities = null)
 {
     public long Id { get; } = id;
     public long RoomId { get; } = roomId;
     public string Title { get; } = title;
     public string Slug { get; } = slug;
     public long Price { get; } = price;
+    public long DepositAmount { get; } = depositAmount;
     public string Status { get; } = status;
-    public bool IsFeatured { get; } = isFeatured;
     public string? CoverImageUrl { get; } = coverImageUrl;
+    public decimal? AreaSqm { get; } = areaSqm;
+    public string? RoomType { get; } = roomType;
+    public string? DistrictName { get; } = districtName;
+    public string? ProvinceName { get; } = provinceName;
+    public string? AddressDetail { get; } = addressDetail;
+    public long? ElectricityPrice { get; } = electricityPrice;
+    public long? WaterPrice { get; } = waterPrice;
+    public IReadOnlyList<string> Amenities { get; } = amenities ?? [];
 }
 
 

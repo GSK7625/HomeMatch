@@ -12,6 +12,9 @@ public sealed class SubmitListingHandler(IListingRepository listings, IRoomListi
     {
         var listing = await listings.GetOwnedAsync(command.LandlordId, command.ListingId, cancellationToken);
         if (listing is null) return Result.Failure<ListingResult>(ListingsErrors.ListingNotFound);
+        if (!ListingPublicationPolicy.CanEdit(listing.Status))
+            return Result.Failure<ListingResult>(ListingsErrors.InvalidStatus);
+        await listings.ExpirePublishedAsync(DateTimeOffset.UtcNow, listing.RoomId, cancellationToken);
         var room = await rooms.GetRoomAsync(listing.RoomId, cancellationToken);
         var coordinates = await listings.GetCoordinatesAsync(listing.Id, cancellationToken);
         var hasRates = await rooms.HasElectricityAndWaterRatesAsync(listing.RoomId, BusinessDate.Today(), cancellationToken);

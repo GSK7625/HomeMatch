@@ -22,9 +22,6 @@ public sealed record CreateRoomRequest
     [Range(1, int.MaxValue)]
     public int MaxOccupants { get; init; }
 
-    [Range(typeof(long), "0", "9223372036854775807")]
-    public long BasePrice { get; init; }
-
     public DateOnly? AvailableFrom { get; init; }
 
     /// <summary>Danh sách ID tiện ích gán cho phòng ngay khi tạo (tùy chọn)</summary>
@@ -48,9 +45,6 @@ public sealed record UpdateRoomRequest
 
     [Range(1, int.MaxValue)]
     public int? MaxOccupants { get; init; }
-
-    [Range(typeof(long), "0", "9223372036854775807")]
-    public long? BasePrice { get; init; }
 
     public DateOnly? AvailableFrom { get; init; }
 

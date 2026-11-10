@@ -10,7 +10,6 @@ public sealed record RoomResponse(
     decimal AreaSqm,
     string RoomType,
     int MaxOccupants,
-    long BasePrice,
     string Status,
     DateOnly AvailableFrom,
     IReadOnlyList<long> AmenityIds)
@@ -24,7 +23,6 @@ public sealed record RoomResponse(
             value.AreaSqm,
             value.RoomType,
             value.MaxOccupants,
-            value.BasePrice,
             value.Status,
             value.AvailableFrom,
             value.AmenityIds);

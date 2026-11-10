@@ -44,9 +44,7 @@ public sealed class ListingsDbContext(DbContextOptions<ListingsDbContext> option
             listing.Property(x => x.Slug).HasMaxLength(300).IsRequired();
             listing.Property(x => x.Description).HasColumnType("text").IsRequired();
             listing.Property(x => x.MinLeaseMonths).HasDefaultValue(6);
-            listing.Property(x => x.AllowPets).HasDefaultValue(false);
-            listing.Property(x => x.HasCurfew).HasDefaultValue(false);
-            listing.Property(x => x.IsFeatured).HasDefaultValue(false);
+            listing.Property(x => x.HouseRules).HasMaxLength(2000).HasColumnName("house_rules");
             listing.Property(x => x.Status).HasMaxLength(20).HasDefaultValue("DRAFT").IsRequired();
             listing.Property(x => x.ViewCount).HasDefaultValue(0L);
             listing.Property(x => x.Revision).HasDefaultValue(1L).IsConcurrencyToken();
@@ -54,6 +52,8 @@ public sealed class ListingsDbContext(DbContextOptions<ListingsDbContext> option
             listing.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
             listing.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
             listing.HasIndex(x => x.Slug).IsUnique().HasDatabaseName("ux_listings_slug");
+            listing.HasIndex(x => x.ExpiresAt).HasFilter("status = 'PUBLISHED'")
+                .HasDatabaseName("ix_listings_published_expires_at");
             listing.HasIndex(x => x.RoomId).IsUnique().HasFilter("status = 'PUBLISHED'")
                 .HasDatabaseName("ux_listings_published_room");
             listing.HasIndex(x => x.LandlordId).HasDatabaseName("ix_listings_landlord_id");

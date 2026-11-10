@@ -26,9 +26,6 @@ public sealed class Room
     /// <summary>Số lượng người ở tối đa cho phép</summary>
     public int MaxOccupants { get; set; } = 2;
 
-    /// <summary>Giá thuê cơ bản hàng tháng (VNĐ)</summary>
-    public long BasePrice { get; set; }
-
     /// <summary>Trạng thái phòng: AVAILABLE (Đang trống), RENTED (Đã cho thuê), SUSPENDED (Tạm dừng cho thuê)</summary>
     public string Status { get; set; } = "AVAILABLE";
 

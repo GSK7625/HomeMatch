@@ -24,7 +24,9 @@ public sealed class CreatePropertyHandler
         var fullAddress = await _properties.GetFullAddressAsync(command.ProvinceCode, command.WardCode,
             command.AddressDetail, cancellationToken);
         if (fullAddress is null) return Result.Failure<PropertyResult>(PropertiesErrors.InvalidAddress);
+
         var location = await _geocoder.FindAsync(fullAddress, cancellationToken);
+
         var now = DateTimeOffset.UtcNow;
         var property = new Property
         {

@@ -8,14 +8,12 @@ public static class ListingsValidation
     private static readonly Regex SlugRegex = new("^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public static Error? ValidateListing(
-        string title, string slug, string description, long price, long deposit,
-        int leaseMonths, bool hasCurfew, TimeOnly? curfewTime)
+        string title, string description, long price, long deposit,
+        int leaseMonths, string? houseRules = null)
     {
         if (string.IsNullOrWhiteSpace(title) || title.Length > 255
-            || string.IsNullOrWhiteSpace(slug) || slug.Length > 300
-            || !SlugRegex.IsMatch(slug)
             || string.IsNullOrWhiteSpace(description) || price <= 0
-            || deposit < 0 || leaseMonths <= 0 || (hasCurfew && curfewTime is null))
+            || deposit < 0 || leaseMonths <= 0 || (houseRules is not null && houseRules.Length > 2000))
         {
             return ListingsErrors.InvalidInput;
         }

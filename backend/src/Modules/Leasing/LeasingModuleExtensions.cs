@@ -2,8 +2,6 @@ using HomeMatch.Modules.Leasing.Application.Commands.ActivateContract;
 using HomeMatch.Modules.Leasing.Application.Commands.CancelContract;
 using HomeMatch.Modules.Leasing.Application.Commands.ConfirmHandover;
 using HomeMatch.Modules.Leasing.Application.Commands.CreateContract;
-using HomeMatch.Modules.Leasing.Application.Commands.MarkContractExpiredPendingHandover;
-using HomeMatch.Modules.Leasing.Application.Commands.MarkHandoverOverdue;
 using HomeMatch.Modules.Leasing.Application.Commands.RecordDepositTransaction;
 using HomeMatch.Modules.Leasing.Application.Commands.RejectContract;
 using HomeMatch.Modules.Leasing.Application.Commands.RequestSignatureOtp;
@@ -61,8 +59,6 @@ public static class LeasingModuleExtensions
         services.AddScoped<RejectContractHandler>();
         services.AddScoped<CancelContractHandler>();
         services.AddScoped<ActivateContractHandler>();
-        services.AddScoped<MarkContractExpiredHandler>();
-        services.AddScoped<MarkHandoverOverdueHandler>();
         services.AddScoped<ConfirmHandoverHandler>();
         services.AddScoped<TerminateContractHandler>();
         services.AddScoped<RecordDepositTransactionHandler>();

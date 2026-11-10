@@ -159,6 +159,7 @@ public static class IdentityModuleExtensions
         });
         services.AddScoped<IIdentityAccountService, IdentityAccountService>();
         services.AddScoped<IIdentityUserReader, IdentityUserReader>();
+        services.AddScoped<IIdentityOtpService, IdentityOtpService>();
         services.TryAddScoped<ITenantListingActivityReader, FallbackTenantListingActivityReader>();
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();

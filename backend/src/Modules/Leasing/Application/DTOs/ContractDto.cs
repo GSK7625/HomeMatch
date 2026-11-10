@@ -1,0 +1,26 @@
+namespace HomeMatch.Modules.Leasing.Application.DTOs;
+
+public sealed record ContractDto(
+    long Id,
+    string ContractCode,
+    long RoomId,
+    long TenantId,
+    long LandlordId,
+    DateOnly StartDate,
+    DateOnly EndDate,
+    long MonthlyRent,
+    long DepositAmount,
+    string DepositStatus,
+    int BillingDueDay,
+    string? ContractFileUrl,
+    string Status,
+    DateTimeOffset? SignatureExpiresAt,
+    DateTimeOffset? LandlordSignedAt,
+    DateTimeOffset? TenantSignedAt,
+    string? SignedDocumentHash,
+    DateTimeOffset? HandoverDueAt,
+    DateTimeOffset? HandoverConfirmedAt,
+    long? HandoverConfirmedBy,
+    DateOnly? ActualOccupancyEndDate,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);

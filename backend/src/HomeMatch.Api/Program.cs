@@ -4,6 +4,7 @@ using HomeMatch.Modules.Identity;
 using HomeMatch.Modules.Identity.Infrastructure.Persistence;
 using HomeMatch.Modules.Identity.Infrastructure.Persistence.Seed;
 using HomeMatch.Modules.Leasing;
+using HomeMatch.Modules.Leasing.Infrastructure.Persistence;
 using HomeMatch.Modules.Listings;
 using HomeMatch.Modules.Listings.Infrastructure.Persistence;
 using HomeMatch.Modules.Messaging;
@@ -138,6 +139,9 @@ using (var scope = app.Services.CreateScope())
 
     var notificationsDb = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
     await notificationsDb.Database.MigrateAsync();
+
+    var leasingDb = scope.ServiceProvider.GetRequiredService<LeasingDbContext>();
+    await leasingDb.Database.MigrateAsync();
 }
 
 app.UseCors("AllowFrontend");

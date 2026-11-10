@@ -90,6 +90,23 @@ const STATUS_BADGES: Record<
   },
 };
 
+function generateListingSlug(title: string, roomId?: number | null): string {
+  const normalized = title
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đĐ]/g, "d")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  const base = normalized || "phong-tro";
+  const roomPart = roomId ? `r${roomId}-` : "";
+  const randomSuffix = Math.random().toString(36).substring(2, 7);
+  const candidate = `${base}-${roomPart}${Date.now().toString(36)}-${randomSuffix}`.replace(/--+/g, "-");
+
+  return candidate.length > 300 ? candidate.slice(0, 300).replace(/-+$/, "") : candidate;
+}
+
 export default function LandlordListingsPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -287,10 +304,14 @@ export default function LandlordListingsPage() {
     if (selectedRoomId) {
       // Create via backend API
       try {
+        const finalTitle = title.trim() || `Phòng cho thuê - ${selectedPropId}`;
+        const finalSlug = generateListingSlug(finalTitle, selectedRoomId);
+
         const res = await listingsApi.createListing({
           roomId: selectedRoomId,
-          title: title || `Phòng cho thuê - ${selectedPropId}`,
-          description: description || "Phòng đầy đủ tiện nghi, an ninh tốt, giờ giấc tự do.",
+          title: finalTitle,
+          slug: finalSlug,
+          description: description.trim() || "Phòng đầy đủ tiện nghi, an ninh tốt, giờ giấc tự do.",
           price: Number(price),
           depositAmount: Number(deposit),
           minLeaseMonths: 6,
@@ -310,11 +331,21 @@ export default function LandlordListingsPage() {
           await listingsApi.submitListing(res.data.id);
           showToast("Đã tạo tin và gửi kiểm duyệt lên Admin thành công!", "success");
           setIsCreateOpen(false);
+          setTitle("");
+          setDescription("");
           await loadData();
           setSubmitting(false);
           return;
         } else {
-          showToast(res.error?.message || "Không thể tạo tin đăng.", "error");
+          const detailMsg = res.error?.details
+            ?.map((d) => (d.field ? `${d.field}: ${d.message}` : d.message))
+            .join(", ");
+          showToast(
+            detailMsg
+              ? `${res.error?.message || "Không thể tạo tin đăng."} (${detailMsg})`
+              : res.error?.message || "Không thể tạo tin đăng.",
+            "error"
+          );
           setSubmitting(false);
           return;
         }

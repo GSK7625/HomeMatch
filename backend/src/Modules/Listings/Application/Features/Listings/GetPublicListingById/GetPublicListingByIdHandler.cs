@@ -11,10 +11,10 @@ public sealed class GetPublicListingByIdHandler(IListingRepository listings, IRo
     public async Task<Result<PublicListingDetailResult>> HandleAsync(GetPublicListingByIdQuery query, CancellationToken cancellationToken = default)
     {
         var listing = await listings.GetByIdAsync(query.ListingId, cancellationToken);
-        if (listing?.Status != "PUBLISHED")
+        if (!ListingPublicationPolicy.IsPublic(listing, DateTimeOffset.UtcNow))
             return Result.Failure<PublicListingDetailResult>(ListingsErrors.ListingNotFound);
 
-        var room = await rooms.GetRoomDetailAsync(listing.RoomId, cancellationToken);
+        var room = await rooms.GetRoomDetailAsync(listing!.RoomId, cancellationToken);
         if (room?.Status != "AVAILABLE")
             return Result.Failure<PublicListingDetailResult>(ListingsErrors.ListingNotFound);
 

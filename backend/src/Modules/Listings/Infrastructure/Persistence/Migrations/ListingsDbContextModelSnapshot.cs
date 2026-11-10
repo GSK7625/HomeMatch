@@ -33,21 +33,11 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<bool>("AllowPets")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("allow_pets");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
-
-                    b.Property<TimeOnly?>("CurfewTime")
-                        .HasColumnType("time without time zone")
-                        .HasColumnName("curfew_time");
 
                     b.Property<long>("DepositAmount")
                         .HasColumnType("bigint")
@@ -62,17 +52,10 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
 
-                    b.Property<bool>("HasCurfew")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("has_curfew");
-
-                    b.Property<bool>("IsFeatured")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_featured");
+                    b.Property<string>("HouseRules")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("house_rules");
 
                     b.Property<long>("LandlordId")
                         .HasColumnType("bigint")
@@ -149,6 +132,10 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
                         .HasColumnName("view_count");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("ix_listings_published_expires_at")
+                        .HasFilter("status = 'PUBLISHED'");
 
                     b.HasIndex("LandlordId")
                         .HasDatabaseName("ix_listings_landlord_id");

@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PropertiesDbContext))]
-    [Migration("20261108075737_RemoveAmenityIconAndCategory")]
-    partial class RemoveAmenityIconAndCategory
+    [Migration("20261110051743_InitialProperties")]
+    partial class InitialProperties
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -226,10 +226,6 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
                         .HasColumnName("available_from")
                         .HasDefaultValueSql("CURRENT_DATE");
 
-                    b.Property<long>("BasePrice")
-                        .HasColumnType("bigint")
-                        .HasColumnName("base_price");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -295,8 +291,6 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_rooms_area", "area_sqm > 0");
 
-                            t.HasCheckConstraint("ck_rooms_base_price", "base_price >= 0");
-
                             t.HasCheckConstraint("ck_rooms_max_occupants", "max_occupants > 0");
 
                             t.HasCheckConstraint("ck_rooms_status", "status IN ('AVAILABLE', 'RENTED', 'SUSPENDED')");
@@ -343,12 +337,6 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
-                    b.Property<DateOnly>("EffectiveFrom")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("date")
-                        .HasColumnName("effective_from")
-                        .HasDefaultValueSql("CURRENT_DATE");
-
                     b.Property<long>("PropertyId")
                         .HasColumnType("bigint")
                         .HasColumnName("property_id");
@@ -371,14 +359,14 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("PropertyId", "RoomId");
 
-                    b.HasIndex("PropertyId", "TariffType", "EffectiveFrom")
+                    b.HasIndex("PropertyId", "TariffType")
                         .IsUnique()
-                        .HasDatabaseName("ux_utility_tariffs_property_type_date")
+                        .HasDatabaseName("ux_utility_tariffs_property_type")
                         .HasFilter("room_id IS NULL");
 
-                    b.HasIndex("RoomId", "TariffType", "EffectiveFrom")
+                    b.HasIndex("RoomId", "TariffType")
                         .IsUnique()
-                        .HasDatabaseName("ux_utility_tariffs_room_type_date")
+                        .HasDatabaseName("ux_utility_tariffs_room_type")
                         .HasFilter("room_id IS NOT NULL");
 
                     b.ToTable("utility_tariffs", "properties", t =>

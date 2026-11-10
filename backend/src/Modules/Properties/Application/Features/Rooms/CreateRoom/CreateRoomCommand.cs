@@ -8,6 +8,5 @@ public sealed record CreateRoomCommand(
     decimal AreaSqm,
     string RoomType,
     int MaxOccupants,
-    long BasePrice,
     DateOnly? AvailableFrom,
     IReadOnlyList<long>? AmenityIds = null);

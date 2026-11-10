@@ -47,3 +47,8 @@ logs/
 # Python-generated cache for documentation diagrams
 __pycache__/
 *.pyc
+
+# Local tooling & MCP artifacts
+.codegraph/
+.postman/
+postman/

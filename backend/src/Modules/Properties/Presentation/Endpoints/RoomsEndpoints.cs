@@ -73,7 +73,6 @@ public static class RoomsEndpoints
             request.AreaSqm,
             request.RoomType,
             request.MaxOccupants,
-            request.BasePrice,
             request.AvailableFrom,
             request.AmenityIds);
         var result = await handler.HandleAsync(command, cancellationToken);
@@ -137,7 +136,6 @@ public static class RoomsEndpoints
             request.AreaSqm,
             request.RoomType,
             request.MaxOccupants,
-            request.BasePrice,
             request.AvailableFrom,
             request.AmenityIds);
         var result = await handler.HandleAsync(command, cancellationToken);

@@ -6,6 +6,7 @@ using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListingById;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListings;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetPublicListingById;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetPublicListings;
+using HomeMatch.Modules.Listings.Application.Features.Listings.SearchListings;
 using HomeMatch.Modules.Listings.Application.Features.Listings.HideListing;
 using HomeMatch.Modules.Listings.Application.Features.Listings.SubmitListing;
 using HomeMatch.Modules.Listings.Application.Features.Moderation.ApproveListing;
@@ -18,6 +19,7 @@ using HomeMatch.Modules.Listings.Application.Features.SavedListings.ToggleSaveLi
 using HomeMatch.Modules.Listings.Application.Interfaces;
 using HomeMatch.Modules.Listings.Infrastructure.Persistence;
 using HomeMatch.Modules.Listings.Infrastructure.Persistence.Repositories;
+using HomeMatch.Modules.Listings.Infrastructure.BackgroundServices;
 using HomeMatch.Modules.Listings.Presentation.Endpoints;
 using HomeMatch.Shared.Contracts;
 using Microsoft.AspNetCore.Builder;
@@ -47,6 +49,7 @@ public static class ListingsModuleExtensions
         });
 
         services.AddScoped<IListingRepository, ListingRepository>();
+        services.AddHostedService<ListingExpirationService>();
         services.AddScoped<IListingImageRepository, ListingImageRepository>();
         services.AddScoped<ISavedListingRepository, SavedListingRepository>();
 
@@ -63,6 +66,7 @@ public static class ListingsModuleExtensions
         services.AddScoped<GetReviewListingHandler>();
         services.AddScoped<HideListingHandler>();
         services.AddScoped<GetPublicListingsHandler>();
+        services.AddScoped<SearchListingsHandler>();
         services.AddScoped<GetPublicListingByIdHandler>();
         services.AddScoped<GetMyListingsHandler>();
         services.AddScoped<GetMyListingByIdHandler>();

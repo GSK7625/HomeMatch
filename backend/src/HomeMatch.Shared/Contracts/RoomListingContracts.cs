@@ -7,17 +7,40 @@ public sealed record RoomListingSnapshot(
     string Status,
     string ProvinceCode,
     string WardCode,
-    string AddressDetail);
+    string AddressDetail,
+    decimal? Latitude = null,
+    decimal? Longitude = null);
 
 public interface IRoomListingReader
 {
+    Task<IReadOnlyList<RoomListingSearchMatch>> SearchAvailableRoomsAsync(
+        RoomListingSearchFilter filter, CancellationToken cancellationToken);
     Task<RoomListingSnapshot?> GetRoomAsync(long roomId, CancellationToken cancellationToken);
     Task<RoomListingDetailSnapshot?> GetRoomDetailAsync(long roomId, CancellationToken cancellationToken);
     Task<IReadOnlyDictionary<long, RoomListingSnapshot>> GetRoomsAsync(
         IReadOnlyCollection<long> roomIds, CancellationToken cancellationToken);
+    Task<IReadOnlyDictionary<long, RoomCardSummary>> GetRoomCardSummariesAsync(
+        IReadOnlyCollection<long> roomIds, CancellationToken cancellationToken);
     Task<bool> HasElectricityAndWaterRatesAsync(
         long roomId, DateOnly date, CancellationToken cancellationToken);
 }
+
+public sealed record RoomCardSummary(
+    long RoomId,
+    string RoomType,
+    decimal AreaSqm,
+    string? DistrictName,
+    string? ProvinceName,
+    string? AddressDetail,
+    long? ElectricityPrice,
+    long? WaterPrice,
+    IReadOnlyList<string> Amenities);
+
+public sealed record RoomListingSearchFilter(
+    string? ProvinceCode, string? WardCode, string? RoomType, int? Occupants,
+    decimal? MinArea, decimal? MaxArea, IReadOnlyCollection<long> AmenityIds, string? Keyword);
+
+public sealed record RoomListingSearchMatch(long RoomId, bool MatchesKeyword);
 
 public sealed record RoomListingDetailSnapshot(
     long RoomId,

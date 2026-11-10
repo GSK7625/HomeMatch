@@ -33,6 +33,7 @@ public sealed class UpdatePropertyHandler
         if (fullAddress is null) return Result.Failure<PropertyResult>(PropertiesErrors.InvalidAddress);
         var addressChanged = province.Trim() != property.ProvinceCode || ward.Trim() != property.WardCode
             || address.Trim() != property.AddressDetail;
+
         if (addressChanged)
         {
             var location = await _geocoder.FindAsync(fullAddress, cancellationToken);

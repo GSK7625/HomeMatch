@@ -15,11 +15,9 @@ public sealed class PublicListingDetailResponse(
     public long Price { get; } = listing.Price;
     public long DepositAmount { get; } = listing.DepositAmount;
     public int MinLeaseMonths { get; } = listing.MinLeaseMonths;
-    public bool AllowPets { get; } = listing.AllowPets;
-    public bool HasCurfew { get; } = listing.HasCurfew;
-    public TimeOnly? CurfewTime { get; } = listing.CurfewTime;
+    public string? HouseRules { get; } = listing.HouseRules;
     public string Status { get; } = listing.Status;
-    public bool IsFeatured { get; } = listing.IsFeatured;
+    public DateTimeOffset? ExpiresAt { get; } = listing.ExpiresAt;
     public long ViewCount { get; } = listing.ViewCount;
     public double? Longitude { get; } = listing.Longitude;
     public double? Latitude { get; } = listing.Latitude;

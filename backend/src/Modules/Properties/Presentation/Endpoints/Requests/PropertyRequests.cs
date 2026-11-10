@@ -24,7 +24,6 @@ public sealed record CreatePropertyRequest
     [Required]
     [RegularExpression("^(APARTMENT|BOARDING_HOUSE|SERVICED_APARTMENT|HOMESTAY)$")]
     public string PropertyType { get; init; } = string.Empty;
-
 }
 
 /// <summary>Request DTO để cập nhật một phần bất động sản (PATCH)</summary>
@@ -44,5 +43,4 @@ public sealed record UpdatePropertyRequest
 
     [RegularExpression("^(APARTMENT|BOARDING_HOUSE|SERVICED_APARTMENT|HOMESTAY)$")]
     public string? PropertyType { get; init; }
-
 }

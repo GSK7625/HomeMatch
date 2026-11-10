@@ -24,8 +24,12 @@ public sealed class SavedListingRepository(ListingsDbContext db) : ISavedListing
         return existing is null;
     }
 
-    public async Task<IReadOnlyList<SavedListing>> GetForUserAsync(long userId, CancellationToken cancellationToken) =>
-        await db.SavedListings.AsNoTracking().Include(item => item.Listing).ThenInclude(item => item.Images)
-            .Where(item => item.UserId == userId && item.Listing.Status == "PUBLISHED")
+    public async Task<IReadOnlyList<SavedListing>> GetForUserAsync(long userId, CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return await db.SavedListings.AsNoTracking().Include(item => item.Listing).ThenInclude(item => item.Images)
+            .Where(item => item.UserId == userId && item.Listing.Status == "PUBLISHED"
+                && (item.Listing.ExpiresAt == null || item.Listing.ExpiresAt > now))
             .OrderByDescending(item => item.CreatedAt).ThenByDescending(item => item.Id).ToListAsync(cancellationToken);
+    }
 }

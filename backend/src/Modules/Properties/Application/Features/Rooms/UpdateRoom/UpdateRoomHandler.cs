@@ -29,8 +29,7 @@ public sealed class UpdateRoomHandler
         var area = command.AreaSqm ?? room.AreaSqm;
         var type = command.RoomType ?? room.RoomType;
         var occupants = command.MaxOccupants ?? room.MaxOccupants;
-        var price = command.BasePrice ?? room.BasePrice;
-        var error = RoomValidation.Validate(number, floor, area, type, occupants, price);
+        var error = RoomValidation.Validate(number, floor, area, type, occupants);
         if (error is not null) return Result.Failure<RoomResult>(error);
         if (number != room.RoomNumber && await _rooms.NumberExistsAsync(command.PropertyId, number, room.Id, cancellationToken))
             return Result.Failure<RoomResult>(PropertiesErrors.DuplicateRoomNumber);
@@ -47,7 +46,7 @@ public sealed class UpdateRoomHandler
         }
 
         var hasChanges = number != room.RoomNumber || floor != room.Floor || area != room.AreaSqm
-            || type != room.RoomType || occupants != room.MaxOccupants || price != room.BasePrice
+            || type != room.RoomType || occupants != room.MaxOccupants
             || command.AvailableFrom is not null && command.AvailableFrom != room.AvailableFrom
             || amenitiesChanged;
         if (hasChanges) await _listingVisibility.HidePublishedForRoomAsync(room.Id, cancellationToken);
@@ -62,7 +61,6 @@ public sealed class UpdateRoomHandler
         room.AreaSqm = area;
         room.RoomType = type;
         room.MaxOccupants = occupants;
-        room.BasePrice = price;
         room.AvailableFrom = command.AvailableFrom ?? room.AvailableFrom;
         room.UpdatedAt = DateTimeOffset.UtcNow;
         var saved = await _rooms.SaveChangesAsync(cancellationToken);

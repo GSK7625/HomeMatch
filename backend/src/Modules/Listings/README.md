@@ -17,11 +17,15 @@ HTTP giữ các API tạo, sửa, đăng, ẩn tin, media và yêu thích. Các 
 - Admin dùng `GET /api/v1/admin/listings/pending?page=1&pageSize=20`, `GET /api/v1/admin/listings/{id}`, `POST /api/v1/admin/listings/{id}/approve` và `/reject`.
 - Approve không cần body; reject nhận `{ "reason": "Lý do" }` (bắt buộc, tối đa 500 ký tự).
 - Chỉ Admin được duyệt thành `PUBLISHED`. Endpoint dùng role policy và `RequestActor.AdminId`; người duyệt lấy từ JWT, không nhận ID người duyệt trong body.
+- Khi Admin duyệt, `PublishedAt` được gán thời điểm hiện tại và `ExpiresAt` sau đó 30 ngày. Các response tin đăng trả `expiresAt`.
+- API công khai và yêu thích loại tin ngay khi đến `ExpiresAt`. `ListingExpirationService` cập nhật trạng thái `EXPIRED` mỗi phút; tin cũ có `ExpiresAt = null` tiếp tục được hiển thị theo trạng thái và tình trạng phòng.
+- Tin `EXPIRED` được sửa và gửi duyệt lại. Chỉ lần duyệt tiếp theo mới bắt đầu thời hạn 30 ngày mới.
+- Chức năng tin nổi bật được hoãn triển khai; `IsFeatured` được gỡ khỏi entity, request, response và database bằng migration `RemoveFeaturedAndIndexExpiration`.
 - Chủ nhà xem trạng thái/lý do từ chối qua `/mine/{id}`. Metadata `review` chỉ có trong response quản lý; response công khai không chứa metadata này.
 - Tin `PENDING_APPROVAL` hoặc `PUBLISHED` bị khóa sửa nội dung và ảnh (409 `Listing.EditLocked`). Chủ nhà dùng `/hide` để rút/ẩn trước, sửa và gửi lại.
 - Duyệt lại kiểm tra phòng, tọa độ, ảnh đại diện, giá điện/nước và tin trùng. Revision bảo vệ các cập nhật đồng thời tại database, trả 409 `Listing.RevisionConflict` khi có ghi đè; client không phải gửi revision. Cơ chế này không kiểm tra phiên bản Admin từng mở trước đó.
 - Chỉ người thuê có role `Tenant` được lưu/bỏ lưu tin và xem danh sách yêu thích; chưa đăng nhập trả 401, vai trò khác trả 403.
-- Chỉ tin `PUBLISHED` có phòng `AVAILABLE` được đưa vào yêu thích và trả về từ danh sách đó.
+- Chỉ tin `PUBLISHED` chưa hết hạn có phòng `AVAILABLE` được đưa vào yêu thích và trả về từ danh sách đó.
 - Chủ nhà chỉ sửa tin thuộc sở hữu của mình.
 - Slug tối đa 300 ký tự, thống nhất giữa request, Application và database.
 - Toggle yêu thích được tuần tự hóa theo cặp user/tin bằng PostgreSQL advisory lock trong transaction.

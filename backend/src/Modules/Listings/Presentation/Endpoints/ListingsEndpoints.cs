@@ -6,6 +6,7 @@ using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListingById;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListings;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetPublicListingById;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetPublicListings;
+using HomeMatch.Modules.Listings.Application.Features.Listings.SearchListings;
 using HomeMatch.Modules.Listings.Application.Features.Listings.HideListing;
 using HomeMatch.Modules.Listings.Application.Features.Listings.SubmitListing;
 using HomeMatch.Modules.Listings.Application.Features.Listings.UpdateListing;
@@ -23,6 +24,13 @@ public static class ListingsEndpoints
 {
     public static void MapListingEndpoints(this RouteGroupBuilder group)
     {
+        group.MapGet("/search", SearchAsync)
+            .AllowAnonymous()
+            .WithName("Listings.Search")
+            .WithSummary("Tìm phòng theo giá, địa điểm, từ khóa, loại phòng, số người, diện tích và tiện nghi")
+            .Produces<ApiResponse<SearchListingsResponse>>(StatusCodes.Status200OK)
+            .Produces<ApiResponse<string>>(StatusCodes.Status400BadRequest);
+
         group.MapGet("/", GetPublicAsync)
             .AllowAnonymous()
             .WithName("Listings.GetPublic")
@@ -105,6 +113,22 @@ public static class ListingsEndpoints
 
     }
 
+    private static async Task<IResult> SearchAsync(
+        [FromQuery] long? minPrice, [FromQuery] long? maxPrice,
+        [FromQuery] string? provinceCode, [FromQuery] string? wardCode,
+        [FromQuery] string? keyword, [FromQuery] string? roomType,
+        [FromQuery] int? occupants, [FromQuery] decimal? minArea, [FromQuery] decimal? maxArea,
+        [FromQuery] long[]? amenityIds, [FromQuery] int? page, [FromQuery] int? pageSize,
+        SearchListingsHandler handler, CancellationToken cancellationToken)
+    {
+        var result = await handler.HandleAsync(new(minPrice, maxPrice, provinceCode, wardCode,
+            keyword, roomType, occupants, minArea, maxArea, amenityIds, page ?? 1, pageSize ?? 20), cancellationToken);
+        if (result.IsFailure) return ListingsHttpErrors.Failure(result.Error);
+        var value = result.Value;
+        return Results.Ok(ApiResponse<SearchListingsResponse>.Success(new(
+            ListingResponseMapper.ToResponse(value.Items), value.Page, value.PageSize, value.TotalCount)));
+    }
+
     private static async Task<IResult> GetPublicAsync(
         [FromQuery] int? limit,
         GetPublicListingsHandler handler,
@@ -138,17 +162,11 @@ public static class ListingsEndpoints
             landlordId.Value,
             request.RoomId,
             request.Title,
-            request.Slug,
             request.Description,
             request.Price,
             request.DepositAmount,
             request.MinLeaseMonths,
-            request.AllowPets,
-            request.HasCurfew,
-            request.CurfewTime,
-            request.IsFeatured,
-            request.Longitude,
-            request.Latitude);
+            request.HouseRules);
 
         var result = await handler.HandleAsync(command, cancellationToken);
         if (result.IsFailure) return ListingsHttpErrors.Failure(result.Error);
@@ -196,17 +214,11 @@ public static class ListingsEndpoints
             landlordId.Value,
             listingId,
             request.Title,
-            request.Slug,
             request.Description,
             request.Price,
             request.DepositAmount,
             request.MinLeaseMonths,
-            request.AllowPets,
-            request.HasCurfew,
-            request.CurfewTime,
-            request.IsFeatured,
-            request.Longitude,
-            request.Latitude);
+            request.HouseRules);
 
         var result = await handler.HandleAsync(command, cancellationToken);
         if (result.IsFailure) return ListingsHttpErrors.Failure(result.Error);

@@ -7,6 +7,8 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { listingService } from "@/lib/services";
 import { getStoredToken, notificationsApi } from "@/lib/api-client";
 import { NotificationDto } from "@/types";
+import { useToast } from "@/components/Toast";
+import { ChatRealtimeClient } from "@/features/messaging/signalr-client";
 import {
   Home,
   Search,
@@ -42,6 +44,7 @@ export function Navbar() {
   const pathname = rawPathname || "";
   const router = useRouter();
   const { user, role, logout } = useAuth();
+  const { showToast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
@@ -74,11 +77,42 @@ export function Navbar() {
     return () => clearInterval(interval);
   }, []);
 
+  // Realtime SignalR notification listener (chấm dứt polling liên tục bằng HTTP interval)
   useEffect(() => {
     fetchNotificationsSummary();
-    const notifInterval = setInterval(fetchNotificationsSummary, 15000);
-    return () => clearInterval(notifInterval);
-  }, [fetchNotificationsSummary, pathname]);
+
+    const token = getStoredToken();
+    if (!user || !token) return;
+
+    // Mở kết nối WebSocket lắng nghe sự kiện push trực tiếp từ Server
+    const realtimeClient = new ChatRealtimeClient({
+      onReceiveNotification: (notification) => {
+        setNotifications((prev) => [
+          notification,
+          ...prev.filter((n) => n.id !== notification.id),
+        ].slice(0, 6));
+        setUnreadNotifCount((prev) => prev + 1);
+        showToast(`Thông báo mới: ${notification.title}`, "info");
+      },
+    });
+
+    realtimeClient.start();
+
+    // Dự phòng: chỉ kiểm tra lại khi người dùng quay lại tab (window focus), không gửi ngầm định kỳ
+    const handleFocus = () => {
+      if (document.visibilityState === "visible") {
+        fetchNotificationsSummary();
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
+
+    return () => {
+      realtimeClient.stop();
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
+    };
+  }, [user, fetchNotificationsSummary]);
 
   // Guest navigation
   const guestNav: NavItem[] = [

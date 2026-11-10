@@ -22,6 +22,7 @@ import {
   Navigation,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import LeafletMapView from "@/components/LeafletMapView";
 
 const ALL_AMENITIES = [
   "Điều hòa",
@@ -551,47 +552,20 @@ function ListingsContent() {
 
         {/* Listings Result View */}
         <div className="lg:col-span-3 space-y-6">
-          {/* Map Simulator Section (if enabled) */}
+          {/* Real Leaflet / PostGIS Interactive Map */}
           {showMap && (
-            <div className="bg-slate-900 rounded-2xl overflow-hidden p-6 text-white space-y-4 relative shadow-lg">
+            <div className="bg-white rounded-2xl overflow-hidden p-4 text-slate-800 space-y-3 relative shadow-md border border-slate-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-rose-500" />
-                  <h3 className="font-bold text-sm">Bản Đồ Không Gian PostGIS (WGS 84 - 4326)</h3>
+                  <MapPin className="w-5 h-5 text-blue-600" />
+                  <h3 className="font-bold text-sm">Bản Đồ Không Gian PostGIS (WGS 84 - OpenStreetMap)</h3>
                 </div>
-                <span className="text-xs text-slate-400">
-                  Hiển thị {paginatedListings.length} điểm tọa độ trong khu vực
+                <span className="text-xs text-slate-500 font-semibold">
+                  Hiển thị {paginatedListings.length} phòng trong trang này
                 </span>
               </div>
 
-              {/* Visual simulated map */}
-              <div className="w-full h-48 bg-slate-800 rounded-xl relative overflow-hidden flex items-center justify-center border border-slate-700">
-                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:16px_16px]" />
-                <div className="z-10 text-center space-y-1">
-                  <p className="text-xs font-bold text-blue-300">
-                    Bản đồ không gian PostGIS định vị chuẩn xác
-                  </p>
-                  <p className="text-[11px] text-slate-400">
-                    Đã nạp tọa độ GPS của các phòng trọ đang hiển thị trên danh sách
-                  </p>
-                </div>
-
-                {/* Map pin markers */}
-                {paginatedListings.map((item, idx) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      left: `${20 + (idx * 18) % 65}%`,
-                      top: `${25 + (idx * 22) % 55}%`,
-                    }}
-                    className="absolute z-20 group cursor-pointer"
-                  >
-                    <div className="px-2 py-1 bg-blue-600 text-white text-[10px] font-black rounded-md shadow-md border border-white hover:scale-110 transition-transform">
-                      {(item.price / 1000000).toFixed(1)} tr
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <LeafletMapView listings={paginatedListings} height="380px" />
             </div>
           )}
 

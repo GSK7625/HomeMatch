@@ -63,6 +63,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const handleAuthExpired = () => {
+      setToken(null);
+      setUser(null);
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("homematch:auth-expired", handleAuthExpired);
+      return () => window.removeEventListener("homematch:auth-expired", handleAuthExpired);
+    }
+  }, []);
+
+  useEffect(() => {
     // Initial hydration strictly adhering to real credentials
     const savedToken = getStoredToken();
     const savedUser = getStoredUser();
@@ -85,6 +96,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
           setStoredToken(null);
           setStoredUser(null);
+          if (typeof window !== "undefined") {
+            const currentPath = window.location.pathname + window.location.search;
+            const isProtectedRoute =
+              currentPath.startsWith("/tenant") ||
+              currentPath.startsWith("/landlord") ||
+              currentPath.startsWith("/admin") ||
+              currentPath.startsWith("/messages");
+            if (isProtectedRoute) {
+              window.location.href = `/auth/login?reason=expired&redirect=${encodeURIComponent(currentPath)}`;
+            }
+          }
         }
       }).catch(() => {
         // Offline or backend unavailable, maintain cached user if exists

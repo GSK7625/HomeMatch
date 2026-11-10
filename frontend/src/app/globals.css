@@ -1,3 +1,5 @@
+@import "leaflet/dist/leaflet.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -13,4 +15,88 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   margin: 0;
   padding: 0;
+}
+
+/* Leaflet map layout, tile resets against Tailwind preflight, and zoom controls */
+.leaflet-container {
+  font-family: inherit;
+  width: 100%;
+  height: 100%;
+}
+
+/* Prevent Tailwind preflight (max-width: 100%; height: auto) from breaking Leaflet tiles */
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.leaflet-container img.leaflet-tile {
+  max-width: none !important;
+  max-height: none !important;
+  width: 256px !important;
+  height: 256px !important;
+  display: block !important;
+}
+
+.leaflet-tile-pane {
+  z-index: 200 !important;
+}
+
+.leaflet-bar {
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.25) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  background-color: #ffffff !important;
+}
+
+.leaflet-bar a {
+  background-color: #ffffff !important;
+  width: 34px !important;
+  height: 34px !important;
+  line-height: 34px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  transition: all 0.15s ease !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.leaflet-bar a:last-child {
+  border-bottom: none !important;
+}
+
+.leaflet-bar a:hover {
+  background-color: #f8fafc !important;
+  color: #2563eb !important;
+}
+
+.leaflet-control-zoom {
+  margin-top: 12px !important;
+  margin-left: 12px !important;
+}
+
+.leaflet-tile {
+  visibility: inherit !important;
+}
+
+/* Modern popup cards */
+.leaflet-popup-content-wrapper {
+  border-radius: 14px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  padding: 6px !important;
+}
+
+.leaflet-popup-content {
+  margin: 8px !important;
+  line-height: 1.4 !important;
+}
+
+.leaflet-popup-tip {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
 }

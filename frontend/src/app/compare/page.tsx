@@ -19,7 +19,7 @@ import {
   ShieldCheck,
   Calendar,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatRoomTypeLabel } from "@/lib/utils";
 
 const COMPARISON_AMENITIES = [
   "Điều hòa",
@@ -63,13 +63,17 @@ export default function ComparePage() {
               price: d.price,
               deposit: d.depositAmount,
               area: Number(d.room.areaSqm),
-              roomType: "Chung cư mini",
+              roomType: formatRoomTypeLabel(d.room.roomType),
               electricityPrice: 3800,
               waterPrice: 28000,
               serviceFee: 150000,
               amenities: d.room.amenities.map((a) => a.name),
               images: d.images.map((i) => i.imageUrl),
-              status: d.status === "Published" ? ("Còn trống" as const) : ("Tạm ngừng" as const),
+              status:
+                (d.status || "").toUpperCase() === "PUBLISHED" ||
+                (d.status || "").toUpperCase() === "AVAILABLE"
+                  ? ("Còn trống" as const)
+                  : ("Tạm ngừng" as const),
               landlordId: "landlord-1",
               landlordName: "Chủ Nhà HomeMatch",
               landlordPhone: "0902000002",

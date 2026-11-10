@@ -4,11 +4,12 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { listingService, viewingService } from "@/lib/services";
-import { parseListingNumericId, viewingsApi, listingsApi, getStoredToken } from "@/lib/api-client";
-import { PropertyListing } from "@/types";
+import { parseListingNumericId, viewingsApi, listingsApi, adminListingsApi, propertiesApi, getStoredToken } from "@/lib/api-client";
+import { PropertyListing, PublicListingDetailDto } from "@/types";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useToast } from "@/components/Toast";
 import { Modal } from "@/components/Modal";
+import { MapLocationViewer } from "@/components/MapLocationViewer";
 import {
   MapPin,
   Calendar,
@@ -34,8 +35,9 @@ import {
   Calculator,
   Flame,
   Check,
+  AlertTriangle,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatRoomTypeLabel } from "@/lib/utils";
 import LeafletMapView from "@/components/LeafletMapView";
 
 export default function ListingDetailPage() {
@@ -47,6 +49,8 @@ export default function ListingDetailPage() {
   const { showToast } = useToast();
 
   const [listing, setListing] = useState<PropertyListing | null>(null);
+  const [rawDetail, setRawDetail] = useState<PublicListingDetailDto | null>(null);
+  const [isPreview, setIsPreview] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isFav, setIsFav] = useState(false);
   const [showFullPhone, setShowFullPhone] = useState(false);
@@ -79,49 +83,105 @@ export default function ListingDetailPage() {
       const numericId = parseListingNumericId(id);
       if (numericId > 0) {
         try {
+          let d: any = null;
+          let preview = false;
+
+          // 1. Try public endpoint
           const res = await listingsApi.getPublicListingById(numericId);
-          if (isMounted && res.isSuccess && res.data) {
-            const d = res.data;
+          if (res.isSuccess && res.data) {
+            d = res.data;
+          } else if (getStoredToken()) {
+            // 2. If public fails (e.g. 404 because DRAFT or PENDING_APPROVAL), try landlord endpoint
+            const mineRes = await listingsApi.getMyListingById(numericId);
+            if (mineRes.isSuccess && mineRes.data) {
+              d = mineRes.data;
+              preview = true;
+            } else {
+              // 3. Try admin endpoint
+              const adminRes = await adminListingsApi.getReviewListing(numericId);
+              if (adminRes.isSuccess && adminRes.data) {
+                d = adminRes.data;
+                preview = true;
+              }
+            }
+          }
+
+          if (isMounted && d) {
+            // In preview mode (d comes from getMyListingById or admin review, without property/room objects)
+            if (preview && d.roomId && (!d.property || !d.room)) {
+              try {
+                const propsRes = await propertiesApi.getMyProperties();
+                if (propsRes.isSuccess && propsRes.data) {
+                  for (const p of propsRes.data) {
+                    const roomsRes = await propertiesApi.getRooms(p.id);
+                    if (roomsRes.isSuccess && roomsRes.data) {
+                      const matchedRoom = roomsRes.data.find((r) => r.id === d.roomId);
+                      if (matchedRoom) {
+                        d.property = {
+                          id: p.id,
+                          name: p.name,
+                          propertyType: p.propertyType,
+                          addressDetail: p.addressDetail,
+                          wardName: p.wardCode,
+                          provinceName: p.provinceCode,
+                        };
+                        d.room = {
+                          id: matchedRoom.id,
+                          roomNumber: matchedRoom.roomNumber,
+                          floor: matchedRoom.floor,
+                          areaSqm: matchedRoom.areaSqm,
+                          roomType: matchedRoom.roomType,
+                          maxOccupants: matchedRoom.maxOccupants,
+                          amenities: matchedRoom.amenityIds?.map((id: number) => ({ id, code: String(id), name: `Tiện ích #${id}` })) || [],
+                        };
+                        break;
+                      }
+                    }
+                  }
+                }
+              } catch {
+                // Ignore enrichment error
+              }
+            }
+
             const mapped: PropertyListing = {
               id: String(d.id),
               title: d.title,
-              description: d.description,
-              address: `${d.property.addressDetail}, ${d.property.wardName}, ${
-                d.property.districtName || d.property.provinceName
-              }`,
-              ward: d.property.wardName || "Dịch Vọng",
-              district: d.property.districtName || d.property.wardName || "Quận Cầu Giấy",
-              city: d.property.provinceName || "Hà Nội",
+              description: d.description || "",
+              address: d.property
+                ? `${d.property.addressDetail}, ${d.property.wardName}, ${
+                    d.property.districtName || d.property.provinceName
+                  }`
+                : "Hà Nội, Việt Nam",
+              ward: d.property?.wardName || "Phường / Xã",
+              district: d.property?.districtName || d.property?.wardName || "Quận / Huyện",
+              city: d.property?.provinceName || "Hà Nội",
               price: d.price,
               deposit: d.depositAmount,
-              area: Number(d.room.areaSqm),
-              roomType: (d.room.roomType === "STUDIO"
-                ? "Chung cư mini"
-                : d.room.roomType === "DORMITORY"
-                ? "Ở ghép"
-                : "Phòng trọ") as PropertyListing["roomType"],
+              area: Number(d.room?.areaSqm || 25),
+              roomType: formatRoomTypeLabel(d.room?.roomType),
               electricityPrice:
-                d.tariffs.find((t) => t.tariffType === "ELECTRICITY")?.unitPrice || 3800,
-              waterPrice: d.tariffs.find((t) => t.tariffType === "WATER")?.unitPrice || 28000,
-              serviceFee: d.tariffs.find((t) => t.tariffType === "SERVICE")?.unitPrice || 150000,
+                d.tariffs?.find((t: any) => t.tariffType === "ELECTRICITY")?.unitPrice || 3500,
+              waterPrice: d.tariffs?.find((t: any) => t.tariffType === "WATER")?.unitPrice || 25000,
+              serviceFee: d.tariffs?.find((t: any) => t.tariffType === "SERVICE")?.unitPrice || 150000,
               amenities:
-                d.room.amenities.length > 0
-                  ? d.room.amenities.map((a) => a.name)
+                d.room?.amenities && d.room.amenities.length > 0
+                  ? d.room.amenities.map((a: any) => a.name)
                   : ["Điều hòa", "Nóng lạnh", "Máy giặt"],
               images:
-                d.images.length > 0
-                  ? d.images.map((img) => img.imageUrl)
+                d.images && d.images.length > 0
+                  ? d.images.map((img: any) => img.imageUrl)
                   : [
                       "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
                     ],
               status:
-                d.status === "Published"
+                (d.status || "").toUpperCase() === "PUBLISHED"
                   ? "Còn trống"
-                  : d.status === "Hidden"
+                  : (d.status || "").toUpperCase() === "HIDDEN"
                   ? "Tạm ngừng"
                   : "Đã thuê",
               landlordId: String(d.landlordId),
-              landlordName: "Nguyễn Văn Hoàng (Chủ Trọ)",
+              landlordName: "Chủ Nhà",
               landlordPhone: "0902000002",
               latitude: d.latitude || 21.034,
               longitude: d.longitude || 105.793,
@@ -129,12 +189,22 @@ export default function ListingDetailPage() {
               viewCount: Number(d.viewCount) || 1,
               isFeatured: d.isFeatured,
             };
+            setRawDetail(d);
+            setIsPreview(preview);
             setListing(mapped);
             setIsFav(listingService.isFavorite(id));
+            if (getStoredToken()) {
+              listingsApi.getSavedListings().then((sRes) => {
+                if (isMounted && sRes.isSuccess && sRes.data) {
+                  const savedOnServer = sRes.data.some((s) => s.listingId === d.id);
+                  setIsFav(savedOnServer);
+                }
+              }).catch(() => null);
+            }
             return;
           }
         } catch (err) {
-          console.warn("Failed to fetch public listing detail from backend", err);
+          console.warn("Failed to fetch listing detail from backend", err);
         }
       }
 
@@ -166,19 +236,23 @@ export default function ListingDetailPage() {
   }
 
   const handleToggleFav = async () => {
-    const newState = listingService.toggleFavorite(listing.id);
-    setIsFav(newState);
+    let finalState = listingService.toggleFavorite(listing.id);
+    setIsFav(finalState);
     const numericId = parseListingNumericId(listing.id);
     if (numericId > 0 && getStoredToken()) {
       try {
-        await listingsApi.toggleSaveListing(numericId);
+        const res = await listingsApi.toggleSaveListing(numericId);
+        if (res.isSuccess && typeof res.data === "boolean") {
+          finalState = res.data;
+          setIsFav(finalState);
+        }
       } catch (err) {
         console.warn("Could not sync favorite to backend", err);
       }
     }
     showToast(
-      newState ? "Đã thêm vào phòng yêu thích!" : "Đã xóa khỏi phòng yêu thích",
-      newState ? "success" : "info"
+      finalState ? "Đã thêm vào phòng yêu thích!" : "Đã xóa khỏi phòng yêu thích",
+      finalState ? "success" : "info"
     );
   };
 
@@ -245,6 +319,29 @@ export default function ListingDetailPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 w-full flex-1 space-y-6 sm:space-y-8 pb-24 lg:pb-8">
+      {/* Preview Banner for Landlord / Admin */}
+      {isPreview && (
+        <div className="bg-amber-500/10 border border-amber-300 text-amber-900 px-4 py-3 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-semibold shadow-xs">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>
+              <strong>Chế độ xem trước tin đăng</strong> — Tin đăng này đang ở trạng thái <em>{rawDetail?.status || "Bản nháp"}</em> và chưa được công khai cho khách thuê trên trang tìm kiếm.
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold">
+              Trạng thái: {rawDetail?.status || "DRAFT"}
+            </span>
+            <Link
+              href="/landlord/listings"
+              className="px-2.5 py-1 rounded-lg bg-amber-600 text-white text-[11px] font-bold hover:bg-amber-700 transition-colors"
+            >
+              Về Quản lý tin
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Top Action Bar */}
       <div className="flex items-center justify-between text-xs text-slate-500 gap-2">
         <Link
@@ -403,6 +500,64 @@ export default function ListingDetailPage() {
               </p>
             </div>
 
+            {/* Room & Property Specifications from Backend API */}
+            {rawDetail && (
+              <div className="space-y-3 pt-4 border-t border-slate-100">
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                  Thông số kỹ thuật phòng & Tòa nhà
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">
+                      Tòa nhà / Khu trọ
+                    </span>
+                    <span className="font-bold text-slate-800 block mt-0.5 truncate" title={rawDetail.property?.name || listing.title}>
+                      {rawDetail.property?.name || listing.title}
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">
+                      Số phòng & Tầng
+                    </span>
+                    <span className="font-bold text-slate-800 block mt-0.5">
+                      {rawDetail.room
+                        ? `P.${rawDetail.room.roomNumber} • Tầng ${rawDetail.room.floor}`
+                        : `Phòng #${rawDetail.roomId || listing.id}`}
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">
+                      Số người ở tối đa
+                    </span>
+                    <span className="font-bold text-slate-800 block mt-0.5">
+                      {rawDetail.room
+                        ? `Tối đa ${rawDetail.room.maxOccupants} người`
+                        : "2 - 4 người"}
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">
+                      Hợp đồng tối thiểu
+                    </span>
+                    <span className="font-bold text-blue-600 block mt-0.5">
+                      {rawDetail.minLeaseMonths || 6} tháng
+                    </span>
+                  </div>
+                </div>
+
+                {rawDetail.houseRules && (
+                  <div className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200/80 text-xs space-y-1">
+                    <span className="font-bold text-amber-900 uppercase text-[11px] block">
+                      Nội quy phòng & Tòa nhà (House Rules):
+                    </span>
+                    <p className="text-slate-700 leading-relaxed whitespace-pre-line">
+                      {rawDetail.houseRules}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Amenities Grid */}
             <div className="space-y-3 pt-4 border-t border-slate-100">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
@@ -419,6 +574,30 @@ export default function ListingDetailPage() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Map Location Section */}
+            <div className="space-y-3 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-blue-600" />
+                  <span>Vị trí phòng trọ trên bản đồ & Chỉ đường</span>
+                </h3>
+                <span className="text-xs text-slate-500 font-medium">
+                  {rawDetail?.property?.addressDetail || listing.address}
+                </span>
+              </div>
+              <MapLocationViewer
+                latitude={rawDetail?.latitude ?? (listing.latitude || null)}
+                longitude={rawDetail?.longitude ?? (listing.longitude || null)}
+                title={rawDetail?.property?.name || listing.title}
+                address={
+                  rawDetail?.property
+                    ? `${rawDetail.property.addressDetail}, ${rawDetail.property.wardName || ""}, ${rawDetail.property.provinceName || ""}`
+                    : listing.address
+                }
+                heightClassName="h-[280px] sm:h-[340px]"
+              />
             </div>
 
             {/* Nearby POIs (Section 3.2: Tiện ích tra cứu liên quan) */}

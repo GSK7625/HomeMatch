@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import "leaflet/dist/leaflet.css";
 import "./globals.css";
 import { AuthProvider } from "@/features/auth/AuthContext";
 import { ToastProvider } from "@/components/Toast";

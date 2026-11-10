@@ -19,6 +19,7 @@ using HomeMatch.Modules.Listings.Application.Features.SavedListings.ToggleSaveLi
 using HomeMatch.Modules.Listings.Application.Interfaces;
 using HomeMatch.Modules.Listings.Infrastructure.Persistence;
 using HomeMatch.Modules.Listings.Infrastructure.Persistence.Repositories;
+using HomeMatch.Modules.Listings.Infrastructure.Services;
 using HomeMatch.Modules.Listings.Infrastructure.BackgroundServices;
 using HomeMatch.Modules.Listings.Infrastructure.Services;
 using HomeMatch.Modules.Listings.Presentation.Endpoints;

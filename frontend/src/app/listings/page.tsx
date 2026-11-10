@@ -4,8 +4,8 @@ import React, { useState, useMemo, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { listingService } from "@/lib/services";
-import { listingsApi } from "@/lib/api-client";
-import { PropertyListing } from "@/types";
+import { listingsApi, catalogsApi } from "@/lib/api-client";
+import { PropertyListing, ProvinceDto, WardDto, AmenityDto } from "@/types";
 import { ListingCard } from "@/features/listings/ListingCard";
 import { useToast } from "@/components/Toast";
 import {
@@ -21,8 +21,8 @@ import {
   ArrowRight,
   Navigation,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import LeafletMapView from "@/components/LeafletMapView";
+import { cn, mapListingSummaryToCard } from "@/lib/utils";
+import { ListingsInteractiveMap } from "@/components/ListingsInteractiveMap";
 
 const ALL_AMENITIES = [
   "Điều hòa",
@@ -45,7 +45,15 @@ function ListingsContent() {
   const { showToast } = useToast();
 
   const [allListings, setAllListings] = useState<PropertyListing[]>([]);
-  const [keyword, setKeyword] = useState("");
+  const [totalServerCount, setTotalServerCount] = useState<number | null>(null);
+  const [provinces, setProvinces] = useState<ProvinceDto[]>([]);
+  const [wards, setWards] = useState<WardDto[]>([]);
+  const [catalogAmenities, setCatalogAmenities] = useState<AmenityDto[]>([]);
+  const [provinceCode, setProvinceCode] = useState("");
+  const [wardCode, setWardCode] = useState("");
+  const [occupants, setOccupants] = useState<number>(0);
+
+  const [keyword, setKeyword] = useState(searchParams.get("keyword") || "");
   const [city, setCity] = useState(searchParams.get("city") || "Tất cả");
   const [district, setDistrict] = useState(searchParams.get("district") || "Tất cả");
   const [selectedTypes, setSelectedTypes] = useState<string[]>(
@@ -67,52 +75,99 @@ function ListingsContent() {
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
-    if (city !== "Tất cả") count++;
-    if (district !== "Tất cả") count++;
+    if (city !== "Tất cả" || provinceCode) count++;
+    if (district !== "Tất cả" || wardCode) count++;
     if (selectedTypes.length > 0) count += selectedTypes.length;
     if (priceRange !== "all") count++;
     if (areaRange !== "all") count++;
+    if (occupants > 0) count++;
     if (selectedAmenities.length > 0) count += selectedAmenities.length;
     return count;
-  }, [city, district, selectedTypes, priceRange, areaRange, selectedAmenities]);
+  }, [city, provinceCode, district, wardCode, selectedTypes, priceRange, areaRange, occupants, selectedAmenities]);
+
+  useEffect(() => {
+    catalogsApi.getProvinces().then((res) => {
+      if (res.isSuccess && res.data) setProvinces(res.data);
+    }).catch(() => null);
+    catalogsApi.getAmenities().then((res) => {
+      if (res.isSuccess && res.data) setCatalogAmenities(res.data);
+    }).catch(() => null);
+  }, []);
+
+  useEffect(() => {
+    if (!provinceCode) {
+      setWards([]);
+      setWardCode("");
+      return;
+    }
+    catalogsApi.getWards(provinceCode).then((res) => {
+      if (res.isSuccess && res.data) setWards(res.data);
+    }).catch(() => null);
+  }, [provinceCode]);
 
   useEffect(() => {
     let isMounted = true;
     async function fetchPublicListings() {
       try {
+        let minPrice: number | undefined;
+        let maxPrice: number | undefined;
+        if (priceRange === "under3") maxPrice = 3000000;
+        else if (priceRange === "3to5") {
+          minPrice = 3000000;
+          maxPrice = 5000000;
+        } else if (priceRange === "5to8") {
+          minPrice = 5000000;
+          maxPrice = 8000000;
+        } else if (priceRange === "over8") minPrice = 8000000;
+
+        let minArea: number | undefined;
+        let maxArea: number | undefined;
+        if (areaRange === "under25") maxArea = 25;
+        else if (areaRange === "25to40") {
+          minArea = 25;
+          maxArea = 40;
+        } else if (areaRange === "over40") minArea = 40;
+
+        let roomTypeCode: string | undefined;
+        if (selectedTypes.length === 1) {
+          if (selectedTypes[0] === "Phòng trọ") roomTypeCode = "SINGLE";
+          else if (selectedTypes[0] === "Studio") roomTypeCode = "STUDIO";
+          else if (selectedTypes[0] === "Chung cư mini") roomTypeCode = "STUDIO";
+          else if (selectedTypes[0] === "Căn hộ dịch vụ") roomTypeCode = "1B1B";
+        }
+
+        const matchedAmenityIds = selectedAmenities
+          .map((name) => catalogAmenities.find((a) => a.name.toLowerCase() === name.toLowerCase())?.id)
+          .filter((id): id is number => typeof id === "number");
+
+        const searchRes = await listingsApi.searchListings({
+          keyword: keyword.trim() || undefined,
+          provinceCode: provinceCode || undefined,
+          wardCode: wardCode || undefined,
+          minPrice,
+          maxPrice,
+          minArea,
+          maxArea,
+          roomType: roomTypeCode,
+          occupants: occupants > 0 ? occupants : undefined,
+          amenityIds: matchedAmenityIds.length > 0 ? matchedAmenityIds : undefined,
+          page: 1,
+          pageSize: 50,
+        });
+
+        if (isMounted && searchRes.isSuccess && searchRes.data) {
+          const backendMapped = searchRes.data.items.map((b) => mapListingSummaryToCard(b));
+          setAllListings(backendMapped);
+          setTotalServerCount(searchRes.data.totalCount);
+          setCompareList(listingService.getCompareList());
+          return;
+        }
+
         const res = await listingsApi.getPublicListings(50);
         if (isMounted && res.isSuccess && res.data) {
-          const backendMapped: PropertyListing[] = res.data.map((b) => ({
-            id: String(b.id),
-            title: b.title,
-            description: "Phòng trọ cho thuê trên hệ thống HomeMatch",
-            address: "Hà Nội",
-            ward: "Dịch Vọng",
-            district: "Cầu Giấy",
-            city: "Hà Nội",
-            price: b.price,
-            deposit: b.price,
-            area: 25,
-            roomType: "Chung cư mini" as const,
-            electricityPrice: 3800,
-            waterPrice: 28000,
-            serviceFee: 150000,
-            amenities: ["Điều hòa", "Nóng lạnh", "Máy giặt"],
-            images: [
-              b.coverImageUrl ||
-                "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
-            ],
-            status: b.status === "Published" ? ("Còn trống" as const) : ("Tạm ngừng" as const),
-            landlordId: "landlord-1",
-            landlordName: "Chủ Nhà HomeMatch",
-            landlordPhone: "0902000002",
-            latitude: 21.034,
-            longitude: 105.793,
-            createdAt: new Date().toISOString(),
-            viewCount: 0,
-            isFeatured: b.isFeatured,
-          }));
+          const backendMapped: PropertyListing[] = res.data.map((b) => mapListingSummaryToCard(b));
           setAllListings(backendMapped);
+          setTotalServerCount(null);
           setCompareList(listingService.getCompareList());
           return;
         }
@@ -128,21 +183,27 @@ function ListingsContent() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [keyword, provinceCode, wardCode, priceRange, areaRange, selectedTypes, occupants, selectedAmenities, catalogAmenities]);
+
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const handleNearMe = () => {
-    showToast("Đang định vị vị trí của bạn qua GPS trình duyệt...", "info");
+    setShowMap(true);
+    showToast("Đang định vị vị trí của bạn qua GPS...", "info");
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        () => {
-          showToast("Đã định vị thành công! Đang hiển thị các phòng lân cận.", "success");
-          setCity("Hà Nội");
-          setDistrict("Cầu Giấy");
+        (pos) => {
+          showToast("Đã định vị thành công! Đang hiển thị vị trí của bạn trên bản đồ.", "success");
+          setUserCoords({
+            lat: Number(pos.coords.latitude.toFixed(6)),
+            lng: Number(pos.coords.longitude.toFixed(6)),
+          });
         },
         () => {
-          showToast("Không thể lấy vị trí. Mặc định lọc khu vực Hà Nội.", "info");
-          setCity("Hà Nội");
-        }
+          showToast("Không thể lấy vị trí GPS. Đang hiển thị bản đồ mặc định.", "info");
+          setUserCoords({ lat: 21.0285, lng: 105.8542 });
+        },
+        { timeout: 8000, enableHighAccuracy: true }
       );
     }
   };
@@ -163,6 +224,9 @@ function ListingsContent() {
     setKeyword("");
     setCity("Tất cả");
     setDistrict("Tất cả");
+    setProvinceCode("");
+    setWardCode("");
+    setOccupants(0);
     setSelectedTypes([]);
     setPriceRange("all");
     setAreaRange("all");
@@ -227,40 +291,71 @@ function ListingsContent() {
 
   const renderFilterFormContent = () => (
     <>
-      {/* City */}
+      {/* City / Province (Backend Catalog) */}
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
           Tỉnh / Thành phố
         </label>
         <select
-          value={city}
+          value={provinceCode || city}
           onChange={(e) => {
-            setCity(e.target.value);
+            const val = e.target.value;
+            if (provinces.some((p) => p.code === val)) {
+              setProvinceCode(val);
+              setCity("Tất cả");
+            } else {
+              setProvinceCode("");
+              setCity(val);
+            }
+            setWardCode("");
             setDistrict("Tất cả");
             setPage(1);
           }}
           className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium"
         >
           <option value="Tất cả">Tất cả địa điểm</option>
-          <option value="Hà Nội">Hà Nội</option>
-          <option value="Hồ Chí Minh">TP. Hồ Chí Minh</option>
+          {provinces.length > 0 ? (
+            provinces.map((p) => (
+              <option key={p.code} value={p.code}>
+                {p.fullName || p.name}
+              </option>
+            ))
+          ) : (
+            <>
+              <option value="Hà Nội">Hà Nội</option>
+              <option value="Hồ Chí Minh">TP. Hồ Chí Minh</option>
+            </>
+          )}
         </select>
       </div>
 
-      {/* District */}
+      {/* Ward / District */}
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-          Quận / Huyện
+          Phường / Xã / Quận
         </label>
         <select
-          value={district}
+          value={wardCode || district}
           onChange={(e) => {
-            setDistrict(e.target.value);
+            const val = e.target.value;
+            if (wards.some((w) => w.code === val)) {
+              setWardCode(val);
+              setDistrict("Tất cả");
+            } else {
+              setWardCode("");
+              setDistrict(val);
+            }
             setPage(1);
           }}
           className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium"
         >
-          <option value="Tất cả">Tất cả quận huyện</option>
+          <option value="Tất cả">Tất cả khu vực</option>
+          {wards.length > 0 &&
+            wards.map((w) => (
+              <option key={w.code} value={w.code}>
+                {w.fullName || w.name}
+              </option>
+            ))}
           {city === "Hà Nội" && (
             <>
               <option value="Cầu Giấy">Cầu Giấy</option>
@@ -279,13 +374,34 @@ function ListingsContent() {
         </select>
       </div>
 
+      {/* Occupants */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+          Số người ở dự kiến
+        </label>
+        <select
+          value={occupants}
+          onChange={(e) => {
+            setOccupants(Number(e.target.value));
+            setPage(1);
+          }}
+          className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium"
+        >
+          <option value={0}>Không giới hạn</option>
+          <option value={1}>1 người</option>
+          <option value={2}>Từ 2 người</option>
+          <option value={3}>Từ 3 người</option>
+          <option value={4}>Từ 4 người trở lên</option>
+        </select>
+      </div>
+
       {/* Room Type */}
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
           Loại hình phòng
         </label>
         <div className="space-y-2 text-xs">
-          {["Phòng trọ", "Chung cư mini", "Căn hộ dịch vụ"].map((t) => (
+          {["Phòng trọ", "Studio", "Chung cư mini", "Căn hộ dịch vụ"].map((t) => (
             <label key={t} className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -552,21 +668,13 @@ function ListingsContent() {
 
         {/* Listings Result View */}
         <div className="lg:col-span-3 space-y-6">
-          {/* Real Leaflet / PostGIS Interactive Map */}
+          {/* Real Interactive PostGIS Leaflet Map */}
           {showMap && (
-            <div className="bg-white rounded-2xl overflow-hidden p-4 text-slate-800 space-y-3 relative shadow-md border border-slate-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-blue-600" />
-                  <h3 className="font-bold text-sm">Bản Đồ Không Gian PostGIS (WGS 84 - OpenStreetMap)</h3>
-                </div>
-                <span className="text-xs text-slate-500 font-semibold">
-                  Hiển thị {paginatedListings.length} phòng trong trang này
-                </span>
-              </div>
-
-              <LeafletMapView listings={paginatedListings} height="380px" />
-            </div>
+            <ListingsInteractiveMap
+              listings={filteredListings}
+              userLocation={userCoords}
+              onLocateMe={handleNearMe}
+            />
           )}
 
           {/* Commercial Quick Filter Chips */}

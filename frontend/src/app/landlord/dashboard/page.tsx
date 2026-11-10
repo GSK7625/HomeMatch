@@ -89,10 +89,14 @@ export default function LandlordDashboardPage() {
   }
 
   // Compute metrics from real data
-  const totalRooms = listings.length;
-  const vacantRooms = listings.filter((x) => x.status === "Published").length;
-  const rentedRooms = totalRooms > vacantRooms ? totalRooms - vacantRooms : 0;
-  const activeListings = listings.filter((x) => x.status === "Published").length;
+  const totalRooms = Math.max(properties.length, listings.length);
+  const activeContracts = contracts.filter(
+    (c) => c.status === "Còn hiệu lực" || c.status === "Sắp hết hạn"
+  );
+  const rentedRooms = activeContracts.length;
+  const vacantRooms = totalRooms > rentedRooms ? totalRooms - rentedRooms : 0;
+  const occupancyRate = totalRooms > 0 ? Math.round((rentedRooms / totalRooms) * 100) : 0;
+  const activeListings = listings.filter((x) => (x.status || "").toUpperCase() === "PUBLISHED").length;
 
   // Financial aggregates
   const totalReceivables = bills.reduce((acc, b) => acc + b.totalDue, 0);
@@ -251,7 +255,7 @@ export default function LandlordDashboardPage() {
         <div className="bg-white p-4 rounded-2xl border border-blue-200/80 shadow-xs bg-blue-50/20">
           <span className="text-[11px] font-bold text-blue-700 uppercase block">Căn đang thuê</span>
           <span className="text-2xl font-black text-blue-600 mt-1 block">{rentedRooms}</span>
-          <span className="text-[10px] text-blue-600 font-medium">Tỷ lệ lấp đầy: {Math.round((rentedRooms / totalRooms) * 100)}%</span>
+          <span className="text-[10px] text-blue-600 font-medium">Tỷ lệ lấp đầy: {occupancyRate}%</span>
         </div>
 
         {/* Total Receivables */}

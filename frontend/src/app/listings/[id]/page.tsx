@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { listingService, viewingService } from "@/lib/services";
-import { parseListingNumericId, viewingsApi } from "@/lib/api-client";
+import { parseListingNumericId, viewingsApi, listingsApi, getStoredToken } from "@/lib/api-client";
 import { PropertyListing } from "@/types";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useToast } from "@/components/Toast";
@@ -72,14 +72,80 @@ export default function ListingDetailPage() {
   }, [user]);
 
   useEffect(() => {
-    if (id) {
-      const data = listingService.getById(id);
-      if (data) {
-        setListing(data);
-        listingService.incrementView(id);
-        setIsFav(listingService.isFavorite(id));
+    let isMounted = true;
+    async function loadDetail() {
+      if (!id) return;
+      const numericId = parseListingNumericId(id);
+      if (numericId > 0) {
+        try {
+          const res = await listingsApi.getPublicListingById(numericId);
+          if (isMounted && res.isSuccess && res.data) {
+            const d = res.data;
+            const mapped: PropertyListing = {
+              id: String(d.id),
+              title: d.title,
+              description: d.description,
+              address: `${d.property.addressDetail}, ${d.property.wardName}, ${
+                d.property.districtName || d.property.provinceName
+              }`,
+              ward: d.property.wardName || "Dịch Vọng",
+              district: d.property.districtName || d.property.wardName || "Quận Cầu Giấy",
+              city: d.property.provinceName || "Hà Nội",
+              price: d.price,
+              deposit: d.depositAmount,
+              area: Number(d.room.areaSqm),
+              roomType: (d.room.roomType === "STUDIO"
+                ? "Chung cư mini"
+                : d.room.roomType === "DORMITORY"
+                ? "Ở ghép"
+                : "Phòng trọ") as PropertyListing["roomType"],
+              electricityPrice:
+                d.tariffs.find((t) => t.tariffType === "ELECTRICITY")?.unitPrice || 3800,
+              waterPrice: d.tariffs.find((t) => t.tariffType === "WATER")?.unitPrice || 28000,
+              serviceFee: d.tariffs.find((t) => t.tariffType === "SERVICE")?.unitPrice || 150000,
+              amenities:
+                d.room.amenities.length > 0
+                  ? d.room.amenities.map((a) => a.name)
+                  : ["Điều hòa", "Nóng lạnh", "Máy giặt"],
+              images:
+                d.images.length > 0
+                  ? d.images.map((img) => img.imageUrl)
+                  : [
+                      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
+                    ],
+              status:
+                d.status === "Published"
+                  ? "Còn trống"
+                  : d.status === "Hidden"
+                  ? "Tạm ngừng"
+                  : "Đã thuê",
+              landlordId: String(d.landlordId),
+              landlordName: "Nguyễn Văn Hoàng (Chủ Trọ)",
+              landlordPhone: "0902000002",
+              latitude: d.latitude || 21.034,
+              longitude: d.longitude || 105.793,
+              createdAt: new Date().toISOString(),
+              viewCount: Number(d.viewCount) || 1,
+              isFeatured: d.isFeatured,
+            };
+            setListing(mapped);
+            setIsFav(listingService.isFavorite(id));
+            return;
+          }
+        } catch (err) {
+          console.warn("Failed to fetch public listing detail from backend", err);
+        }
+      }
+
+      // If not found in backend
+      if (isMounted) {
+        setListing(null);
       }
     }
+    loadDetail();
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   if (!listing) {
@@ -98,9 +164,17 @@ export default function ListingDetailPage() {
     );
   }
 
-  const handleToggleFav = () => {
+  const handleToggleFav = async () => {
     const newState = listingService.toggleFavorite(listing.id);
     setIsFav(newState);
+    const numericId = parseListingNumericId(listing.id);
+    if (numericId > 0 && getStoredToken()) {
+      try {
+        await listingsApi.toggleSaveListing(numericId);
+      } catch (err) {
+        console.warn("Could not sync favorite to backend", err);
+      }
+    }
     showToast(
       newState ? "Đã thêm vào phòng yêu thích!" : "Đã xóa khỏi phòng yêu thích",
       newState ? "success" : "info"
@@ -144,25 +218,11 @@ export default function ListingDetailPage() {
         isVirtualViewing,
       });
 
-      if (!apiRes.isSuccess && apiRes.error && apiRes.error.code !== "HTTP_401" && apiRes.error.code !== "NETWORK_ERROR") {
-        showToast(apiRes.error.message || "Không thể đặt lịch xem phòng.", "error");
+      if (!apiRes.isSuccess) {
+        showToast(apiRes.error?.message || "Không thể đặt lịch xem phòng.", "error");
         setBookingLoading(false);
         return;
       }
-
-      // Sync to local fallback for guest/demo mode
-      viewingService.book({
-        listingId: listing.id,
-        listingTitle: listing.title,
-        listingAddress: listing.address,
-        listingImage: listing.images[0] || "",
-        tenantId: user?.accountId || "demo-tenant-id",
-        tenantName,
-        tenantPhone,
-        landlordId: listing.landlordId,
-        scheduledTime,
-        note,
-      });
 
       setIsBookingOpen(false);
       showToast(
@@ -183,15 +243,16 @@ export default function ListingDetailPage() {
   const firstMonthTotal = listing.price + listing.deposit + estElecCost + estWaterCost + listing.serviceFee;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 w-full flex-1 space-y-6 sm:space-y-8 pb-24 lg:pb-8">
       {/* Top Action Bar */}
-      <div className="flex items-center justify-between text-xs text-slate-500">
+      <div className="flex items-center justify-between text-xs text-slate-500 gap-2">
         <Link
           href="/listings"
-          className="flex items-center gap-1.5 font-semibold text-slate-700 hover:text-blue-600"
+          className="flex items-center gap-1.5 font-semibold text-slate-700 hover:text-blue-600 truncate"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Quay lại danh sách phòng</span>
+          <ArrowLeft className="w-4 h-4 shrink-0" />
+          <span className="hidden sm:inline">Quay lại danh sách phòng</span>
+          <span className="sm:hidden">Quay lại</span>
         </Link>
 
         <div className="flex items-center gap-2">
@@ -716,6 +777,42 @@ export default function ListingDetailPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Mobile Fixed Bottom CTA Bar */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-4 py-2.5 flex items-center justify-between gap-3 safe-bottom">
+        <div>
+          <span className="text-[10px] font-bold text-slate-400 uppercase block">Giá thuê</span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-base sm:text-lg font-black text-blue-600">
+              {(listing.price / 1000000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tr
+            </span>
+            <span className="text-[10px] text-slate-500 font-medium">/tháng</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/messages?listingId=${parseListingNumericId(listing.id)}`}
+            className="p-2.5 rounded-xl font-bold text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all flex items-center justify-center shrink-0"
+            title="Chat với chủ trọ"
+          >
+            <MessageSquare className="w-4 h-4 text-blue-600" />
+          </Link>
+
+          {!isLandlord ? (
+            <button
+              onClick={() => setIsBookingOpen(true)}
+              disabled={listing.status !== "Còn trống"}
+              className="py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/25 transition-all flex items-center gap-1.5 disabled:opacity-50 whitespace-nowrap"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Đặt lịch xem</span>
+            </button>
+          ) : (
+            <span className="text-[11px] text-slate-500 font-medium px-2">Kênh chủ nhà</span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

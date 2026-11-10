@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { PropertyListing } from "@/types";
 import { listingService } from "@/lib/services";
+import { listingsApi, parseListingNumericId, getStoredToken } from "@/lib/api-client";
 import { useToast } from "@/components/Toast";
 import {
   Heart,
@@ -29,11 +30,19 @@ export function ListingCard({ listing, onFavoriteChange }: ListingCardProps) {
   const { showToast } = useToast();
   const [isFav, setIsFav] = useState(() => listingService.isFavorite(listing.id));
 
-  const handleFavoriteClick = (e: React.MouseEvent) => {
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const newState = listingService.toggleFavorite(listing.id);
     setIsFav(newState);
+    const numericId = parseListingNumericId(listing.id);
+    if (numericId > 0 && getStoredToken()) {
+      try {
+        await listingsApi.toggleSaveListing(numericId);
+      } catch (err) {
+        console.warn("Could not sync favorite to backend", err);
+      }
+    }
     showToast(
       newState ? "Đã lưu vào danh sách phòng yêu thích!" : "Đã xóa khỏi danh sách yêu thích",
       newState ? "success" : "info"

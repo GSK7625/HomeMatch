@@ -1,0 +1,83 @@
+name: HomeMatch Continuous Integration (CI)
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - dev
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-ci:
+    name: Backend (.NET 10) Build & Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        id: setup_dotnet
+        continue-on-error: true
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore, Build and Test
+        run: |
+          if [ "${{ steps.setup_dotnet.outcome }}" = "success" ]; then
+            echo "Building and testing with host .NET SDK..."
+            dotnet restore backend/HomeMatch.sln
+            dotnet build backend/HomeMatch.sln --no-restore --configuration Release
+            dotnet test backend/HomeMatch.sln --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=test_results.trx"
+          else
+            echo "Falling back to official .NET 10 container..."
+            docker run --rm \
+              -v "$GITHUB_WORKSPACE:/workspace" \
+              -w /workspace \
+              mcr.microsoft.com/dotnet/sdk:10.0 \
+              sh -c "dotnet restore backend/HomeMatch.sln && \
+                     dotnet build backend/HomeMatch.sln --no-restore --configuration Release && \
+                     dotnet test backend/HomeMatch.sln --no-build --configuration Release --verbosity normal"
+          fi
+
+  frontend-ci:
+    name: Frontend (Next.js 15) Build & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci || npm install
+
+      - name: Build Next.js Application
+        working-directory: frontend
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+  docker-compose-validate:
+    name: Validate Docker Compose
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Validate compose.yaml
+        run: docker compose config

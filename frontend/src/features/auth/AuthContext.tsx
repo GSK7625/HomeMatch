@@ -28,43 +28,11 @@ interface AuthContextType {
   resendConfirmationEmail: (email: string) => Promise<{ success: boolean; message?: string }>;
   logout: (allDevices?: boolean) => Promise<void>;
   refreshProfile: () => Promise<void>;
-  switchDemoRole: (role: UserRole) => void;
+  switchDemoRole?: (role: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const DEMO_USERS: Record<UserRole, CurrentUserProfile> = {
-  Tenant: {
-    accountId: "3",
-    email: "tenant@homematch.vn",
-    displayName: "Trần Bình An (Người Thuê)",
-    role: "Tenant",
-    phoneNumber: "0903000003",
-    emailConfirmed: true,
-    emailVerified: true,
-    createdAt: "2026-10-01T00:00:00Z",
-  },
-  Landlord: {
-    accountId: "2",
-    email: "landlord@homematch.vn",
-    displayName: "Nguyễn Văn Hoàng (Chủ Trọ)",
-    role: "Landlord",
-    phoneNumber: "0902000002",
-    emailConfirmed: true,
-    emailVerified: true,
-    createdAt: "2026-09-15T00:00:00Z",
-  },
-  Admin: {
-    accountId: "1",
-    email: "admin@homematch.vn",
-    displayName: "Quản Trị Viên Hệ Thống",
-    role: "Admin",
-    phoneNumber: "0901000001",
-    emailConfirmed: true,
-    emailVerified: true,
-    createdAt: "2026-01-01T00:00:00Z",
-  },
-};
 
 function normalizeProfile(raw: CurrentUserProfile): CurrentUserProfile {
   return {
@@ -242,11 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const switchDemoRole = (newRole: UserRole) => {
-    const demoUser = DEMO_USERS[newRole];
-    setUser(demoUser);
-    setStoredUser(demoUser);
-  };
+  const switchDemoRole = () => {};
 
   const role = user ? user.role : "Guest";
 

@@ -19,9 +19,11 @@ using HomeMatch.Modules.Listings.Application.Features.SavedListings.ToggleSaveLi
 using HomeMatch.Modules.Listings.Application.Interfaces;
 using HomeMatch.Modules.Listings.Infrastructure.Persistence;
 using HomeMatch.Modules.Listings.Infrastructure.Persistence.Repositories;
+using HomeMatch.Modules.Listings.Infrastructure.Services;
 using HomeMatch.Modules.Listings.Infrastructure.BackgroundServices;
 using HomeMatch.Modules.Listings.Presentation.Endpoints;
 using HomeMatch.Shared.Contracts;
+using HomeMatch.Shared.Contracts.Listings;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -53,8 +55,9 @@ public static class ListingsModuleExtensions
         services.AddScoped<IListingImageRepository, ListingImageRepository>();
         services.AddScoped<ISavedListingRepository, SavedListingRepository>();
 
-        // Cross-module writers
+        // Cross-module writers & readers
         services.AddScoped<IListingVisibilityWriter, ListingVisibilityWriter>();
+        services.AddScoped<IListingContractReader, ListingContractReader>();
 
         // Listings Handlers
         services.AddScoped<CreateListingHandler>();

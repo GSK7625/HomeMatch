@@ -33,19 +33,23 @@ export function ListingCard({ listing, onFavoriteChange }: ListingCardProps) {
   const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const newState = listingService.toggleFavorite(listing.id);
-    setIsFav(newState);
+    let finalState = listingService.toggleFavorite(listing.id);
+    setIsFav(finalState);
     const numericId = parseListingNumericId(listing.id);
     if (numericId > 0 && getStoredToken()) {
       try {
-        await listingsApi.toggleSaveListing(numericId);
+        const res = await listingsApi.toggleSaveListing(numericId);
+        if (res.isSuccess && typeof res.data === "boolean") {
+          finalState = res.data;
+          setIsFav(finalState);
+        }
       } catch (err) {
         console.warn("Could not sync favorite to backend", err);
       }
     }
     showToast(
-      newState ? "Đã lưu vào danh sách phòng yêu thích!" : "Đã xóa khỏi danh sách yêu thích",
-      newState ? "success" : "info"
+      finalState ? "Đã lưu vào danh sách phòng yêu thích!" : "Đã xóa khỏi danh sách yêu thích",
+      finalState ? "success" : "info"
     );
     if (onFavoriteChange) onFavoriteChange();
   };

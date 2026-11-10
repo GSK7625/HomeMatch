@@ -24,6 +24,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect");
+  const isSessionExpired = searchParams.get("reason") === "expired";
   const { login, resendConfirmationEmail } = useAuth();
   const { showToast } = useToast();
 
@@ -132,6 +133,14 @@ function LoginForm() {
             Đăng nhập để tiếp tục quản lý phòng trọ hoặc tìm kiếm căn hộ
           </p>
         </div>
+
+        {/* Session Expired Notice */}
+        {isSessionExpired && !errorMessage && !errorCode && (
+          <div className="mb-5 p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 font-medium leading-relaxed flex items-start gap-2.5 animate-in fade-in">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <span>Phiên làm việc của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.</span>
+          </div>
+        )}
 
         {/* Email Not Verified Special Warning Banner */}
         {errorCode === "Identity.EmailNotVerified" && (

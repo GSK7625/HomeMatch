@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
 import { listingService } from "@/lib/services";
-import { getStoredToken, notificationsApi } from "@/lib/api-client";
+import { getStoredToken, isTokenExpired, refreshAccessTokenSilently, notificationsApi } from "@/lib/api-client";
 import { NotificationDto } from "@/types";
 import {
   Home,
@@ -29,7 +29,7 @@ import {
   Eye,
   CheckCheck,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 
 interface NavItem {
   label: string;
@@ -52,15 +52,34 @@ export function Navbar() {
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   const fetchNotificationsSummary = useCallback(async () => {
-    if (!user || !getStoredToken()) {
+    const token = getStoredToken();
+    if (!user || !token) {
       setNotifications([]);
       setUnreadNotifCount(0);
       return;
     }
-    const res = await notificationsApi.getNotifications({ page: 1, pageSize: 6 });
-    if (res.isSuccess && res.data) {
-      setNotifications(res.data.items);
-      setUnreadNotifCount(res.data.unreadCount);
+
+    // Nếu token đã hết hạn, chủ động làm mới trước; nếu phiên đã chết thì dừng polling
+    if (isTokenExpired(token)) {
+      const refreshed = await refreshAccessTokenSilently();
+      if (!refreshed) {
+        setNotifications([]);
+        setUnreadNotifCount(0);
+        return;
+      }
+    }
+
+    try {
+      const res = await notificationsApi.getNotifications({ page: 1, pageSize: 6 });
+      if (res.isSuccess && res.data) {
+        setNotifications(res.data.items);
+        setUnreadNotifCount(res.data.unreadCount);
+      } else if (res.error?.code === "HTTP_401") {
+        setNotifications([]);
+        setUnreadNotifCount(0);
+      }
+    } catch {
+      // Bỏ qua lỗi polling nền
     }
   }, [user]);
 
@@ -389,12 +408,17 @@ export function Navbar() {
                   className="flex items-center gap-1.5 p-1 rounded-xl hover:bg-slate-100 text-slate-700 transition-colors shrink-0"
                   title={user.displayName}
                 >
-                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0 overflow-hidden">
-                    {user.avatarUrl ? (
-                      <img src={user.avatarUrl} alt={user.displayName} className="w-full h-full object-cover" />
-                    ) : (
-                      user.displayName.charAt(0).toUpperCase()
+                  <div
+                    className={cn(
+                      "w-8 h-8 rounded-full text-white flex items-center justify-center font-black text-xs shadow-xs shrink-0 select-none tracking-tight",
+                      role === "Landlord"
+                        ? "bg-emerald-600"
+                        : role === "Admin"
+                        ? "bg-purple-600"
+                        : "bg-blue-600"
                     )}
+                  >
+                    {getInitials(user.displayName)}
                   </div>
                   <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 </button>
@@ -406,33 +430,47 @@ export function Navbar() {
                       onClick={() => setUserDropdownOpen(false)}
                     />
                     <div className="fixed inset-x-3 top-16 sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 w-auto sm:w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 max-h-[80vh] overflow-y-auto">
-                      <div className="px-4 py-3 border-b border-slate-100">
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs font-bold text-slate-900 truncate">{user.displayName}</p>
-                          {user.emailConfirmed && (
-                            <span title="Email đã xác thực" className="inline-flex text-emerald-600">
-                              <ShieldCheck className="w-3.5 h-3.5" />
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
-                        <div className="mt-1.5 flex items-center gap-1.5">
-                          <span
-                            className={cn(
-                              "px-2 py-0.5 rounded-md text-[10px] font-bold",
-                              role === "Landlord"
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : role === "Admin"
-                                ? "bg-purple-50 text-purple-700 border border-purple-200"
-                                : "bg-blue-50 text-blue-700 border border-blue-200"
-                            )}
-                          >
-                            {role === "Landlord"
-                              ? "Tài khoản Chủ nhà"
+                      <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-3">
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-full text-white flex items-center justify-center font-black text-xs shadow-xs shrink-0 select-none tracking-tight",
+                            role === "Landlord"
+                              ? "bg-emerald-600"
                               : role === "Admin"
-                              ? "Quản trị viên"
-                              : "Tài khoản Người thuê"}
-                          </span>
+                              ? "bg-purple-600"
+                              : "bg-blue-600"
+                          )}
+                        >
+                          {getInitials(user.displayName)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-bold text-slate-900 truncate">{user.displayName}</p>
+                            {user.emailConfirmed && (
+                              <span title="Email đã xác thực" className="inline-flex text-emerald-600">
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
+                          <div className="mt-1.5 flex items-center gap-1.5">
+                            <span
+                              className={cn(
+                                "px-2 py-0.5 rounded-md text-[10px] font-bold",
+                                role === "Landlord"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : role === "Admin"
+                                  ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                  : "bg-blue-50 text-blue-700 border border-blue-200"
+                              )}
+                            >
+                              {role === "Landlord"
+                                ? "Tài khoản Chủ nhà"
+                                : role === "Admin"
+                                ? "Quản trị viên"
+                                : "Tài khoản Người thuê"}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
@@ -448,16 +486,6 @@ export function Navbar() {
                         </Link>
                       )}
 
-                      {role === "Admin" && (
-                        <Link
-                          href="/admin/dashboard"
-                          onClick={() => setUserDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
-                        >
-                          <ShieldCheck className="w-4 h-4 text-slate-400" />
-                          <span>Bảng điều khiển Quản trị</span>
-                        </Link>
-                      )}
 
                       {role === "Tenant" && (
                         <>
@@ -552,12 +580,35 @@ export function Navbar() {
           {mobileMenuOpen && (
             <div className="lg:hidden border-t border-slate-100 py-3 space-y-1 animate-in fade-in">
               {user ? (
-                <div className="px-3 py-2.5 bg-slate-50 rounded-xl mb-2 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-bold text-slate-900">{user.displayName}</p>
-                    <p className="text-[10px] text-slate-500">{user.email}</p>
+                <div className="px-3 py-2.5 bg-slate-50 rounded-xl mb-2 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className={cn(
+                        "w-9 h-9 rounded-full text-white flex items-center justify-center font-black text-xs shadow-xs shrink-0 select-none tracking-tight",
+                        role === "Landlord"
+                          ? "bg-emerald-600"
+                          : role === "Admin"
+                          ? "bg-purple-600"
+                          : "bg-blue-600"
+                      )}
+                    >
+                      {getInitials(user.displayName)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 truncate">{user.displayName}</p>
+                      <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
+                    </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700">
+                  <span
+                    className={cn(
+                      "px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0",
+                      role === "Landlord"
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : role === "Admin"
+                        ? "bg-purple-50 text-purple-700 border border-purple-200"
+                        : "bg-blue-50 text-blue-700 border border-blue-200"
+                    )}
+                  >
                     {role === "Landlord" ? "Chủ nhà" : role === "Admin" ? "Admin" : "Người thuê"}
                   </span>
                 </div>

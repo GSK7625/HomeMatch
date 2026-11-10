@@ -6,13 +6,12 @@ import { listingService } from "@/lib/services";
 import { listingsApi, getStoredToken } from "@/lib/api-client";
 import { PropertyListing } from "@/types";
 import { ListingCard } from "@/features/listings/ListingCard";
-import { Heart, Search, ArrowRight, Sparkles, RefreshCw, CheckCircle2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Heart, Search, ArrowRight, Sparkles, RefreshCw } from "lucide-react";
+import { cn, mapListingSummaryToCard } from "@/lib/utils";
 
 export default function FavoritesPage() {
   const [favListings, setFavListings] = useState<PropertyListing[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isBackendConnected, setIsBackendConnected] = useState(false);
 
   const loadFavorites = useCallback(async () => {
     setLoading(true);
@@ -23,42 +22,16 @@ export default function FavoritesPage() {
       try {
         const res = await listingsApi.getSavedListings();
         if (res.isSuccess && res.data && res.data.length > 0) {
-          setIsBackendConnected(true);
           const savedIds = res.data.map((s) => String(s.listingId));
           const matches = all.filter((x) => savedIds.includes(String(x.id)));
 
-          // For any backend listings not in local all, synthesize a card
+          // For any backend listings not in local all, map using real backend summary fields
           const missing = res.data
             .filter((s) => !matches.some((m) => String(m.id) === String(s.listingId)))
             .map((s) => ({
+              ...mapListingSummaryToCard(s.listing),
               id: String(s.listingId),
-              title: s.listing.title,
-              description: "Phòng trọ cho thuê",
-              address: "Cầu Giấy, Hà Nội",
-              ward: "Dịch Vọng",
-              district: "Cầu Giấy",
-              city: "Hà Nội",
-              price: s.listing.price,
-              deposit: s.listing.price,
-              area: 25,
-              roomType: "Chung cư mini" as const,
-              electricityPrice: 3800,
-              waterPrice: 28000,
-              serviceFee: 150000,
-              amenities: ["Điều hòa", "Nóng lạnh"],
-              images: [
-                s.listing.coverImageUrl ||
-                  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
-              ],
-              status: "Còn trống" as const,
-              landlordId: "landlord-1",
-              landlordName: "Chủ Trọ",
-              landlordPhone: "0902000002",
-              latitude: 21.034,
-              longitude: 105.793,
               createdAt: s.createdAt,
-              viewCount: 10,
-              isFeatured: s.listing.isFeatured,
             }));
 
           setFavListings([...matches, ...missing]);
@@ -87,11 +60,6 @@ export default function FavoritesPage() {
           <div className="flex items-center gap-2 text-rose-600 text-xs font-bold uppercase tracking-wider mb-1">
             <Heart className="w-4 h-4 fill-current" />
             <span>Bộ sưu tập cá nhân (Saved Listings)</span>
-            {isBackendConnected && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                <CheckCircle2 className="w-3 h-3" /> Live Backend Sync
-              </span>
-            )}
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Danh Sách Phòng Đã Lưu Yêu Thích

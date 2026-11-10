@@ -4,14 +4,13 @@ import React, { useState, useEffect, useRef, useCallback, Suspense } from "react
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
-import { getStoredToken, messagingApi, listingsApi } from "@/lib/api-client";
+import { getStoredToken, messagingApi } from "@/lib/api-client";
 import {
   ChatRealtimeClient,
   RealtimeConnectionState,
 } from "@/features/messaging/signalr-client";
-import { ConversationDto, MessageDto, ListingSummaryDto } from "@/types";
+import { ConversationDto, MessageDto } from "@/types";
 import { useToast } from "@/components/Toast";
-import { Modal } from "@/components/Modal";
 import {
   MessageSquare,
   Send,
@@ -19,7 +18,6 @@ import {
   Check,
   CheckCheck,
   Plus,
-  Bookmark,
   Calendar,
   Wifi,
   WifiOff,
@@ -60,21 +58,8 @@ function MessagesContent() {
   const [isLoadingConvs, setIsLoadingConvs] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [realtimeState, setRealtimeState] = useState<RealtimeConnectionState>("disconnected");
   const [partnerTyping, setPartnerTyping] = useState(false);
-
-  // Start New Conversation Modal
-  const [isNewChatOpen, setIsNewChatOpen] = useState(false);
-  const [newChatListingId, setNewChatListingId] = useState<number>(1);
-  const [newChatInitialMsg, setNewChatInitialMsg] = useState(
-    "Chào anh/chị, mình quan tâm đến phòng này và muốn hỏi thêm thông tin thuê phòng ạ."
-  );
-  const [startingChat, setStartingChat] = useState(false);
-
-  // Suggested listings for inquiry & new chat modal
-  const [suggestedListings, setSuggestedListings] = useState<ListingSummaryDto[]>([]);
-  const [isLoadingListings, setIsLoadingListings] = useState(false);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const realtimeRef = useRef<ChatRealtimeClient | null>(null);
@@ -83,30 +68,6 @@ function MessagesContent() {
   activeConvIdRef.current = activeConvId;
 
   const currentUserId = Number(user?.id || user?.accountId || 3);
-
-  // Fetch real listings to suggest in the welcome hub & chat modal
-  useEffect(() => {
-    let isMounted = true;
-    const fetchSuggestedListings = async () => {
-      setIsLoadingListings(true);
-      try {
-        const res = await listingsApi.getPublicListings(6);
-        if (res.isSuccess && res.data && res.data.length > 0 && isMounted) {
-          setSuggestedListings(res.data);
-          setNewChatListingId(res.data[0].id);
-        }
-      } catch {
-        // Fallback already present in DEFAULT_SUGGESTED_LISTINGS
-      } finally {
-        if (isMounted) setIsLoadingListings(false);
-      }
-    };
-
-    fetchSuggestedListings();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const loadConversations = useCallback(async (selectConvId?: number) => {
     if (!user) return;
@@ -288,12 +249,19 @@ function MessagesContent() {
       user?.role === "Landlord" ||
       (user?.email ? user.email.toLowerCase().includes("landlord") : false));
 
+  // Hàm hỗ trợ lọc bỏ hậu tố dài trong ngoặc như (Chủ Trọ), (Người Thuê)
+  const cleanPartnerName = (rawName?: string, fallback = "Người dùng") => {
+    if (!rawName) return fallback;
+    const cleaned = rawName.replace(/\(.*?\)/g, "").trim();
+    return cleaned || fallback;
+  };
+
   // Xác định thông tin người đối thoại (Partner) chuẩn xác theo góc nhìn của người đang đăng nhập
   const currentPartnerName = !activeConv
     ? ""
     : isLandlord
-    ? (activeConv.initiatorName || (activeConv.partnerName?.includes("Chủ") ? "Trần Bình An (Người Thuê)" : activeConv.partnerName) || "Khách thuê")
-    : (activeConv.recipientName || (activeConv.partnerName?.includes("Người Thuê") ? "Nguyễn Văn Hoàng (Chủ Trọ)" : activeConv.partnerName) || "Chủ nhà");
+    ? cleanPartnerName(activeConv.initiatorName || activeConv.partnerName, "Khách thuê")
+    : cleanPartnerName(activeConv.recipientName || activeConv.partnerName, "Chủ nhà");
 
   const currentPartnerRole = isLandlord ? "Khách thuê" : "Chủ nhà";
 
@@ -372,60 +340,6 @@ function MessagesContent() {
     }
   };
 
-  const handleSaveDraft = async () => {
-    if (!activeConvId || !inputText.trim()) {
-      showToast("Vui lòng nhập nội dung trước khi lưu bản nháp.", "info");
-      return;
-    }
-
-    setIsSavingDraft(true);
-    try {
-      const token = getStoredToken();
-      if (token) {
-        const res = await messagingApi.saveDraft(activeConvId, {
-          content: inputText.trim(),
-          source: "MANUAL",
-        });
-        if (res.isSuccess) {
-          showToast("Đã lưu bản nháp tin nhắn!", "success");
-        } else {
-          showToast(res.error?.message || "Không thể lưu bản nháp.", "error");
-        }
-      } else {
-        showToast("Đã lưu bản nháp tin nhắn!", "success");
-      }
-    } finally {
-      setIsSavingDraft(false);
-    }
-  };
-
-  const handleStartNewConversation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setStartingChat(true);
-    try {
-      const token = getStoredToken();
-      if (token) {
-        const res = await messagingApi.startOrGetConversation({
-          listingId: newChatListingId,
-          initialMessage: newChatInitialMsg.trim() || undefined,
-        });
-        if (res.isSuccess && res.data) {
-          showToast("Đã mở cuộc hội thoại với chủ nhà!", "success");
-          setIsNewChatOpen(false);
-          await loadConversations(res.data.id);
-          await loadMessages(res.data.id);
-          return;
-        } else {
-          showToast(res.error?.message || "Không thể bắt đầu cuộc hội thoại.", "error");
-          return;
-        }
-      }
-      setIsNewChatOpen(false);
-      showToast("Đã mở cuộc hội thoại!", "success");
-    } finally {
-      setStartingChat(false);
-    }
-  };
 
   if (!user) {
     return (
@@ -475,28 +389,28 @@ function MessagesContent() {
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 w-full flex-1 flex flex-col space-y-3">
       {/* Top Header Card */}
-      <div className="bg-white px-4 py-3 sm:py-3.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <MessageSquare className="w-5 h-5" />
+      <div className="bg-white px-4 py-3 sm:py-3.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
-                Hộp Thư Trao Đổi Trực Tiếp
-              </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200/70 whitespace-nowrap">
-                {conversations.length > 0 ? `${conversations.length} cuộc hội thoại` : "Tin nhắn trực tiếp"}
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight truncate">
+              Tin nhắn
+            </h1>
+            {conversations.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200/70 shrink-0">
+                {conversations.length}
               </span>
-            </div>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 self-end sm:self-center">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Realtime Status Pill */}
           <div
             className={cn(
-              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors",
+              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-bold border transition-colors",
               realtimeState === "connected"
                 ? "bg-emerald-50 text-emerald-700 border-emerald-200/80"
                 : realtimeState === "connecting" || realtimeState === "reconnecting"
@@ -506,13 +420,13 @@ function MessagesContent() {
           >
             {realtimeState === "connected" ? (
               <>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span>Trực tuyến</span>
               </>
             ) : realtimeState === "connecting" || realtimeState === "reconnecting" ? (
               <>
                 <RefreshCw className="w-3 h-3 animate-spin text-amber-600" />
-                <span>Đang kết nối...</span>
+                <span>Đang kết nối</span>
               </>
             ) : (
               <>
@@ -521,15 +435,6 @@ function MessagesContent() {
               </>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={() => setIsNewChatOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs shadow-blue-500/20 transition-all whitespace-nowrap"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Nhắn phòng mới</span>
-          </button>
         </div>
       </div>
 
@@ -581,25 +486,25 @@ function MessagesContent() {
                   </h4>
                   <p className="text-[11px] text-slate-500 mt-1 leading-relaxed max-w-[220px] mx-auto">
                     {searchFilter
-                      ? "Hãy thử tìm kiếm với từ khóa hoặc tên người khác."
-                      : "Bấm nút bên dưới để chọn phòng và bắt đầu gửi tin nhắn trao đổi với chủ nhà."}
+                      ? "Không tìm thấy kết quả phù hợp."
+                      : "Khám phá tin đăng và bấm Chat chủ trọ để mở cuộc hội thoại."}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsNewChatOpen(true)}
+                <Link
+                  href="/listings"
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs shadow-blue-500/20 transition-all mx-auto"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ Nhắn phòng mới</span>
-                </button>
+                  <Search className="w-3.5 h-3.5" />
+                  <span>Xem sàn tin phòng</span>
+                </Link>
               </div>
             ) : (
               filteredConversations.map((conv) => {
                 const isActive = activeConvId === conv.id;
-                const partnerName = isLandlord
+                const rawPartnerName = isLandlord
                   ? (conv.initiatorName || conv.partnerName || "Khách thuê")
-                  : (conv.recipientName || (conv.partnerName?.includes("Người Thuê") ? "Nguyễn Văn Hoàng (Chủ Trọ)" : conv.partnerName) || "Chủ nhà");
+                  : (conv.recipientName || conv.partnerName || "Chủ nhà");
+                const partnerName = cleanPartnerName(rawPartnerName, isLandlord ? "Khách thuê" : "Chủ nhà");
                 const partnerRole = isLandlord ? "Khách thuê" : "Chủ nhà";
                 const initialLetter = partnerName.charAt(0).toUpperCase();
 
@@ -687,9 +592,11 @@ function MessagesContent() {
                       </div>
 
                       {conv.listingTitle && (
-                        <div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-md truncate max-w-full">
+                        <div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded truncate max-w-full">
                           <Home className="w-2.5 h-2.5 shrink-0 text-blue-600" />
-                          <span className="truncate">{conv.listingTitle}</span>
+                          <span className="truncate">
+                            {conv.listingTitle.replace(/Phòng cho thuê HomeMatch #?/i, "Phòng #")}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -768,10 +675,7 @@ function MessagesContent() {
                         ✍️ Đang nhập tin nhắn...
                       </span>
                     ) : (
-                      <>
-                        <span className="text-emerald-600 font-semibold">● Trực tuyến</span>
-                        <span>• Hỗ trợ phản hồi nhanh</span>
-                      </>
+                      <span className="text-emerald-600 font-semibold">● Trực tuyến</span>
                     )}
                   </div>
                 </div>
@@ -1000,28 +904,11 @@ function MessagesContent() {
             >
               <input
                 type="text"
-                placeholder={
-                  isAdmin
-                    ? "Nhập tin nhắn với tư cách Quản trị viên..."
-                    : isLandlord
-                    ? "Nhập tin nhắn phản hồi cho người thuê..."
-                    : "Nhập tin nhắn trao đổi với chủ nhà..."
-                }
+                placeholder="Nhập tin nhắn..."
                 value={inputText}
                 onChange={(e) => handleInputChange(e.target.value)}
                 className="flex-1 px-4 py-2.5 text-xs sm:text-[13px] rounded-xl bg-slate-50 border border-slate-200/90 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all text-slate-900"
               />
-
-              <button
-                type="button"
-                disabled={!inputText.trim() || isSavingDraft}
-                onClick={handleSaveDraft}
-                className="px-3 py-2.5 rounded-xl border border-slate-200/90 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all disabled:opacity-40 flex items-center gap-1.5 shrink-0"
-                title="Lưu bản nháp tin nhắn"
-              >
-                <Bookmark className="w-3.5 h-3.5 text-slate-500" />
-                <span className="hidden sm:inline">Lưu nháp</span>
-              </button>
 
               <button
                 type="submit"
@@ -1029,244 +916,31 @@ function MessagesContent() {
                 className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all disabled:opacity-40 flex items-center gap-1.5 shadow-sm shadow-blue-500/25 shrink-0"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>{isSending ? "Đang gửi..." : "Gửi tin"}</span>
+                <span>{isSending ? "Đang gửi..." : "Gửi"}</span>
               </button>
             </form>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col bg-white overflow-y-auto p-4 sm:p-6 lg:p-7">
-            {/* Hero Welcome Banner */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white p-5 sm:p-7 shadow-xs">
-              <div className="relative z-10 max-w-xl">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-xs text-blue-100 text-[11px] font-bold mb-3 border border-white/20">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
-                  <span>Kênh Liên Lạc Trực Tiếp Chính Chủ 100%</span>
-                </div>
-                <h3 className="text-xl sm:text-2xl font-black tracking-tight leading-tight">
-                  Trung Tâm Trao Đổi HomeMatch
-                </h3>
-                <p className="mt-2 text-xs sm:text-sm text-blue-100/90 leading-relaxed">
-                  Nhắn tin bảo mật và trao đổi trực tiếp với Chủ nhà trước khi thuê. Tìm hiểu chi tiết phòng, thỏa thuận giá cả và hẹn lịch xem phòng nhanh chóng.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setIsNewChatOpen(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-blue-700 hover:bg-blue-50 text-xs font-black shadow-sm transition-all"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Nhắn tin phòng mới</span>
-                  </button>
-                  <Link
-                    href="/listings"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/30 hover:bg-white/20 text-white text-xs font-bold border border-white/25 transition-all"
-                  >
-                    <Home className="w-4 h-4" />
-                    <span>Khám phá tin đăng</span>
-                  </Link>
-                </div>
-              </div>
-
-              {/* Decorative background glow */}
-              <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-radial from-white/10 to-transparent pointer-events-none hidden md:block" />
+          <div className="flex-1 flex flex-col items-center justify-center bg-white p-6 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 shadow-xs">
+              <MessageSquare className="w-7 h-7" />
             </div>
-
-            {/* Feature Highlights Grid */}
-            <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-blue-200 transition-all">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center mb-2">
-                  <MessageSquare className="w-4 h-4" />
-                </div>
-                <h4 className="text-xs font-bold text-slate-900">Hỏi Phòng Nhanh</h4>
-                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                  Hỏi trực tiếp về tình trạng phòng trống, cọc giữ phòng và chi phí sinh hoạt.
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-blue-200 transition-all">
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center mb-2">
-                  <Calendar className="w-4 h-4" />
-                </div>
-                <h4 className="text-xs font-bold text-slate-900">Hẹn Lịch Xem Phòng</h4>
-                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                  Thống nhất giờ đến xem phòng trực tiếp hoặc xem qua video call nhanh chóng.
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-blue-200 transition-all">
-                <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center mb-2">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <h4 className="text-xs font-bold text-slate-900">Lịch Sử Minh Bạch</h4>
-                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                  Lưu trữ thỏa thuận trao đổi an toàn, làm căn cứ rõ ràng khi ký hợp đồng thuê.
-                </p>
-              </div>
-            </div>
-
-            {/* Suggested Available Listings to Inquiry */}
-            <div className="mt-6 flex-1 flex flex-col">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Gợi Ý Phòng Trọ Nổi Bật Để Trao Đổi Ngay
-                  </h4>
-                </div>
-                <Link
-                  href="/listings"
-                  className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                >
-                  <span>Xem tất cả</span>
-                  <ExternalLink className="w-3 h-3" />
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {suggestedListings.slice(0, 3).map((listing) => (
-                  <div
-                    key={listing.id}
-                    className="group rounded-xl border border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm transition-all overflow-hidden flex flex-col"
-                  >
-                    <div className="h-28 bg-slate-100 relative overflow-hidden flex items-center justify-center">
-                      {listing.coverImageUrl ? (
-                        <img
-                          src={listing.coverImageUrl}
-                          alt={listing.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center text-slate-400 gap-1">
-                          <Home className="w-7 h-7 text-slate-300" />
-                          <span className="text-[10px] font-semibold text-slate-400">HomeMatch Room</span>
-                        </div>
-                      )}
-                      <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-blue-600/90 text-white text-[10px] font-black backdrop-blur-xs">
-                        {listing.price.toLocaleString("vi-VN")} đ/tháng
-                      </span>
-                    </div>
-
-                    <div className="p-3 flex-1 flex flex-col justify-between space-y-2.5">
-                      <div>
-                        <h5 className="text-xs font-bold text-slate-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
-                          {listing.title}
-                        </h5>
-                        <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
-                          Mã tin #{listing.id} • Hỗ trợ đặt lịch & thuê ngay
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setNewChatListingId(listing.id);
-                            setNewChatInitialMsg(
-                              `Chào anh/chị, mình quan tâm đến phòng "${listing.title}" và muốn hỏi thêm thông tin thuê phòng ạ.`
-                            );
-                            setIsNewChatOpen(true);
-                          }}
-                          className="flex-1 py-1.5 px-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold text-center transition-all flex items-center justify-center gap-1 shadow-2xs"
-                        >
-                          <MessageSquare className="w-3 h-3" />
-                          <span>Nhắn tin</span>
-                        </button>
-                        <Link
-                          href={`/listings/${listing.id}`}
-                          className="py-1.5 px-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-[11px] font-semibold transition-colors"
-                          title="Xem chi tiết tin đăng"
-                        >
-                          Chi tiết
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <h3 className="text-base font-bold text-slate-800">Chọn cuộc trò chuyện</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-xs leading-relaxed">
+              Chọn một liên hệ từ danh sách bên trái hoặc nhắn tin trực tiếp từ bài đăng phòng trọ.
+            </p>
+            <div className="mt-4 flex items-center justify-center">
+              <Link
+                href="/listings"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all"
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>Xem sàn tin phòng</span>
+              </Link>
             </div>
           </div>
         )}
       </div>
-
-      {/* Modal: Bắt đầu cuộc hội thoại mới */}
-      <Modal
-        isOpen={isNewChatOpen}
-        onClose={() => setIsNewChatOpen(false)}
-        title="Bắt Đầu Trò Chuyện Với Chủ Nhà"
-        description="Chọn phòng trọ bạn quan tâm và gửi tin nhắn đầu tiên để mở cuộc trao đổi."
-        maxWidth="md"
-      >
-        <form onSubmit={handleStartNewConversation} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Chọn phòng trọ muốn hỏi thuê
-            </label>
-            <select
-              value={newChatListingId}
-              onChange={(e) => {
-                const selectedId = Number(e.target.value);
-                setNewChatListingId(selectedId);
-                const found = suggestedListings.find((s) => s.id === selectedId);
-                if (found) {
-                  setNewChatInitialMsg(
-                    `Chào anh/chị, mình quan tâm đến phòng "${found.title}" và muốn hỏi thêm thông tin thuê phòng ạ.`
-                  );
-                }
-              }}
-              className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            >
-              {suggestedListings.map((listing) => (
-                <option key={listing.id} value={listing.id}>
-                  Tin #{listing.id} — {listing.title} ({listing.price.toLocaleString("vi-VN")} đ/tháng)
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Nội dung tin nhắn đầu tiên
-            </label>
-            <textarea
-              rows={3}
-              required
-              value={newChatInitialMsg}
-              onChange={(e) => setNewChatInitialMsg(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            />
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              <span className="text-[10px] font-bold text-slate-400 w-full">Gợi ý nội dung nhanh:</span>
-              {QUICK_REPLIES.map((reply, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setNewChatInitialMsg(reply)}
-                  className="px-2.5 py-1 rounded-lg text-[10px] bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 transition-colors text-left"
-                >
-                  {reply}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-1">
-            <button
-              type="button"
-              onClick={() => setIsNewChatOpen(false)}
-              className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50"
-            >
-              Đóng
-            </button>
-            <button
-              type="submit"
-              disabled={startingChat}
-              className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-500/20 disabled:opacity-50"
-            >
-              {startingChat ? "Đang tạo hội thoại..." : "Bắt đầu trò chuyện"}
-            </button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 }

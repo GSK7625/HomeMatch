@@ -30,6 +30,8 @@ import {
   UpdateRoomBody,
   SetPropertyTariffsBody,
   ListingSummaryDto,
+  SearchListingsParams,
+  SearchListingsDto,
   ListingImageDto,
   ListingDetailDto,
   PublicListingDetailDto,
@@ -37,6 +39,7 @@ import {
   CreateListingBody,
   UpdateListingBody,
   AddListingImageBody,
+  UpdateListingImageBody,
   PendingListingsDto,
 } from "@/types";
 
@@ -71,11 +74,75 @@ export const API_BASE = (() => {
   return process.env.NODE_ENV === "production" ? "" : "http://localhost:5000";
 })();
 
-let csrfTokenCache: string | null = null;
-let csrfPromise: Promise<string | null> | null = null;
+let isRedirectingToLogin = false;
 
 export const TOKEN_STORAGE_KEY = "homematch_access_token";
 export const USER_STORAGE_KEY = "homematch_current_user";
+
+/**
+ * Kiểm tra xem JWT access token đã hết hạn (hoặc sắp hết hạn trong vòng 10 giây) hay chưa.
+ */
+export function isTokenExpired(token: string | null): boolean {
+  if (!token) return true;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return true;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload =
+      typeof window !== "undefined"
+        ? decodeURIComponent(
+            atob(base64)
+              .split("")
+              .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+              .join("")
+          )
+        : Buffer.from(base64, "base64").toString("utf8");
+    const payload = JSON.parse(jsonPayload);
+    if (!payload.exp) return false;
+    // Đệm 10 giây trước mốc hết hạn thực tế
+    return Date.now() >= payload.exp * 1000 - 10000;
+  } catch {
+    return true;
+  }
+}
+
+let refreshingPromise: Promise<string | null> | null = null;
+
+/**
+ * Làm mới Access Token chủ động hoặc khi 401 bằng HttpOnly Refresh Cookie.
+ * Gom các request đồng thời vào cùng một Promise để tránh gọi lặp lại.
+ */
+export async function refreshAccessTokenSilently(): Promise<string | null> {
+  if (refreshingPromise) {
+    return refreshingPromise;
+  }
+
+  refreshingPromise = (async () => {
+    try {
+      const refreshRes = await fetch(`${API_BASE}/api/v1/identity/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      if (refreshRes.ok) {
+        const refreshData = await refreshRes.json();
+        const newToken = refreshData?.data?.accessToken;
+        if (newToken) {
+          setStoredToken(newToken);
+          return newToken;
+        }
+      }
+    } catch {
+      // Bỏ qua lỗi mạng trong quá trình refresh ngầm
+    } finally {
+      refreshingPromise = null;
+    }
+    return null;
+  })();
+
+  return refreshingPromise;
+}
 
 export function getStoredToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -85,6 +152,7 @@ export function getStoredToken(): string | null {
 export function setStoredToken(token: string | null) {
   if (typeof window === "undefined") return;
   if (token) {
+    isRedirectingToLogin = false;
     localStorage.setItem(TOKEN_STORAGE_KEY, token);
   } else {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -112,50 +180,16 @@ export function setStoredUser(user: CurrentUserProfile | null) {
 }
 
 export function clearCsrfToken(): void {
-  csrfTokenCache = null;
-  csrfPromise = null;
+  // Kiến trúc JWT Bearer Token không yêu cầu CSRF cookie; giữ no-op để tương thích interface
 }
 
 /**
- * Fetch or reuse CSRF Request Token from ASP.NET Core Identity
+ * Kiến trúc bảo mật HomeMatch sử dụng JWT Bearer Token trong Authorization Header,
+ * an toàn mặc định trước CSRF và không yêu cầu Antiforgery Cookie.
+ * Trả về null để tránh gọi endpoint 404 dư thừa.
  */
-export async function getCsrfToken(forceRefresh = false): Promise<string | null> {
-  if (forceRefresh) {
-    csrfTokenCache = null;
-    csrfPromise = null;
-  }
-  if (csrfTokenCache) return csrfTokenCache;
-  if (csrfPromise) return csrfPromise;
-
-  csrfPromise = (async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/v1/identity/auth/csrf`, {
-        method: "GET",
-        credentials: "include",
-        headers: {
-          Accept: "application/json",
-        },
-      });
-
-      if (!res.ok) {
-        csrfPromise = null;
-        return null;
-      }
-
-      const json = (await res.json()) as ApiResponse<{ requestToken: string }>;
-      if (json.isSuccess && json.data?.requestToken) {
-        csrfTokenCache = json.data.requestToken;
-        return csrfTokenCache;
-      }
-      return null;
-    } catch {
-      return null;
-    } finally {
-      csrfPromise = null;
-    }
-  })();
-
-  return csrfPromise;
+export async function getCsrfToken(_forceRefresh = false): Promise<string | null> {
+  return null;
 }
 
 /**
@@ -173,8 +207,20 @@ export async function apiRequest<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  // Attach JWT if available
-  const token = getStoredToken();
+  // Attach JWT if available (tự động làm mới nếu token đã hết hạn trước khi gửi)
+  let token = getStoredToken();
+  if (token && isTokenExpired(token) && !endpoint.includes("/auth/")) {
+    const refreshed = await refreshAccessTokenSilently();
+    token = refreshed || null;
+    if (!refreshed) {
+      setStoredToken(null);
+      setStoredUser(null);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("homematch:auth-expired"));
+      }
+    }
+  }
+
   if (token && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${token}`);
   }
@@ -215,31 +261,62 @@ export async function apiRequest<T>(
       !endpoint.includes("/auth/login") &&
       !endpoint.includes("/auth/refresh")
     ) {
-      try {
-        const refreshRes = await fetch(`${API_BASE}/api/v1/identity/auth/refresh`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        });
-        if (refreshRes.ok) {
-          const refreshData = await refreshRes.json();
-          if (refreshData?.data?.accessToken) {
-            setStoredToken(refreshData.data.accessToken);
-            return apiRequest<T>(endpoint, options, true);
-          }
-        }
-      } catch {
-        // Refresh token failed, proceed to return 401 error
+      const refreshedToken = await refreshAccessTokenSilently();
+      if (refreshedToken) {
+        return apiRequest<T>(endpoint, options, true);
       }
     }
 
     if (!res.ok) {
+      if (
+        res.status === 401 &&
+        !endpoint.includes("/auth/login") &&
+        !endpoint.includes("/auth/refresh")
+      ) {
+        setStoredToken(null);
+        setStoredUser(null);
+        clearCsrfToken();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("homematch:auth-expired"));
+          const currentPath = window.location.pathname + window.location.search;
+          const isProtectedRoute =
+            currentPath.startsWith("/tenant") ||
+            currentPath.startsWith("/landlord") ||
+            currentPath.startsWith("/admin") ||
+            currentPath.startsWith("/messages");
+
+          if (isProtectedRoute && !isRedirectingToLogin) {
+            isRedirectingToLogin = true;
+            window.location.href = `/auth/login?reason=expired&redirect=${encodeURIComponent(currentPath)}`;
+          }
+        }
+      }
+
+      const fallbackMessage =
+        data?.message ||
+        (res.status === 401
+          ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+          : res.status === 403
+          ? "Tài khoản không có quyền thực hiện thao tác này."
+          : res.status === 404
+          ? "Không tìm thấy tài nguyên yêu cầu."
+          : res.status >= 500
+          ? "Lỗi hệ thống máy chủ. Vui lòng thử lại sau."
+          : res.statusText || "Yêu cầu thất bại");
+
       return {
         isSuccess: false,
         error: data?.error || {
           code: `HTTP_${res.status}`,
-          message: data?.message || res.statusText || "Yêu cầu thất bại",
+          message: fallbackMessage,
         },
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (res.status === 204 || !data) {
+      return {
+        isSuccess: true,
         timestamp: new Date().toISOString(),
       };
     }
@@ -333,7 +410,6 @@ export const authApi = {
     });
     setStoredToken(null);
     setStoredUser(null);
-    csrfTokenCache = null;
     return res;
   },
 
@@ -343,7 +419,6 @@ export const authApi = {
     });
     setStoredToken(null);
     setStoredUser(null);
-    csrfTokenCache = null;
     return res;
   },
 
@@ -690,6 +765,29 @@ export const catalogsApi = {
 // Listings Module API (/api/v1/listings)
 // ============================================================================
 export const listingsApi = {
+  searchListings: async (params?: SearchListingsParams) => {
+    const search = new URLSearchParams();
+    if (params?.minPrice !== undefined) search.set("minPrice", String(params.minPrice));
+    if (params?.maxPrice !== undefined) search.set("maxPrice", String(params.maxPrice));
+    if (params?.provinceCode) search.set("provinceCode", params.provinceCode);
+    if (params?.wardCode) search.set("wardCode", params.wardCode);
+    if (params?.keyword?.trim()) search.set("keyword", params.keyword.trim());
+    if (params?.roomType && params.roomType !== "ALL") search.set("roomType", params.roomType);
+    if (params?.occupants !== undefined && params.occupants > 0) search.set("occupants", String(params.occupants));
+    if (params?.minArea !== undefined) search.set("minArea", String(params.minArea));
+    if (params?.maxArea !== undefined) search.set("maxArea", String(params.maxArea));
+    if (params?.amenityIds && params.amenityIds.length > 0) {
+      params.amenityIds.forEach((id) => search.append("amenityIds", String(id)));
+    }
+    if (params?.page) search.set("page", String(params.page));
+    if (params?.pageSize) search.set("pageSize", String(params.pageSize));
+    const queryString = search.toString();
+    return apiRequest<SearchListingsDto>(
+      `/api/v1/listings/search${queryString ? `?${queryString}` : ""}`,
+      { method: "GET" }
+    );
+  },
+
   getPublicListings: async (limit = 50) => {
     return apiRequest<ListingSummaryDto[]>(`/api/v1/listings?limit=${limit}`, {
       method: "GET",
@@ -747,7 +845,7 @@ export const listingsApi = {
   },
 
   toggleSaveListing: async (listingId: number) => {
-    return apiRequest<SavedListingDto>(`/api/v1/listings/${listingId}/saved`, {
+    return apiRequest<boolean>(`/api/v1/listings/${listingId}/save`, {
       method: "POST",
     });
   },
@@ -759,7 +857,7 @@ export const listingsApi = {
     });
   },
 
-  updateImage: async (listingId: number, imageId: number, payload: Partial<AddListingImageBody>) => {
+  updateImage: async (listingId: number, imageId: number, payload: UpdateListingImageBody) => {
     return apiRequest<ListingImageDto>(`/api/v1/listings/${listingId}/images/${imageId}`, {
       method: "PATCH",
       body: JSON.stringify(payload),

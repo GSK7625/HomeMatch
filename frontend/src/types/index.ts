@@ -84,7 +84,7 @@ export interface PropertyListing {
   price: number; // VND/month
   deposit: number; // VND
   area: number; // m2
-  roomType: "Phòng trọ" | "Chung cư mini" | "Căn hộ dịch vụ" | "Nhà nguyên căn" | "Ở ghép";
+  roomType: "Phòng trọ" | "Chung cư mini" | "Căn hộ dịch vụ" | "Nhà nguyên căn" | "Ở ghép" | "Studio";
   status: RoomStatus;
   images: string[];
   amenities: string[];
@@ -432,7 +432,7 @@ export interface RoomDto {
   areaSqm: number;
   roomType: "SINGLE" | "STUDIO" | "1B1B" | "2B1B" | "DORMITORY" | string;
   maxOccupants: number;
-  basePrice: number;
+  basePrice?: number;
   status: "AVAILABLE" | "RENTED" | "SUSPENDED" | string;
   availableFrom: string;
   amenityIds: number[];
@@ -472,6 +472,8 @@ export interface CreatePropertyBody {
   wardCode: string;
   addressDetail: string;
   propertyType: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface UpdatePropertyBody {
@@ -480,6 +482,8 @@ export interface UpdatePropertyBody {
   wardCode?: string;
   addressDetail?: string;
   propertyType?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface CreateRoomBody {
@@ -488,7 +492,7 @@ export interface CreateRoomBody {
   areaSqm: number;
   roomType: string;
   maxOccupants: number;
-  basePrice: number;
+  basePrice?: number;
   availableFrom?: string | null;
   amenityIds?: number[];
 }
@@ -523,9 +527,42 @@ export interface ListingSummaryDto {
   title: string;
   slug: string;
   price: number;
+  depositAmount?: number;
   status: "Draft" | "PendingApproval" | "Published" | "Hidden" | "Rejected" | "Banned" | string;
   coverImageUrl?: string | null;
-  isFeatured: boolean;
+  isFeatured?: boolean;
+  areaSqm?: number | null;
+  roomType?: string | null;
+  districtName?: string | null;
+  provinceName?: string | null;
+  addressDetail?: string | null;
+  electricityPrice?: number | null;
+  waterPrice?: number | null;
+  amenities?: string[];
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export interface SearchListingsParams {
+  minPrice?: number;
+  maxPrice?: number;
+  provinceCode?: string;
+  wardCode?: string;
+  keyword?: string;
+  roomType?: string;
+  occupants?: number;
+  minArea?: number;
+  maxArea?: number;
+  amenityIds?: number[];
+  page?: number;
+  pageSize?: number;
+}
+
+export interface SearchListingsDto {
+  items: ListingSummaryDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
 }
 
 export interface ListingImageDto {
@@ -556,12 +593,14 @@ export interface ListingDetailDto {
   price: number;
   depositAmount: number;
   minLeaseMonths: number;
-  allowPets: boolean;
-  hasCurfew: boolean;
+  houseRules?: string | null;
+  allowPets?: boolean;
+  hasCurfew?: boolean;
   curfewTime?: string | null;
   status: string;
-  isFeatured: boolean;
+  isFeatured?: boolean;
   viewCount: number;
+  expiresAt?: string | null;
   longitude?: number | null;
   latitude?: number | null;
   images: ListingImageDto[];
@@ -609,34 +648,32 @@ export interface SavedListingDto {
 export interface CreateListingBody {
   roomId: number;
   title: string;
-  slug?: string;
   description: string;
   price: number;
   depositAmount: number;
   minLeaseMonths: number;
-  allowPets: boolean;
-  hasCurfew: boolean;
-  curfewTime?: string | null;
-  longitude?: number | null;
-  latitude?: number | null;
+  houseRules?: string | null;
 }
 
 export interface UpdateListingBody {
   title?: string;
-  slug?: string;
   description?: string;
   price?: number;
   depositAmount?: number;
   minLeaseMonths?: number;
-  allowPets?: boolean;
-  hasCurfew?: boolean;
-  curfewTime?: string | null;
-  longitude?: number | null;
-  latitude?: number | null;
+  houseRules?: string | null;
 }
 
 export interface AddListingImageBody {
   imageUrl: string;
+  isPrimary?: boolean;
+  sortOrder?: number;
+  mediaType?: string;
+  thumbnailUrl?: string | null;
+  durationSeconds?: number | null;
+}
+
+export interface UpdateListingImageBody {
   isPrimary?: boolean;
   sortOrder?: number;
   mediaType?: string;

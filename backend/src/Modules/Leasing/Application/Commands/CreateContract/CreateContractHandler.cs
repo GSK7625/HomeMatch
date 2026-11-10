@@ -151,13 +151,13 @@ public sealed class CreateContractHandler
             memoryStream.Position = 0;
             var storageKey = await _storage.UploadAsync(objectKey, memoryStream, "application/pdf", cancellationToken);
 
-            var expiresAt = command.SignatureExpiresAt ?? DateTimeOffset.UtcNow.AddDays(3);
+            var expiresAt = (command.SignatureExpiresAt ?? DateTimeOffset.UtcNow.AddDays(3)).ToUniversalTime();
             var submitResult = contract.SubmitForSignature(
                 storageKey,
                 documentHash,
                 command.DocumentSnapshot,
                 expiresAt,
-                command.HandoverDueAt);
+                command.HandoverDueAt?.ToUniversalTime());
 
             if (submitResult.IsFailure)
             {

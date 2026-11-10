@@ -244,8 +244,8 @@ public class Contract
         DocumentSnapshot = documentSnapshot;
         DocumentGeneratedAt = now;
         Status = ContractStatus.PendingSignature;
-        SignatureExpiresAt = signatureExpiresAt;
-        HandoverDueAt = handoverDueAt ?? new DateTimeOffset(EndDate.ToDateTime(new TimeOnly(12, 0)), TimeSpan.FromHours(7));
+        SignatureExpiresAt = signatureExpiresAt.ToUniversalTime();
+        HandoverDueAt = (handoverDueAt ?? new DateTimeOffset(EndDate.ToDateTime(new TimeOnly(12, 0)), TimeSpan.FromHours(7))).ToUniversalTime();
         UpdatedAt = now;
 
         return Result.Success();
@@ -268,8 +268,8 @@ public class Contract
         }
 
         Status = ContractStatus.PendingSignature;
-        SignatureExpiresAt = signatureExpiresAt;
-        HandoverDueAt = handoverDueAt ?? new DateTimeOffset(EndDate.ToDateTime(new TimeOnly(12, 0)), TimeSpan.FromHours(7));
+        SignatureExpiresAt = signatureExpiresAt.ToUniversalTime();
+        HandoverDueAt = (handoverDueAt ?? new DateTimeOffset(EndDate.ToDateTime(new TimeOnly(12, 0)), TimeSpan.FromHours(7))).ToUniversalTime();
         UpdatedAt = now;
 
         return Result.Success();
@@ -305,7 +305,7 @@ public class Contract
             return Result.Failure(LeasingErrors.DocumentHashMismatch);
         }
 
-        LandlordSignedAt = signedAt;
+        LandlordSignedAt = signedAt.ToUniversalTime();
         SignedDocumentHash = documentHash.Trim();
         UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -348,7 +348,7 @@ public class Contract
             return Result.Failure(LeasingErrors.DocumentHashMismatch);
         }
 
-        TenantSignedAt = signedAt;
+        TenantSignedAt = signedAt.ToUniversalTime();
         SignedDocumentHash = documentHash.Trim();
         UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -505,7 +505,7 @@ public class Contract
         }
 
         HandoverConfirmedBy = confirmedByLandlordId;
-        HandoverConfirmedAt = confirmedAt;
+        HandoverConfirmedAt = confirmedAt.ToUniversalTime();
         ActualOccupancyEndDate = actualOccupancyEndDate;
 
         // Nếu là hợp đồng hết hạn bình thường -> COMPLETED. Nếu là TERMINATED -> Giữ nguyên TERMINATED để bảo lưu lịch sử chấm dứt sớm
@@ -536,7 +536,7 @@ public class Contract
         }
 
         Status = ContractStatus.Terminated;
-        UpdatedAt = terminatedAt;
+        UpdatedAt = terminatedAt.ToUniversalTime();
 
         return Result.Success();
     }

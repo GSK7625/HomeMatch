@@ -54,6 +54,20 @@ partial class LeasingDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("character varying(500)")
                     .HasColumnName("contract_file_url");
 
+                b.Property<string>("DocumentSnapshot")
+                    .HasColumnType("jsonb")
+                    .HasColumnName("document_snapshot");
+
+                b.Property<int>("DocumentVersion")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("integer")
+                    .HasDefaultValue(1)
+                    .HasColumnName("document_version");
+
+                b.Property<DateTimeOffset?>("DocumentGeneratedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("document_generated_at");
+
                 b.Property<DateTimeOffset>("CreatedAt")
                     .ValueGeneratedOnAdd()
                     .HasColumnType("timestamp with time zone")

@@ -74,6 +74,18 @@ public class ContractConfiguration : IEntityTypeConfiguration<Contract>
             .HasColumnName("contract_file_url")
             .HasMaxLength(500);
 
+        builder.Property(c => c.DocumentSnapshot)
+            .HasColumnName("document_snapshot")
+            .HasColumnType("jsonb");
+
+        builder.Property(c => c.DocumentVersion)
+            .HasColumnName("document_version")
+            .HasDefaultValue(1)
+            .IsRequired();
+
+        builder.Property(c => c.DocumentGeneratedAt)
+            .HasColumnName("document_generated_at");
+
         builder.Property(c => c.Status)
             .HasColumnName("status")
             .HasMaxLength(30)

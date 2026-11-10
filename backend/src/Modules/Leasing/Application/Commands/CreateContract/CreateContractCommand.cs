@@ -10,4 +10,10 @@ public sealed record CreateContractCommand(
     long DepositAmount,
     int BillingDueDay = 5,
     string? ContractCode = null,
-    string? ContractFileUrl = null);
+    Stream? FileStream = null,
+    string? FileName = null,
+    string? ContentType = null,
+    long FileLength = 0,
+    string? DocumentSnapshot = null,
+    DateTimeOffset? SignatureExpiresAt = null,
+    DateTimeOffset? HandoverDueAt = null);

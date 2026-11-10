@@ -21,6 +21,9 @@ public class Contract
     public string DepositStatus { get; set; } = Enums.DepositStatus.Pending;
     public int BillingDueDay { get; set; } = 5;
     public string? ContractFileUrl { get; set; }
+    public string? DocumentSnapshot { get; set; }
+    public int DocumentVersion { get; set; } = 1;
+    public DateTimeOffset? DocumentGeneratedAt { get; set; }
     public string Status { get; set; } = ContractStatus.Draft;
 
     // Chữ ký điện tử & Xác thực trực tuyến (OTP / Email)
@@ -156,6 +159,94 @@ public class Contract
         BillingDueDay = billingDueDay;
         ContractFileUrl = contractFileUrl?.Trim();
         UpdatedAt = DateTimeOffset.UtcNow;
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Cập nhật thông tin bản nháp hợp đồng khi còn ở DRAFT
+    /// </summary>
+    public Result UpdateDraft(
+        DateOnly startDate,
+        DateOnly endDate,
+        long monthlyRent,
+        long depositAmount,
+        int billingDueDay)
+    {
+        if (Status != ContractStatus.Draft)
+        {
+            return Result.Failure(LeasingErrors.CannotModifyNonDraft);
+        }
+
+        if (endDate <= startDate)
+        {
+            return Result.Failure(LeasingErrors.InvalidDateRange);
+        }
+
+        if (monthlyRent <= 0)
+        {
+            return Result.Failure(LeasingErrors.InvalidMonthlyRent);
+        }
+
+        if (depositAmount < 0)
+        {
+            return Result.Failure(LeasingErrors.InvalidDepositAmount);
+        }
+
+        if (billingDueDay < 1 || billingDueDay > 28)
+        {
+            return Result.Failure(LeasingErrors.InvalidBillingDueDay);
+        }
+
+        StartDate = startDate;
+        EndDate = endDate;
+        MonthlyRent = monthlyRent;
+        DepositAmount = depositAmount;
+        BillingDueDay = billingDueDay;
+        UpdatedAt = DateTimeOffset.UtcNow;
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Nộp file PDF chính thức, lưu snapshot thông tin và chuyển sang PENDING_SIGNATURE
+    /// </summary>
+    public Result SubmitForSignature(
+        string contractFileUrl,
+        string documentHash,
+        string? documentSnapshot,
+        DateTimeOffset signatureExpiresAt,
+        DateTimeOffset? handoverDueAt = null)
+    {
+        if (Status != ContractStatus.Draft)
+        {
+            return Result.Failure(LeasingErrors.InvalidStatusTransition(Status, ContractStatus.PendingSignature));
+        }
+
+        if (string.IsNullOrWhiteSpace(contractFileUrl))
+        {
+            return Result.Failure(new Error("Leasing.ContractFileRequired", "Đường dẫn tài liệu hợp đồng không được để trống."));
+        }
+
+        if (string.IsNullOrWhiteSpace(documentHash))
+        {
+            return Result.Failure(LeasingErrors.SignatureEvidenceRequired);
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        if (signatureExpiresAt <= now)
+        {
+            return Result.Failure(new Error("Leasing.InvalidSignatureDeadline", "Hạn ký hợp đồng trực tuyến phải nằm ở tương lai."));
+        }
+
+        ContractFileUrl = contractFileUrl;
+        SignedDocumentHash = documentHash;
+        DocumentSnapshot = documentSnapshot;
+        DocumentGeneratedAt = now;
+        Status = ContractStatus.PendingSignature;
+        SignatureExpiresAt = signatureExpiresAt;
+        HandoverDueAt = handoverDueAt ?? new DateTimeOffset(EndDate.ToDateTime(new TimeOnly(12, 0)), TimeSpan.FromHours(7));
+        UpdatedAt = now;
 
         return Result.Success();
     }

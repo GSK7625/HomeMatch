@@ -10,8 +10,10 @@ using HomeMatch.Modules.Leasing.Application.Commands.SendContractForSignature;
 using HomeMatch.Modules.Leasing.Application.Commands.SignContract;
 using HomeMatch.Modules.Leasing.Application.Commands.TerminateContract;
 using HomeMatch.Modules.Leasing.Application.DTOs;
+using HomeMatch.Modules.Leasing.Application.Interfaces;
 using HomeMatch.Modules.Leasing.Application.Queries.GetContractById;
 using HomeMatch.Modules.Leasing.Application.Queries.GetContractDetails;
+using HomeMatch.Modules.Leasing.Application.Queries.GetContractDocumentUrl;
 using HomeMatch.Modules.Leasing.Application.Queries.GetContractsByLandlord;
 using HomeMatch.Modules.Leasing.Application.Queries.GetContractsByTenant;
 using HomeMatch.Modules.Leasing.Application.Queries.GetDepositBalance;
@@ -34,9 +36,9 @@ public static class ContractEndpoints
     {
         var group = endpoints.MapGroup("/contracts").RequireAuthorization();
 
-        // 1. Tạo hợp đồng thuê mới (DRAFT) - Dành cho Chủ nhà
+        // 1. Tạo hợp đồng thuê mới (hỗ trợ cả Form kèm file PDF xuất từ bản preview và JSON thông thường)
         group.MapPost("", async (
-            [FromBody] CreateContractRequest request,
+            HttpRequest request,
             [FromServices] CreateContractHandler handler,
             HttpContext httpContext,
             CancellationToken cancellationToken) =>
@@ -48,24 +50,95 @@ public static class ContractEndpoints
                     statusCode: StatusCodes.Status401Unauthorized);
             }
 
-            var validationErrors = request.Validate();
-            if (validationErrors.Count > 0)
+            CreateContractCommand command;
+            if (request.HasFormContentType)
             {
-                return Results.BadRequest(ApiResponse.Failure<ContractDto>(
-                    Error.Validation("Leasing.ValidationFailed", "Dữ liệu tạo hợp đồng thuê không hợp lệ.", validationErrors)));
-            }
+                var form = await request.ReadFormAsync(cancellationToken);
+                if (!long.TryParse(form["roomId"], out var roomId) ||
+                    !long.TryParse(form["tenantId"], out var tenantId) ||
+                    !DateOnly.TryParse(form["startDate"], out var startDate) ||
+                    !DateOnly.TryParse(form["endDate"], out var endDate) ||
+                    !long.TryParse(form["monthlyRent"], out var monthlyRent) ||
+                    !long.TryParse(form["depositAmount"], out var depositAmount))
+                {
+                    return Results.BadRequest(ApiResponse.Failure<ContractDto>(
+                        new Error("Leasing.InvalidFormData", "Dữ liệu form tạo hợp đồng không hợp lệ hoặc thiếu trường bắt buộc.")));
+                }
 
-            var command = new CreateContractCommand(
-                LandlordId: userId,
-                RoomId: request.RoomId,
-                TenantId: request.TenantId,
-                StartDate: request.StartDate,
-                EndDate: request.EndDate,
-                MonthlyRent: request.MonthlyRent,
-                DepositAmount: request.DepositAmount,
-                BillingDueDay: request.BillingDueDay,
-                ContractCode: request.ContractCode,
-                ContractFileUrl: request.ContractFileUrl);
+                int.TryParse(form["billingDueDay"], out var billingDueDay);
+                if (billingDueDay <= 0) billingDueDay = 5;
+
+                var file = form.Files.GetFile("file") ?? (form.Files.Count > 0 ? form.Files[0] : null);
+                Stream? fileStream = null;
+                string? fileName = null;
+                string? contentType = null;
+                long fileLength = 0;
+
+                if (file is not null && file.Length > 0)
+                {
+                    fileStream = file.OpenReadStream();
+                    fileName = file.FileName;
+                    contentType = file.ContentType;
+                    fileLength = file.Length;
+                }
+
+                DateTimeOffset? signatureExpiresAt = null;
+                if (DateTimeOffset.TryParse(form["signatureExpiresAt"], out var exp))
+                {
+                    signatureExpiresAt = exp;
+                }
+
+                DateTimeOffset? handoverDueAt = null;
+                if (DateTimeOffset.TryParse(form["handoverDueAt"], out var hand))
+                {
+                    handoverDueAt = hand;
+                }
+
+                command = new CreateContractCommand(
+                    LandlordId: userId,
+                    RoomId: roomId,
+                    TenantId: tenantId,
+                    StartDate: startDate,
+                    EndDate: endDate,
+                    MonthlyRent: monthlyRent,
+                    DepositAmount: depositAmount,
+                    BillingDueDay: billingDueDay,
+                    ContractCode: form["contractCode"],
+                    FileStream: fileStream,
+                    FileName: fileName,
+                    ContentType: contentType,
+                    FileLength: fileLength,
+                    DocumentSnapshot: form["documentSnapshot"],
+                    SignatureExpiresAt: signatureExpiresAt,
+                    HandoverDueAt: handoverDueAt);
+            }
+            else
+            {
+                var body = await request.ReadFromJsonAsync<CreateContractRequest>(cancellationToken);
+                if (body is null)
+                {
+                    return Results.BadRequest(ApiResponse.Failure<ContractDto>(
+                        new Error("Leasing.EmptyBody", "Dữ liệu yêu cầu tạo hợp đồng không được để trống.")));
+                }
+
+                var validationErrors = body.Validate();
+                if (validationErrors.Count > 0)
+                {
+                    return Results.BadRequest(ApiResponse.Failure<ContractDto>(
+                        Error.Validation("Leasing.ValidationFailed", "Dữ liệu tạo hợp đồng thuê không hợp lệ.", validationErrors)));
+                }
+
+                command = new CreateContractCommand(
+                    LandlordId: userId,
+                    RoomId: body.RoomId,
+                    TenantId: body.TenantId,
+                    StartDate: body.StartDate,
+                    EndDate: body.EndDate,
+                    MonthlyRent: body.MonthlyRent,
+                    DepositAmount: body.DepositAmount,
+                    BillingDueDay: body.BillingDueDay,
+                    ContractCode: body.ContractCode);
+            }
 
             var result = await handler.HandleAsync(command, cancellationToken);
             if (result.IsFailure)
@@ -77,8 +150,9 @@ public static class ContractEndpoints
                 $"/api/v1/leasing/contracts/{result.Value.Id}",
                 ApiResponse.Success(result.Value));
         })
+        .DisableAntiforgery()
         .WithName("CreateContract")
-        .WithSummary("Tạo hợp đồng thuê mới ở trạng thái Bản nháp (Dành cho Chủ nhà)")
+        .WithSummary("Tạo hợp đồng thuê mới (Chủ nhà nhập form + gửi kèm file PDF xuất từ bản preview)")
         .Produces<ApiResponse<ContractDto>>(StatusCodes.Status201Created)
         .Produces<ApiResponse<ContractDto>>(StatusCodes.Status400BadRequest)
         .Produces<ApiResponse<ContractDto>>(StatusCodes.Status401Unauthorized)
@@ -244,6 +318,36 @@ public static class ContractEndpoints
         .Produces<ApiResponse<ContractDto>>(StatusCodes.Status403Forbidden)
         .Produces<ApiResponse<ContractDto>>(StatusCodes.Status404NotFound)
         .Produces<ApiResponse<ContractDto>>(StatusCodes.Status409Conflict);
+
+        // 5.0.1. Lấy Presigned URL có thời hạn để xem/tải file PDF hợp đồng bảo mật
+        group.MapGet("/{id:long}/document", async (
+            long id,
+            [FromServices] GetContractDocumentHandler handler,
+            HttpContext httpContext,
+            CancellationToken cancellationToken) =>
+        {
+            if (!TryGetUserId(httpContext, out var userId))
+            {
+                return Results.Json(
+                    ApiResponse.Failure<ContractDocumentUrlDto>(LeasingErrors.AuthenticationRequired),
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+
+            var query = new GetContractDocumentQuery(id, userId);
+            var result = await handler.HandleAsync(query, cancellationToken);
+            if (result.IsFailure)
+            {
+                return MapFailureResult<ContractDocumentUrlDto>(result.Error);
+            }
+
+            return Results.Ok(ApiResponse.Success(result.Value));
+        })
+        .WithName("GetContractDocumentUrl")
+        .WithSummary("Lấy Presigned URL có thời hạn để xem/tải file PDF hợp đồng bảo mật")
+        .Produces<ApiResponse<ContractDocumentUrlDto>>(StatusCodes.Status200OK)
+        .Produces<ApiResponse<ContractDocumentUrlDto>>(StatusCodes.Status401Unauthorized)
+        .Produces<ApiResponse<ContractDocumentUrlDto>>(StatusCodes.Status403Forbidden)
+        .Produces<ApiResponse<ContractDocumentUrlDto>>(StatusCodes.Status404NotFound);
 
         // 5.1. Yêu cầu mã xác thực OTP để ký hợp đồng (Gửi qua email đã xác thực)
         group.MapPost("/{id:long}/request-otp", async (

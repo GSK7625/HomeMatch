@@ -11,6 +11,7 @@ using HomeMatch.Modules.Leasing.Application.Commands.TerminateContract;
 using HomeMatch.Modules.Leasing.Application.Interfaces;
 using HomeMatch.Modules.Leasing.Application.Queries.GetContractById;
 using HomeMatch.Modules.Leasing.Application.Queries.GetContractDetails;
+using HomeMatch.Modules.Leasing.Application.Queries.GetContractDocumentUrl;
 using HomeMatch.Modules.Leasing.Application.Queries.GetContractsByLandlord;
 using HomeMatch.Modules.Leasing.Application.Queries.GetContractsByTenant;
 using HomeMatch.Modules.Leasing.Application.Queries.GetDepositBalance;
@@ -51,6 +52,10 @@ public static class LeasingModuleExtensions
         services.AddScoped<IDepositTransactionRepository, DepositTransactionRepository>();
         services.AddScoped<ILeasingEmailService, LeasingEmailService>();
 
+        // Storage & Cloudflare R2
+        services.Configure<R2Settings>(configuration.GetSection(R2Settings.SectionName));
+        services.AddSingleton<IContractDocumentStorage, R2DocumentStorageService>();
+
         // Use Case Handlers (Commands)
         services.AddScoped<CreateContractHandler>();
         services.AddScoped<SendContractForSignatureHandler>();
@@ -66,6 +71,7 @@ public static class LeasingModuleExtensions
         // Use Case Handlers (Queries)
         services.AddScoped<GetContractByIdHandler>();
         services.AddScoped<GetContractDetailsHandler>();
+        services.AddScoped<GetContractDocumentHandler>();
         services.AddScoped<GetContractsByLandlordHandler>();
         services.AddScoped<GetContractsByTenantHandler>();
         services.AddScoped<GetDepositTransactionsHandler>();

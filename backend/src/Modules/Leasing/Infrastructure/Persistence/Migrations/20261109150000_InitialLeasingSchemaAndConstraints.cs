@@ -38,6 +38,9 @@ BEGIN
             deposit_status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
             billing_due_day INT NOT NULL DEFAULT 5,
             contract_file_url VARCHAR(500) NULL,
+            document_snapshot JSONB NULL,
+            document_version INT NOT NULL DEFAULT 1,
+            document_generated_at TIMESTAMPTZ NULL,
             status VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
             signature_expires_at TIMESTAMPTZ NULL,
             landlord_signed_at TIMESTAMPTZ NULL,
@@ -59,6 +62,9 @@ BEGIN
         ALTER TABLE leasing.contracts ADD COLUMN IF NOT EXISTS handover_confirmed_at TIMESTAMPTZ NULL;
         ALTER TABLE leasing.contracts ADD COLUMN IF NOT EXISTS handover_confirmed_by BIGINT NULL;
         ALTER TABLE leasing.contracts ADD COLUMN IF NOT EXISTS actual_occupancy_end_date DATE NULL;
+        ALTER TABLE leasing.contracts ADD COLUMN IF NOT EXISTS document_snapshot JSONB NULL;
+        ALTER TABLE leasing.contracts ADD COLUMN IF NOT EXISTS document_version INT NOT NULL DEFAULT 1;
+        ALTER TABLE leasing.contracts ADD COLUMN IF NOT EXISTS document_generated_at TIMESTAMPTZ NULL;
         ALTER TABLE leasing.contracts ALTER COLUMN status TYPE VARCHAR(30);
     END IF;
 END $$;

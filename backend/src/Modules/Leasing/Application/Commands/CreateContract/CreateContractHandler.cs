@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using HomeMatch.Modules.Leasing.Application.DTOs;
 using HomeMatch.Modules.Leasing.Application.Interfaces;
 using HomeMatch.Modules.Leasing.Domain.Constants;
@@ -11,20 +12,24 @@ namespace HomeMatch.Modules.Leasing.Application.Commands.CreateContract;
 
 public sealed class CreateContractHandler
 {
+    private const long MaxFileSizeBytes = 15 * 1024 * 1024; // 15 MB
     private readonly IContractRepository _contractRepository;
     private readonly IRoomListingReader _roomReader;
     private readonly IIdentityUserReader _userReader;
+    private readonly IContractDocumentStorage _storage;
     private readonly ILogger<CreateContractHandler> _logger;
 
     public CreateContractHandler(
         IContractRepository contractRepository,
         IRoomListingReader roomReader,
         IIdentityUserReader userReader,
+        IContractDocumentStorage storage,
         ILogger<CreateContractHandler> logger)
     {
         _contractRepository = contractRepository;
         _roomReader = roomReader;
         _userReader = userReader;
+        _storage = storage;
         _logger = logger;
     }
 
@@ -110,8 +115,7 @@ public sealed class CreateContractHandler
             command.EndDate,
             command.MonthlyRent,
             command.DepositAmount,
-            command.BillingDueDay,
-            command.ContractFileUrl);
+            command.BillingDueDay);
 
         if (contractResult.IsFailure)
         {
@@ -122,8 +126,54 @@ public sealed class CreateContractHandler
         await _contractRepository.AddAsync(contract, cancellationToken);
         await _contractRepository.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Đã tạo hợp đồng mới thành công [ID: {ContractId}, Code: {Code}, Room: {RoomId}]",
-            contract.Id, contract.ContractCode, contract.RoomId);
+        // 6. Nếu Chủ nhà đính kèm file PDF hợp đồng xuất từ màn hình xem trước
+        if (command.FileStream is not null && command.FileLength > 0)
+        {
+            if (command.FileLength > MaxFileSizeBytes)
+            {
+                return Result.Failure<ContractDto>(new Error("Leasing.FileTooLarge", "Kích thước tệp hợp đồng vượt quá giới hạn 15MB."));
+            }
+
+            var extension = Path.GetExtension(command.FileName)?.ToLowerInvariant();
+            if (extension != ".pdf")
+            {
+                return Result.Failure<ContractDto>(new Error("Leasing.InvalidFileType", "Chỉ chấp nhận tài liệu định dạng PDF (.pdf)."));
+            }
+
+            using var memoryStream = new MemoryStream();
+            await command.FileStream.CopyToAsync(memoryStream, cancellationToken);
+            var fileBytes = memoryStream.ToArray();
+
+            var hashBytes = SHA256.HashData(fileBytes);
+            var documentHash = Convert.ToHexStringLower(hashBytes);
+
+            var objectKey = $"contracts/{contract.Id}/v{contract.DocumentVersion}/{contract.ContractCode}.pdf";
+            memoryStream.Position = 0;
+            var storageKey = await _storage.UploadAsync(objectKey, memoryStream, "application/pdf", cancellationToken);
+
+            var expiresAt = command.SignatureExpiresAt ?? DateTimeOffset.UtcNow.AddDays(3);
+            var submitResult = contract.SubmitForSignature(
+                storageKey,
+                documentHash,
+                command.DocumentSnapshot,
+                expiresAt,
+                command.HandoverDueAt);
+
+            if (submitResult.IsFailure)
+            {
+                return Result.Failure<ContractDto>(submitResult.Error);
+            }
+
+            await _contractRepository.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Đã upload PDF hợp đồng [ID: {ContractId}] lên Cloudflare R2, Hash=[{Hash}], Key=[{Key}] và chuyển sang PENDING_SIGNATURE.",
+                contract.Id, documentHash, storageKey);
+        }
+        else
+        {
+            _logger.LogInformation("Đã tạo hợp đồng mới thành công ở trạng thái DRAFT [ID: {ContractId}, Code: {Code}, Room: {RoomId}]",
+                contract.Id, contract.ContractCode, contract.RoomId);
+        }
 
         return Result.Success(ContractMapper.ToDto(contract));
     }

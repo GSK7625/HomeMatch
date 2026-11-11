@@ -38,6 +38,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { cn, formatRoomTypeLabel } from "@/lib/utils";
+import LeafletMapView from "@/components/LeafletMapView";
 
 export default function ListingDetailPage() {
   const params = useParams();
@@ -627,6 +628,28 @@ export default function ListingDetailPage() {
                 </div>
               </div>
             )}
+
+            {/* Real Interactive Map via PostGIS Coordinates */}
+            <div className="space-y-3 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-rose-500" />
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                    Vị trí phòng trên bản đồ PostGIS
+                  </h3>
+                </div>
+                <span className="text-xs text-slate-500 font-medium">
+                  {listing.latitude.toFixed(4)}, {listing.longitude.toFixed(4)}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600">{listing.address}</p>
+              <LeafletMapView
+                listings={[listing]}
+                center={[listing.latitude, listing.longitude]}
+                zoom={15}
+                height="280px"
+              />
+            </div>
 
             {/* Transparent Utility Breakdown */}
             <div className="space-y-3 pt-4 border-t border-slate-100">

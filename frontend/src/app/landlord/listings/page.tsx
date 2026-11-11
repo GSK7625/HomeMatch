@@ -137,23 +137,6 @@ const STATUS_BADGES: Record<
   },
 };
 
-function generateListingSlug(title: string, roomId?: number | null): string {
-  const normalized = title
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[đĐ]/g, "d")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  const base = normalized || "phong-tro";
-  const roomPart = roomId ? `r${roomId}-` : "";
-  const randomSuffix = Math.random().toString(36).substring(2, 7);
-  const candidate = `${base}-${roomPart}${Date.now().toString(36)}-${randomSuffix}`.replace(/--+/g, "-");
-
-  return candidate.length > 300 ? candidate.slice(0, 300).replace(/-+$/, "") : candidate;
-}
-
 export default function LandlordListingsPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -532,9 +515,9 @@ export default function LandlordListingsPage() {
         });
 
         if (res.isSuccess && res.data) {
-          if (imageUrl) {
+          if (imageUrl && imageUrl.trim()) {
             await listingsApi.addImage(res.data.id, {
-              imageUrl,
+              imageUrl: imageUrl.trim(),
               isPrimary: true,
               sortOrder: 1,
             });
@@ -549,21 +532,14 @@ export default function LandlordListingsPage() {
             );
           }
           setIsCreateOpen(false);
-          setTitle("");
-          setDescription("");
           await loadData();
           setSubmitting(false);
           return;
         } else {
-          const detailMsg = res.error?.details
-            ?.map((d) => (d.field ? `${d.field}: ${d.message}` : d.message))
-            .join(", ");
-          showToast(
-            detailMsg
-              ? `${res.error?.message || "Không thể tạo tin đăng."} (${detailMsg})`
-              : res.error?.message || "Không thể tạo tin đăng.",
-            "error"
-          );
+          const detailMsg = res.error?.details && res.error.details.length > 0
+            ? `: ${res.error.details.map((d) => d.message || d.field).join(", ")}`
+            : "";
+          showToast(`${res.error?.message || "Không thể tạo tin đăng"}${detailMsg}`, "error");
           setSubmitting(false);
           return;
         }
@@ -573,7 +549,7 @@ export default function LandlordListingsPage() {
         return;
       }
     } else {
-      showToast("Vui lòng chọn phòng cần tạo tin đăng!", "error");
+      showToast("Vui lòng chọn hoặc tạo phòng trước khi đăng tin!", "error");
       setSubmitting(false);
     }
   };
@@ -1073,8 +1049,25 @@ export default function LandlordListingsPage() {
           maxWidth="2xl"
         >
           <form onSubmit={handleCreateListing} className="space-y-4">
-            {/* If landlord has backend properties and rooms */}
-            {properties.length > 0 && (
+            {properties.length === 0 ? (
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
+                <div className="font-bold flex items-center gap-1.5 text-amber-800">
+                  <Building2 className="w-4 h-4 text-amber-600" />
+                  <span>Chưa có bất động sản hoặc phòng</span>
+                </div>
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  Để tạo tin đăng, bạn cần tạo thông tin Bất động sản và Phòng trước trong hệ thống.
+                </p>
+                <div>
+                  <Link
+                    href="/landlord/properties"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] transition-colors"
+                  >
+                    <span>Đến trang Quản lý Bất động sản</span>
+                  </Link>
+                </div>
+              </div>
+            ) : (
               <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-200 space-y-3">
                 <div className="flex items-center gap-2 text-xs font-bold text-blue-900">
                   <Building2 className="w-4 h-4 text-blue-600" />
@@ -1100,11 +1093,20 @@ export default function LandlordListingsPage() {
 
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                      Phòng cụ thể
+                      Phòng cụ thể *
                     </label>
                     <select
                       value={selectedRoomId || ""}
-                      onChange={(e) => setSelectedRoomId(Number(e.target.value))}
+                      onChange={(e) => {
+                        const rId = Number(e.target.value);
+                        setSelectedRoomId(rId);
+                        const r = rooms.find((rm) => rm.id === rId);
+                        if (r) {
+                          setPrice(r.basePrice ?? 0);
+                          setDeposit(r.basePrice ?? 0);
+                          setArea(r.areaSqm);
+                        }
+                      }}
                       className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-bold"
                     >
                       {rooms.length > 0 ? (
@@ -1264,10 +1266,10 @@ export default function LandlordListingsPage() {
               </button>
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !selectedRoomId}
                 className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-500/20 disabled:opacity-50"
               >
-                {submitting ? "Đang gửi duyệt..." : "Xác nhận & Gửi kiểm duyệt"}
+                {submitting ? "Đang gửi duyệt..." : !selectedRoomId ? "Cần chọn phòng trước" : "Xác nhận & Gửi kiểm duyệt"}
               </button>
             </div>
           </form>

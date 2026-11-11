@@ -11,6 +11,7 @@ using HomeMatch.Modules.Messaging.Infrastructure.Services;
 using HomeMatch.Modules.Messaging.Presentation.Endpoints;
 using HomeMatch.Modules.Messaging.Presentation.Hubs;
 using HomeMatch.Shared.Contracts.Messaging;
+using HomeMatch.Shared.Contracts.Notifications;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -44,6 +45,7 @@ public static class MessagingModuleExtensions
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IMessagingStatsReader, MessagingStatsReader>();
         services.AddScoped<IChatRealtimeNotifier, SignalRChatRealtimeNotifier>();
+        services.AddScoped<INotificationRealtimeNotifier, SignalRNotificationRealtimeNotifier>();
 
         // Use Case Handlers
         services.AddScoped<StartOrGetConversationHandler>();

@@ -7,10 +7,14 @@ namespace HomeMatch.Modules.Notifications.Infrastructure.Services;
 internal sealed class NotificationPublisher : INotificationPublisher
 {
     private readonly INotificationRepository _repository;
+    private readonly INotificationRealtimeNotifier? _realtimeNotifier;
 
-    public NotificationPublisher(INotificationRepository repository)
+    public NotificationPublisher(
+        INotificationRepository repository,
+        INotificationRealtimeNotifier? realtimeNotifier = null)
     {
         _repository = repository;
+        _realtimeNotifier = realtimeNotifier;
     }
 
     public async Task PublishAsync(
@@ -41,5 +45,18 @@ internal sealed class NotificationPublisher : INotificationPublisher
 
         await _repository.AddAsync(notification, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
+
+        if (_realtimeNotifier is not null)
+        {
+            await _realtimeNotifier.NotifyAsync(new NotificationRealtimeItem(
+                notification.Id,
+                notification.UserId,
+                notification.Title,
+                notification.Content,
+                notification.Type,
+                notification.ReferenceType,
+                notification.ReferenceId,
+                notification.CreatedAt), cancellationToken);
+        }
     }
 }

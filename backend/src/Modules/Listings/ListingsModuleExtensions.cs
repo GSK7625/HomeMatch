@@ -21,6 +21,7 @@ using HomeMatch.Modules.Listings.Infrastructure.Persistence;
 using HomeMatch.Modules.Listings.Infrastructure.Persistence.Repositories;
 using HomeMatch.Modules.Listings.Infrastructure.Services;
 using HomeMatch.Modules.Listings.Infrastructure.BackgroundServices;
+using HomeMatch.Modules.Listings.Infrastructure.Services;
 using HomeMatch.Modules.Listings.Presentation.Endpoints;
 using HomeMatch.Shared.Contracts;
 using HomeMatch.Shared.Contracts.Listings;
@@ -58,6 +59,7 @@ public static class ListingsModuleExtensions
         // Cross-module writers & readers
         services.AddScoped<IListingVisibilityWriter, ListingVisibilityWriter>();
         services.AddScoped<IListingContractReader, ListingContractReader>();
+        services.AddScoped<ITenantListingActivityReader, TenantListingActivityReader>();
 
         // Listings Handlers
         services.AddScoped<CreateListingHandler>();

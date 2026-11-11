@@ -1,5 +1,5 @@
 import { API_BASE, getStoredToken } from "@/lib/api-client";
-import { MessageDto } from "@/types";
+import { MessageDto, NotificationDto } from "@/types";
 
 const RECORD_SEPARATOR = "\x1e";
 
@@ -32,6 +32,7 @@ export interface ChatRealtimeHandlers {
   onConversationUpdated?: (payload: ConversationUpdatedPayload) => void;
   onMessagesRead?: (payload: MessagesReadPayload) => void;
   onUserTyping?: (payload: UserTypingPayload) => void;
+  onReceiveNotification?: (notification: NotificationDto) => void;
 }
 
 function getWebSocketHubUrl(accessToken: string): string {
@@ -172,6 +173,9 @@ export class ChatRealtimeClient {
                   break;
                 case "UserTyping":
                   if (arg) this.handlers.onUserTyping?.(arg as UserTypingPayload);
+                  break;
+                case "ReceiveNotification":
+                  if (arg) this.handlers.onReceiveNotification?.(arg as NotificationDto);
                   break;
               }
             }

@@ -1,32 +1,67 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { listingService } from "@/lib/services";
+import { listingsApi, getStoredToken } from "@/lib/api-client";
 import { PropertyListing } from "@/types";
 import { ListingCard } from "@/features/listings/ListingCard";
-import { Heart, Search, ArrowRight } from "lucide-react";
+import { Heart, Search, ArrowRight, Sparkles, RefreshCw } from "lucide-react";
+import { cn, mapListingSummaryToCard } from "@/lib/utils";
 
 export default function FavoritesPage() {
   const [favListings, setFavListings] = useState<PropertyListing[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const loadFavorites = () => {
-    const favIds = listingService.getFavorites();
+  const loadFavorites = useCallback(async () => {
+    setLoading(true);
+    const token = getStoredToken();
     const all = listingService.getAll();
+
+    if (token) {
+      try {
+        const res = await listingsApi.getSavedListings();
+        if (res.isSuccess && Array.isArray(res.data)) {
+          const savedIds = res.data.map((s) => String(s.listingId));
+          listingService.syncFavorites(savedIds);
+
+          const matches = all.filter((x) => savedIds.includes(String(x.id)));
+
+          // For any backend listings not in local all, map using real backend summary fields
+          const missing = res.data
+            .filter((s) => !matches.some((m) => String(m.id) === String(s.listingId)))
+            .map((s) => ({
+              ...mapListingSummaryToCard(s.listing),
+              id: String(s.listingId),
+              createdAt: s.createdAt,
+            }));
+
+          setFavListings([...matches, ...missing]);
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.warn("Could not load saved listings from backend", err);
+      }
+    }
+
+    // Fallback to local storage favorites
+    const favIds = listingService.getFavorites();
     setFavListings(all.filter((x) => favIds.includes(x.id)));
-  };
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     loadFavorites();
-  }, []);
+  }, [loadFavorites]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-6">
-      <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2 text-rose-600 text-xs font-bold uppercase tracking-wider mb-1">
             <Heart className="w-4 h-4 fill-current" />
-            <span>Bộ sưu tập cá nhân</span>
+            <span>Bộ sưu tập cá nhân (Saved Listings)</span>
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Danh Sách Phòng Đã Lưu Yêu Thích
@@ -36,9 +71,18 @@ export default function FavoritesPage() {
           </p>
         </div>
 
-        <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl">
-          {favListings.length} phòng đã lưu
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => loadFavorites()}
+            className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"
+            title="Làm mới"
+          >
+            <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+          </button>
+          <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl">
+            {favListings.length} phòng đã lưu
+          </span>
+        </div>
       </div>
 
       {favListings.length === 0 ? (
@@ -67,6 +111,7 @@ export default function FavoritesPage() {
             <ListingCard
               key={listing.id}
               listing={listing}
+              isFavorite={true}
               onFavoriteChange={loadFavorites}
             />
           ))}

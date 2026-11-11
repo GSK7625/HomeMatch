@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/features/auth/AuthContext";
+import { fetchHealth, listingsApi, getStoredToken } from "@/lib/api-client";
 import { listingService } from "@/lib/services";
-import { fetchHealth } from "@/lib/api-client";
 import { PropertyListing, HealthCheck } from "@/types";
 import { ListingCard } from "@/features/listings/ListingCard";
 import {
@@ -15,7 +16,6 @@ import {
   ShieldCheck,
   Zap,
   Calendar,
-  Sparkles,
   ArrowRight,
   CheckCircle2,
   FileText,
@@ -25,10 +25,9 @@ import {
   Flame,
   PhoneCall,
   Clock,
-  Award,
   ChevronDown,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, mapListingSummaryToCard } from "@/lib/utils";
 
 const QUICK_LOCATIONS = [
   { label: "Cầu Giấy, HN", city: "Hà Nội", district: "Cầu Giấy" },
@@ -41,8 +40,15 @@ const QUICK_LOCATIONS = [
 
 export default function HomePage() {
   const router = useRouter();
+  const { role } = useAuth();
   const [listings, setListings] = useState<PropertyListing[]>([]);
   const [health, setHealth] = useState<HealthCheck | null>(null);
+
+  useEffect(() => {
+    if (role === "Landlord") {
+      router.replace("/landlord/dashboard");
+    }
+  }, [role, router]);
 
   // Search State
   const [activeCategoryTab, setActiveCategoryTab] = useState<string>("all");
@@ -55,9 +61,41 @@ export default function HomePage() {
   const [calcRooms, setCalcRooms] = useState(6);
   const [calcRent, setCalcRent] = useState(4500000);
 
+  const [isLoadingListings, setIsLoadingListings] = useState(true);
+
   useEffect(() => {
-    setListings(listingService.getAll());
+    let isMounted = true;
+    listingsApi
+      .getPublicListings(20)
+      .then((res) => {
+        if (!isMounted) return;
+        if (res.isSuccess && res.data && res.data.length > 0) {
+          const mapped: PropertyListing[] = res.data.map((b) => mapListingSummaryToCard(b));
+          setListings(mapped);
+        } else {
+          setListings([]);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setListings([]);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingListings(false);
+      });
+
     fetchHealth().then(setHealth).catch(() => null);
+
+    if (getStoredToken()) {
+      listingsApi.getSavedListings().then((res) => {
+        if (isMounted && res.isSuccess && Array.isArray(res.data)) {
+          listingService.syncFavorites(res.data.map((s) => String(s.listingId)));
+        }
+      }).catch(() => null);
+    }
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -75,12 +113,24 @@ export default function HomePage() {
     router.push(`/listings?city=${encodeURIComponent(locCity)}&district=${encodeURIComponent(locDistrict)}`);
   };
 
-  const featuredListings = listings.filter((x) => x.isFeatured).slice(0, 3);
-  const affordableListings = listings.filter((x) => x.price <= 4500000).slice(0, 4);
+  const displayListings = listings.slice(0, 6);
 
   // Computed landlord projected income
   const monthlyRevenue = calcRooms * calcRent * 0.95; // 95% occupancy rate
   const annualRevenue = monthlyRevenue * 12;
+
+  if (role === "Landlord") {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-8">
+        <div className="text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto animate-pulse shadow-xs">
+            <Building className="w-6 h-6" />
+          </div>
+          <p className="text-xs font-bold text-slate-700">Đang chuyển đến Kênh Quản Lý Dành Cho Chủ Nhà...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-16 pb-20">
@@ -93,11 +143,10 @@ export default function HomePage() {
 
         <div className="relative max-w-5xl mx-auto text-center space-y-6">
           {/* Trust Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-blue-200">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Nền tảng thuê phòng & quản lý trọ thông minh số 1</span>
-            <span className="text-white/40">•</span>
-            <span>Bảo chứng 100% phòng thật</span>
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-blue-200 max-w-full">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="hidden sm:inline">Nền tảng thuê phòng số 1 •</span>
+            <span className="truncate">100% phòng thật, không phí môi giới</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight sm:leading-none text-white">
@@ -107,9 +156,8 @@ export default function HomePage() {
             </span>
           </h1>
 
-          <p className="max-w-2xl mx-auto text-sm sm:text-base text-blue-100/80 font-normal leading-relaxed">
-            Không phí môi giới, minh bạch từng số điện nước, đặt lịch xem phòng trực tiếp trong 1 phút
-            và quản lý hợp đồng điện tử bảo vệ tiền cọc.
+          <p className="max-w-xl mx-auto text-xs sm:text-base text-blue-100/80 font-normal leading-relaxed">
+            Thuê phòng trực tiếp từ chủ nhà, minh bạch chi phí và an tâm tiền cọc.
           </p>
 
           {/* Search Box with Tabs */}
@@ -118,11 +166,12 @@ export default function HomePage() {
               {/* Category tabs */}
               <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 border-b border-slate-100 scrollbar-none">
                 {[
-                  { id: "all", label: "Tất cả phòng" },
-                  { id: "Phòng trọ", label: "Phòng trọ sinh viên" },
+                  { id: "all", label: "Tất cả" },
+                  { id: "Phòng trọ", label: "Phòng trọ" },
+                  { id: "Studio", label: "Studio" },
                   { id: "Chung cư mini", label: "Chung cư mini" },
-                  { id: "Căn hộ dịch vụ", label: "Căn hộ dịch vụ" },
-                  { id: "Ở ghép", label: "Tìm người ở ghép" },
+                  { id: "Căn hộ dịch vụ", label: "Căn hộ" },
+                  { id: "Ở ghép", label: "Ở ghép" },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -300,16 +349,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Featured Listings Section */}
+      {/* Listings Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <div className="flex items-center gap-2 text-blue-600 text-xs font-bold uppercase tracking-wider mb-1">
-              <Sparkles className="w-4 h-4" />
-              <span>Phòng tuyển chọn chất lượng cao</span>
-            </div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-              Phòng Trọ & Căn Hộ Hot Trong Tuần
+              Danh sách phòng trọ và căn hộ
             </h2>
           </div>
           <Link
@@ -321,41 +366,19 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featuredListings.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
-          ))}
-        </div>
-      </section>
-
-      {/* Curated Collection: Affordable Rooms */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <div className="flex items-center gap-2 text-emerald-600 text-xs font-bold uppercase tracking-wider mb-1">
-              <Award className="w-4 h-4" />
-              <span>Dành cho sinh viên & người mới đi làm</span>
-            </div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-              Phòng Trọ Tiết Kiệm Dưới 4.5 Triệu / Tháng
-            </h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Gần các trường đại học lớn, giao thông thuận tiện xe buýt và metro.
-            </p>
+        {displayListings.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {displayListings.map((listing) => (
+              <ListingCard key={listing.id} listing={listing} />
+            ))}
           </div>
-          <Link
-            href="/listings?price=under3"
-            className="text-xs font-bold text-blue-600 hover:text-blue-700"
-          >
-            Xem phòng giá rẻ →
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {affordableListings.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
-          ))}
-        </div>
+        ) : (
+          <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center">
+            <Building className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-slate-700">Chưa có tin đăng nào</p>
+            <p className="text-xs text-slate-500 mt-1">Các tin đăng mới nhất sẽ tự động hiển thị khi chủ nhà đăng phòng.</p>
+          </div>
+        )}
       </section>
 
       {/* Commercial Landlord ROI Calculator Widget */}

@@ -28,43 +28,11 @@ interface AuthContextType {
   resendConfirmationEmail: (email: string) => Promise<{ success: boolean; message?: string }>;
   logout: (allDevices?: boolean) => Promise<void>;
   refreshProfile: () => Promise<void>;
-  switchDemoRole: (role: UserRole) => void;
+  switchDemoRole?: (role: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const DEMO_USERS: Record<UserRole, CurrentUserProfile> = {
-  Tenant: {
-    accountId: "demo-tenant-id",
-    email: "tenant@homematch.vn",
-    displayName: "Đỗ Trung Kiên",
-    role: "Tenant",
-    phoneNumber: "0977 123 456",
-    emailConfirmed: true,
-    emailVerified: true,
-    createdAt: "2026-10-01T00:00:00Z",
-  },
-  Landlord: {
-    accountId: "demo-landlord-id",
-    email: "landlord@homematch.vn",
-    displayName: "Nguyễn Văn Hùng",
-    role: "Landlord",
-    phoneNumber: "0912 345 678",
-    emailConfirmed: true,
-    emailVerified: true,
-    createdAt: "2026-09-15T00:00:00Z",
-  },
-  Admin: {
-    accountId: "demo-admin-id",
-    email: "admin@homematch.vn",
-    displayName: "Quản Trị Viên",
-    role: "Admin",
-    phoneNumber: "0999 888 777",
-    emailConfirmed: true,
-    emailVerified: true,
-    createdAt: "2026-01-01T00:00:00Z",
-  },
-};
 
 function normalizeProfile(raw: CurrentUserProfile): CurrentUserProfile {
   return {
@@ -95,6 +63,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const handleAuthExpired = () => {
+      setToken(null);
+      setUser(null);
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("homematch:auth-expired", handleAuthExpired);
+      return () => window.removeEventListener("homematch:auth-expired", handleAuthExpired);
+    }
+  }, []);
+
+  useEffect(() => {
     // Initial hydration strictly adhering to real credentials
     const savedToken = getStoredToken();
     const savedUser = getStoredUser();
@@ -117,6 +96,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
           setStoredToken(null);
           setStoredUser(null);
+          if (typeof window !== "undefined") {
+            const currentPath = window.location.pathname + window.location.search;
+            const isProtectedRoute =
+              currentPath.startsWith("/tenant") ||
+              currentPath.startsWith("/landlord") ||
+              currentPath.startsWith("/admin") ||
+              currentPath.startsWith("/messages");
+            if (isProtectedRoute) {
+              window.location.href = `/auth/login?reason=expired&redirect=${encodeURIComponent(currentPath)}`;
+            }
+          }
         }
       }).catch(() => {
         // Offline or backend unavailable, maintain cached user if exists
@@ -242,11 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const switchDemoRole = (newRole: UserRole) => {
-    const demoUser = DEMO_USERS[newRole];
-    setUser(demoUser);
-    setStoredUser(demoUser);
-  };
+  const switchDemoRole = () => {};
 
   const role = user ? user.role : "Guest";
 

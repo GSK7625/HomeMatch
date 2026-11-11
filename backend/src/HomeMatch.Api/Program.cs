@@ -5,10 +5,16 @@ using HomeMatch.Modules.Identity.Infrastructure.Persistence;
 using HomeMatch.Modules.Identity.Infrastructure.Persistence.Seed;
 using HomeMatch.Modules.Leasing;
 using HomeMatch.Modules.Listings;
+using HomeMatch.Modules.Listings.Infrastructure.Persistence;
 using HomeMatch.Modules.Messaging;
+using HomeMatch.Modules.Messaging.Infrastructure.Persistence;
 using HomeMatch.Modules.Notifications;
+using HomeMatch.Modules.Notifications.Infrastructure.Persistence;
 using HomeMatch.Modules.Properties;
+using HomeMatch.Modules.Properties.Infrastructure.Persistence;
+using HomeMatch.Modules.Properties.Infrastructure.Persistence.Seed;
 using HomeMatch.Modules.Viewings;
+using HomeMatch.Modules.Viewings.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 
@@ -116,8 +122,22 @@ using (var scope = app.Services.CreateScope())
 {
     var identityDb = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
     await identityDb.Database.MigrateAsync();
+    var propertiesDb = scope.ServiceProvider.GetRequiredService<PropertiesDbContext>();
+    await propertiesDb.Database.MigrateAsync();
+    var listingsDb = scope.ServiceProvider.GetRequiredService<ListingsDbContext>();
+    await listingsDb.Database.MigrateAsync();
+    await PropertiesDataSeeder.SeedAsync(propertiesDb);
     await IdentityDataSeeder.SeedRolesAsync(scope.ServiceProvider);
     await IdentityDataSeeder.SeedDefaultUsersAsync(scope.ServiceProvider);
+
+    var viewingsDb = scope.ServiceProvider.GetRequiredService<ViewingsDbContext>();
+    await viewingsDb.Database.MigrateAsync();
+
+    var messagingDb = scope.ServiceProvider.GetRequiredService<MessagingDbContext>();
+    await messagingDb.Database.MigrateAsync();
+
+    var notificationsDb = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
+    await notificationsDb.Database.MigrateAsync();
 }
 
 app.UseCors("AllowFrontend");

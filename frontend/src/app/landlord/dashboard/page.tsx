@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/AuthContext";
-import { listingService, leasingService, billingService, viewingService } from "@/lib/services";
-import { LeaseContract, MonthlyBill, PropertyListing } from "@/types";
+import { leasingService, billingService } from "@/lib/services";
+import { propertiesApi, listingsApi } from "@/lib/api-client";
+import { LeaseContract, MonthlyBill, PropertyDto, ListingSummaryDto } from "@/types";
 import {
   Building2,
   Home,
@@ -23,14 +24,22 @@ import { cn } from "@/lib/utils";
 
 export default function LandlordDashboardPage() {
   const { user, role } = useAuth();
-  const [listings, setListings] = useState<PropertyListing[]>([]);
+  const [properties, setProperties] = useState<PropertyDto[]>([]);
+  const [listings, setListings] = useState<ListingSummaryDto[]>([]);
   const [contracts, setContracts] = useState<LeaseContract[]>([]);
   const [bills, setBills] = useState<MonthlyBill[]>([]);
   const [selectedBuilding, setSelectedBuilding] = useState("all");
   const [selectedPeriod, setSelectedPeriod] = useState("11/2026");
 
   useEffect(() => {
-    setListings(listingService.getAll());
+    propertiesApi.getMyProperties().then((res) => {
+      if (res.isSuccess && res.data) setProperties(res.data);
+    }).catch(() => null);
+
+    listingsApi.getMyListings().then((res) => {
+      if (res.isSuccess && res.data) setListings(res.data);
+    }).catch(() => null);
+
     setContracts(leasingService.getAll());
     setBills(billingService.getAll());
   }, []);
@@ -79,11 +88,15 @@ export default function LandlordDashboardPage() {
     );
   }
 
-  // Compute metrics (Section 3.9)
-  const totalRooms = listings.length;
-  const vacantRooms = listings.filter((x) => x.status === "Còn trống").length;
-  const rentedRooms = listings.filter((x) => x.status === "Đã thuê").length;
-  const activeListings = listings.filter((x) => x.status !== "Tạm ngừng").length;
+  // Compute metrics from real data
+  const totalRooms = Math.max(properties.length, listings.length);
+  const activeContracts = contracts.filter(
+    (c) => c.status === "Còn hiệu lực" || c.status === "Sắp hết hạn"
+  );
+  const rentedRooms = activeContracts.length;
+  const vacantRooms = totalRooms > rentedRooms ? totalRooms - rentedRooms : 0;
+  const occupancyRate = totalRooms > 0 ? Math.round((rentedRooms / totalRooms) * 100) : 0;
+  const activeListings = listings.filter((x) => (x.status || "").toUpperCase() === "PUBLISHED").length;
 
   // Financial aggregates
   const totalReceivables = bills.reduce((acc, b) => acc + b.totalDue, 0);
@@ -122,10 +135,12 @@ export default function LandlordDashboardPage() {
               onChange={(e) => setSelectedBuilding(e.target.value)}
               className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50"
             >
-              <option value="all">Tất cả bất động sản</option>
-              <option value="caugiay">Tòa Ngõ 165 Cầu Giấy</option>
-              <option value="dongda">Tòa Đặng Văn Ngữ, Đống Đa</option>
-              <option value="binhthanh">Tòa Điện Biên Phủ, HCM</option>
+              <option value="all">Tất cả bất động sản ({properties.length})</option>
+              {properties.map((p) => (
+                <option key={p.id} value={String(p.id)}>
+                  {p.name} ({p.addressDetail})
+                </option>
+              ))}
             </select>
           </div>
 
@@ -146,32 +161,79 @@ export default function LandlordDashboardPage() {
         </div>
       </div>
 
-      {/* 30-Day Contract Expiration Alert (Section 3.7) */}
-      {expiringContracts.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 flex items-start sm:items-center justify-between gap-4 text-amber-900 animate-in fade-in">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5 sm:mt-0">
-              <AlertTriangle className="w-5 h-5" />
+      {/* Quick Action Alerts: Viewing Appointments & Contract Expiration */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Viewing appointments quick card */}
+        <div className="bg-blue-50/80 border border-blue-200/90 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 text-blue-950 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <Calendar className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-bold text-sm text-amber-950">
-                Có {expiringContracts.length} hợp đồng thuê sắp hết hạn trong 30 ngày tới!
+              <h4 className="font-bold text-sm text-blue-950">
+                Lịch Hẹn Xem Phòng Của Khách
               </h4>
-              <p className="text-xs text-amber-800/90 mt-0.5">
-                Vui lòng chủ động liên hệ khách thuê để tái ký hợp đồng mới hoặc lên lịch sẵn sàng tìm
-                khách mới khi phòng trống.
+              <p className="text-xs text-blue-800/80 mt-0.5">
+                Xem yêu cầu đặt lịch cho các phòng của bạn và duyệt lịch hẹn.
               </p>
             </div>
           </div>
-
           <Link
-            href="/landlord/contracts"
-            className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shrink-0 transition-colors shadow-xs"
+            href="/landlord/viewings"
+            className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shrink-0 shadow-xs transition-all flex items-center gap-1"
           >
-            Kiểm tra ngay →
+            <span>Xem lịch</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
-      )}
+
+        {/* 30-Day Contract Expiration Alert (Section 3.7) */}
+        {expiringContracts.length > 0 ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 text-amber-900 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-amber-950">
+                  Có {expiringContracts.length} hợp đồng sắp hết hạn!
+                </h4>
+                <p className="text-xs text-amber-800/90 mt-0.5">
+                  Cần liên hệ gia hạn hoặc chuẩn bị bàn giao phòng.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/landlord/contracts"
+              className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 shadow-xs transition-all"
+            >
+              Xem ngay →
+            </Link>
+          </div>
+        ) : (
+          <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 text-emerald-950 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-emerald-950">
+                  Hợp Đồng Đang Ổn Định
+                </h4>
+                <p className="text-xs text-emerald-800/80 mt-0.5">
+                  Không có hợp đồng nào đến hạn thanh lý trong 30 ngày.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/landlord/contracts"
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shrink-0 shadow-xs transition-all"
+            >
+              Hợp đồng →
+            </Link>
+          </div>
+        )}
+      </div>
 
       {/* 6 Key Operational & Financial Metrics Cards (Section 3.9) */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -193,7 +255,7 @@ export default function LandlordDashboardPage() {
         <div className="bg-white p-4 rounded-2xl border border-blue-200/80 shadow-xs bg-blue-50/20">
           <span className="text-[11px] font-bold text-blue-700 uppercase block">Căn đang thuê</span>
           <span className="text-2xl font-black text-blue-600 mt-1 block">{rentedRooms}</span>
-          <span className="text-[10px] text-blue-600 font-medium">Tỷ lệ lấp đầy: {Math.round((rentedRooms / totalRooms) * 100)}%</span>
+          <span className="text-[10px] text-blue-600 font-medium">Tỷ lệ lấp đầy: {occupancyRate}%</span>
         </div>
 
         {/* Total Receivables */}

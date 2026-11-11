@@ -7,15 +7,6 @@ import {
   ChatConversation,
   SystemReport,
 } from "@/types";
-import {
-  INITIAL_LISTINGS,
-  INITIAL_VIEWINGS,
-  INITIAL_CONTRACTS,
-  INITIAL_BILLS,
-  INITIAL_CONVERSATIONS,
-  INITIAL_MESSAGES,
-  INITIAL_REPORTS,
-} from "./mock-data";
 
 const STORAGE_KEYS = {
   LISTINGS: "homematch_listings",
@@ -29,6 +20,38 @@ const STORAGE_KEYS = {
   REPORTS: "homematch_reports",
   RECENT_VIEWED: "homematch_recent_viewed",
 };
+
+// Dọn dẹp triệt để các dữ liệu mock cũ còn sót lại trong localStorage của người dùng
+if (typeof window !== "undefined") {
+  try {
+    const rawListings = localStorage.getItem(STORAGE_KEYS.LISTINGS);
+    if (rawListings && (rawListings.includes("lst-001") || rawListings.includes("lst-002"))) {
+      localStorage.removeItem(STORAGE_KEYS.LISTINGS);
+      localStorage.removeItem(STORAGE_KEYS.VIEWINGS);
+      localStorage.removeItem(STORAGE_KEYS.CONTRACTS);
+      localStorage.removeItem(STORAGE_KEYS.BILLS);
+      localStorage.removeItem(STORAGE_KEYS.CONVERSATIONS);
+      localStorage.removeItem(STORAGE_KEYS.MESSAGES);
+      localStorage.removeItem(STORAGE_KEYS.REPORTS);
+    }
+    const rawFavs = localStorage.getItem(STORAGE_KEYS.FAVORITES);
+    if (rawFavs && (rawFavs.includes("lst-001") || rawFavs.includes("lst-002") || rawFavs.includes("lst-"))) {
+      try {
+        const parsed = JSON.parse(rawFavs);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter((id: string) => typeof id === "string" && !id.startsWith("lst-"));
+          localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(cleaned));
+        } else {
+          localStorage.removeItem(STORAGE_KEYS.FAVORITES);
+        }
+      } catch {
+        localStorage.removeItem(STORAGE_KEYS.FAVORITES);
+      }
+    }
+  } catch {
+    // Ignore storage errors in restricted iframe/private mode
+  }
+}
 
 function getItem<T>(key: string, defaultValue: T): T {
   if (typeof window === "undefined") return defaultValue;
@@ -51,12 +74,7 @@ function setItem<T>(key: string, value: T): void {
 
 export const listingService = {
   getAll: (): PropertyListing[] => {
-    const list = getItem<PropertyListing[]>(STORAGE_KEYS.LISTINGS, []);
-    if (!list || list.length === 0) {
-      setItem(STORAGE_KEYS.LISTINGS, INITIAL_LISTINGS);
-      return INITIAL_LISTINGS;
-    }
-    return list;
+    return getItem<PropertyListing[]>(STORAGE_KEYS.LISTINGS, []);
   },
 
   getById: (id: string): PropertyListing | undefined => {
@@ -111,18 +129,48 @@ export const listingService = {
   },
 
   // Favorites
-  getFavorites: (): string[] => getItem<string[]>(STORAGE_KEYS.FAVORITES, ["lst-001"]),
+  getFavorites: (): string[] => {
+    const items = getItem<string[]>(STORAGE_KEYS.FAVORITES, []);
+    return items.filter((id) => typeof id === "string" && !id.startsWith("lst-"));
+  },
   toggleFavorite: (id: string): boolean => {
     const favs = listingService.getFavorites();
     const exists = favs.includes(id);
     const updated = exists ? favs.filter((x) => x !== id) : [...favs, id];
     setItem(STORAGE_KEYS.FAVORITES, updated);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("homematch:favorites-updated", { detail: { id, isFavorite: !exists } }));
+    }
     return !exists;
+  },
+  setFavorite: (id: string, isFav: boolean): void => {
+    const favs = listingService.getFavorites();
+    const exists = favs.includes(id);
+    if (isFav && !exists) {
+      setItem(STORAGE_KEYS.FAVORITES, [...favs, id]);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("homematch:favorites-updated", { detail: { id, isFavorite: true } }));
+      }
+    } else if (!isFav && exists) {
+      setItem(STORAGE_KEYS.FAVORITES, favs.filter((x) => x !== id));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("homematch:favorites-updated", { detail: { id, isFavorite: false } }));
+      }
+    }
+  },
+  syncFavorites: (ids: string[]): void => {
+    const cleaned = ids.filter((id) => typeof id === "string" && !id.startsWith("lst-"));
+    setItem(STORAGE_KEYS.FAVORITES, cleaned);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("homematch:favorites-updated", { detail: { ids: cleaned } }));
+    }
   },
   isFavorite: (id: string): boolean => listingService.getFavorites().includes(id),
 
   // Comparison (max 3 items as per Section 4.1)
-  getCompareList: (): string[] => getItem<string[]>(STORAGE_KEYS.COMPARE, ["lst-001", "lst-002"]),
+  getCompareList: (): string[] => {
+    return getItem<string[]>(STORAGE_KEYS.COMPARE, []);
+  },
   addToCompare: (id: string): { success: boolean; message: string } => {
     const current = listingService.getCompareList();
     if (current.includes(id)) {
@@ -143,12 +191,7 @@ export const listingService = {
 
 export const viewingService = {
   getAll: (): ViewingAppointment[] => {
-    const list = getItem<ViewingAppointment[]>(STORAGE_KEYS.VIEWINGS, []);
-    if (!list || list.length === 0) {
-      setItem(STORAGE_KEYS.VIEWINGS, INITIAL_VIEWINGS);
-      return INITIAL_VIEWINGS;
-    }
-    return list;
+    return getItem<ViewingAppointment[]>(STORAGE_KEYS.VIEWINGS, []);
   },
 
   book: (appointment: Omit<ViewingAppointment, "id" | "status" | "createdAt">): ViewingAppointment => {
@@ -175,12 +218,7 @@ export const viewingService = {
 
 export const leasingService = {
   getAll: (): LeaseContract[] => {
-    const list = getItem<LeaseContract[]>(STORAGE_KEYS.CONTRACTS, []);
-    if (!list || list.length === 0) {
-      setItem(STORAGE_KEYS.CONTRACTS, INITIAL_CONTRACTS);
-      return INITIAL_CONTRACTS;
-    }
-    return list;
+    return getItem<LeaseContract[]>(STORAGE_KEYS.CONTRACTS, []);
   },
 
   create: (contract: Omit<LeaseContract, "id" | "status" | "daysRemaining">): LeaseContract => {
@@ -203,12 +241,7 @@ export const leasingService = {
 
 export const billingService = {
   getAll: (): MonthlyBill[] => {
-    const list = getItem<MonthlyBill[]>(STORAGE_KEYS.BILLS, []);
-    if (!list || list.length === 0) {
-      setItem(STORAGE_KEYS.BILLS, INITIAL_BILLS);
-      return INITIAL_BILLS;
-    }
-    return list;
+    return getItem<MonthlyBill[]>(STORAGE_KEYS.BILLS, []);
   },
 
   createFromReading: (params: {
@@ -227,7 +260,6 @@ export const billingService = {
     const electricityCost = params.electricityUsage * params.electricityUnitPrice;
     const waterCost = params.waterUsage * params.waterUnitPrice;
     const totalDue = params.rentAmount + electricityCost + waterCost + params.serviceCost;
-    // Formula: Conno = Tongphaithu - Tongdathanhtoan
     const paidAmount = 0;
     const remainingDebt = totalDue - paidAmount;
 
@@ -271,21 +303,22 @@ export const billingService = {
 
 export const messagingService = {
   getConversations: (): ChatConversation[] => {
-    const list = getItem<ChatConversation[]>(STORAGE_KEYS.CONVERSATIONS, []);
-    if (!list || list.length === 0) {
-      setItem(STORAGE_KEYS.CONVERSATIONS, INITIAL_CONVERSATIONS);
-      return INITIAL_CONVERSATIONS;
-    }
-    return list;
+    return getItem<ChatConversation[]>(STORAGE_KEYS.CONVERSATIONS, []);
   },
 
   getMessages: (conversationId: string): ChatMessage[] => {
-    const map = getItem<Record<string, ChatMessage[]>>(STORAGE_KEYS.MESSAGES, INITIAL_MESSAGES);
+    const map = getItem<Record<string, ChatMessage[]>>(STORAGE_KEYS.MESSAGES, {});
     return map[conversationId] || [];
   },
 
-  sendMessage: (conversationId: string, content: string, senderId: string, senderName: string, receiverId: string): ChatMessage => {
-    const map = getItem<Record<string, ChatMessage[]>>(STORAGE_KEYS.MESSAGES, INITIAL_MESSAGES);
+  sendMessage: (
+    conversationId: string,
+    content: string,
+    senderId: string,
+    senderName: string,
+    receiverId: string
+  ): ChatMessage => {
+    const map = getItem<Record<string, ChatMessage[]>>(STORAGE_KEYS.MESSAGES, {});
     const msgs = map[conversationId] || [];
     const newMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
@@ -299,7 +332,6 @@ export const messagingService = {
     map[conversationId] = [...msgs, newMsg];
     setItem(STORAGE_KEYS.MESSAGES, map);
 
-    // Update conversation lastMessage
     const convs = messagingService.getConversations();
     const c = convs.find((x) => x.id === conversationId);
     if (c) {
@@ -313,12 +345,7 @@ export const messagingService = {
 
 export const adminService = {
   getReports: (): SystemReport[] => {
-    const list = getItem<SystemReport[]>(STORAGE_KEYS.REPORTS, []);
-    if (!list || list.length === 0) {
-      setItem(STORAGE_KEYS.REPORTS, INITIAL_REPORTS);
-      return INITIAL_REPORTS;
-    }
-    return list;
+    return getItem<SystemReport[]>(STORAGE_KEYS.REPORTS, []);
   },
 
   resolveReport: (id: string, status: "Đã xử lý" | "Đã bác bỏ"): void => {

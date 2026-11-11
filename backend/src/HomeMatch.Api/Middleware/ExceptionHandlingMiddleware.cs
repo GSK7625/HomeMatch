@@ -43,11 +43,16 @@ public class ExceptionHandlingMiddleware
                 context.Response.StatusCode = 499; // Client Closed Request
             }
         }
+        catch (ApiException ex) when (!context.Response.HasStarted)
+        {
+            await HandleExceptionAsync(context, GetTraceId(context), ex.StatusCode, new Error(ex.Code, ex.Message));
+        }
         catch (Exception ex)
         {
             var traceId = GetTraceId(context);
             _logger.LogError(ex, "[{TraceId}] An unhandled exception occurred: {Message}", traceId, ex.Message);
-            await HandleExceptionAsync(context, traceId);
+            await HandleExceptionAsync(context, traceId, (int)HttpStatusCode.InternalServerError,
+                new Error("Server.InternalError", "Đã xảy ra lỗi hệ thống không mong muốn. Vui lòng thử lại sau."));
         }
     }
 
@@ -61,22 +66,22 @@ public class ExceptionHandlingMiddleware
         return Activity.Current?.Id ?? context.TraceIdentifier;
     }
 
-    private static Task HandleExceptionAsync(HttpContext context, string traceId)
+    private static Task HandleExceptionAsync(HttpContext context, string traceId, int statusCode, Error error)
     {
         if (context.Response.HasStarted)
         {
             return Task.CompletedTask;
         }
 
+        context.Response.Clear();
         if (!context.Response.Headers.ContainsKey(TraceIdMiddleware.TraceIdHeaderName))
         {
             context.Response.Headers.Append(TraceIdMiddleware.TraceIdHeaderName, traceId);
         }
 
         context.Response.ContentType = "application/json";
-        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+        context.Response.StatusCode = statusCode;
 
-        var error = new Error("Server.InternalError", "Đã xảy ra lỗi hệ thống không mong muốn. Vui lòng thử lại sau.");
         var response = ApiResponse<object>.Failure(error);
         var json = JsonSerializer.Serialize(response, JsonOptions);
 

@@ -826,7 +826,8 @@ export default function LandlordPropertiesPage() {
                     longitude={selectedProperty.longitude}
                     title={selectedProperty.name}
                     address={selectedProperty.addressDetail}
-                    heightClassName="h-[220px]"
+                    height={260}
+                    heightClassName="h-[260px]"
                   />
                 </div>
               )}

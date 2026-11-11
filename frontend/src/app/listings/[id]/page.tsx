@@ -155,7 +155,8 @@ export default function ListingDetailPage() {
               description: d.description || "",
               address: d.property
                 ? [d.property.addressDetail, d.property.wardName, d.property.provinceName]
-                    .filter(Boolean)
+                    .map((p) => p?.trim())
+                    .filter((p, idx, arr): p is string => Boolean(p) && arr.findIndex((x) => x?.toLowerCase() === p?.toLowerCase()) === idx)
                     .join(", ")
                 : "Hà Nội, Việt Nam",
               ward: d.property?.wardName || "Phường / Xã",
@@ -659,9 +660,13 @@ export default function ListingDetailPage() {
                 title={rawDetail?.property?.name || listing.title}
                 address={
                   rawDetail?.property
-                    ? `${rawDetail.property.addressDetail}, ${rawDetail.property.wardName || ""}, ${rawDetail.property.provinceName || ""}`
+                    ? [rawDetail.property.addressDetail, rawDetail.property.wardName, rawDetail.property.provinceName]
+                        .map((p) => p?.trim())
+                        .filter((p, idx, arr): p is string => Boolean(p) && arr.findIndex((x) => x?.toLowerCase() === p?.toLowerCase()) === idx)
+                        .join(", ")
                     : listing.address
                 }
+                height={320}
                 heightClassName="h-[280px] sm:h-[340px]"
               />
             </div>

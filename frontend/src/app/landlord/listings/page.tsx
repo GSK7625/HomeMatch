@@ -666,7 +666,8 @@ export default function LandlordListingsPage() {
                         <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
                         <span className="truncate">
                           {[item.addressDetail, item.districtName, item.provinceName]
-                            .filter(Boolean)
+                            .map((p) => p?.trim())
+                            .filter((p, idx, arr): p is string => Boolean(p) && arr.findIndex((x) => x?.toLowerCase() === p?.toLowerCase()) === idx)
                             .join(", ")}
                         </span>
                       </div>

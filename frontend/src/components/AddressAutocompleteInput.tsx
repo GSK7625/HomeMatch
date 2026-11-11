@@ -31,8 +31,6 @@ interface AddressAutocompleteInputProps {
   className?: string;
 }
 
-const QUICK_PREFIXES = ["Số ", "Ngõ ", "Ngách ", "Hẻm ", "Đường ", "Chung cư ", "Khu tập thể "];
-
 export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> = ({
   value,
   onChange,
@@ -149,15 +147,8 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
     setSuggestions([]);
   };
 
-  const handleApplyPrefix = (prefix: string) => {
-    if (value.startsWith(prefix)) return;
-    const cleanCurrent = value.replace(/^(Số |Ngõ |Ngách |Hẻm |Đường |Chung cư |Khu tập thể )/i, "");
-    onChange(`${prefix}${cleanCurrent}`);
-    inputRef.current?.focus();
-  };
-
   return (
-    <div ref={containerRef} className={cn("space-y-1.5 relative w-full", className)}>
+    <div ref={containerRef} className={cn("relative w-full", className)}>
       {/* Main Address Input Box */}
       <div className="relative flex items-center">
         <MapPin className="w-4 h-4 text-blue-600 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -193,21 +184,6 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
             </button>
           )}
         </div>
-      </div>
-
-      {/* Quick Prefix Helper Chips */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 no-scrollbar">
-        <span className="text-[10px] text-slate-400 font-semibold shrink-0">Thêm nhanh:</span>
-        {QUICK_PREFIXES.map((prefix) => (
-          <button
-            key={prefix}
-            type="button"
-            onClick={() => handleApplyPrefix(prefix)}
-            className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-600 text-[10px] font-semibold shrink-0 transition-colors border border-slate-200/60"
-          >
-            +{prefix.trim()}
-          </button>
-        ))}
       </div>
 
       {/* Suggestions Popup */}

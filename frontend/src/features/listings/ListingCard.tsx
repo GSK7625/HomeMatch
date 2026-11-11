@@ -227,7 +227,12 @@ export function ListingCard({ listing, onFavoriteChange, isFavorite: isFavoriteP
           {/* Location */}
           <div className="flex items-center gap-1 text-xs text-slate-500 mt-1.5 mb-2.5">
             <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-            <span className="line-clamp-1 font-medium">{listing.district}, {listing.city}</span>
+            <span className="line-clamp-1 font-medium">
+              {[listing.district, listing.city]
+                .map((p) => p?.trim())
+                .filter((p, idx, arr): p is string => Boolean(p) && arr.findIndex((x) => x?.toLowerCase() === p?.toLowerCase()) === idx)
+                .join(", ")}
+            </span>
           </div>
 
           {/* Rating & Social proof */}

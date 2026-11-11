@@ -10,6 +10,7 @@ interface MapLocationViewerProps {
   longitude?: number | null;
   title?: string;
   address?: string;
+  height?: number | string;
   heightClassName?: string;
 }
 
@@ -35,18 +36,21 @@ export const MapLocationViewer: React.FC<MapLocationViewerProps> = ({
   longitude,
   title,
   address,
+  height = 260,
   heightClassName = "h-[260px] sm:h-[320px]",
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
 
   const hasCoords = typeof latitude === "number" && typeof longitude === "number";
+  const effectiveHeight = typeof height === "number" ? `${height}px` : (height || "260px");
 
   useEffect(() => {
     if (!hasCoords || !containerRef.current) return;
     let isCancelled = false;
 
     let resizeObserver: ResizeObserver | null = null;
+    let timer0: NodeJS.Timeout | null = null;
     let timer1: NodeJS.Timeout | null = null;
     let timer2: NodeJS.Timeout | null = null;
 
@@ -57,6 +61,10 @@ export const MapLocationViewer: React.FC<MapLocationViewerProps> = ({
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
+      }
+
+      if (containerRef.current && (containerRef.current as any)._leaflet_id) {
+        delete (containerRef.current as any)._leaflet_id;
       }
 
       const map = leaflet.map(containerRef.current, {
@@ -89,6 +97,18 @@ export const MapLocationViewer: React.FC<MapLocationViewerProps> = ({
       mapRef.current = map;
       map.invalidateSize();
 
+      requestAnimationFrame(() => {
+        if (!isCancelled && mapRef.current) {
+          mapRef.current.invalidateSize();
+        }
+      });
+
+      timer0 = setTimeout(() => {
+        if (!isCancelled && mapRef.current) {
+          mapRef.current.invalidateSize();
+        }
+      }, 50);
+
       timer1 = setTimeout(() => {
         if (!isCancelled && mapRef.current) {
           mapRef.current.invalidateSize();
@@ -115,6 +135,7 @@ export const MapLocationViewer: React.FC<MapLocationViewerProps> = ({
 
     return () => {
       isCancelled = true;
+      if (timer0) clearTimeout(timer0);
       if (timer1) clearTimeout(timer1);
       if (timer2) clearTimeout(timer2);
       if (resizeObserver) {
@@ -123,6 +144,9 @@ export const MapLocationViewer: React.FC<MapLocationViewerProps> = ({
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
+      }
+      if (containerRef.current && (containerRef.current as any)._leaflet_id) {
+        delete (containerRef.current as any)._leaflet_id;
       }
     };
   }, [hasCoords, latitude, longitude, title, address]);
@@ -152,8 +176,15 @@ export const MapLocationViewer: React.FC<MapLocationViewerProps> = ({
 
   return (
     <div className="space-y-2.5">
-      <div className="relative rounded-2xl overflow-hidden border border-slate-200/80 shadow-xs bg-slate-100">
-        <div ref={containerRef} className={`w-full ${heightClassName} z-0`} />
+      <div
+        className={`relative rounded-2xl overflow-hidden border border-slate-200/80 shadow-xs bg-slate-100 ${heightClassName || ""}`}
+        style={{ height: effectiveHeight, minHeight: "220px" }}
+      >
+        <div
+          ref={containerRef}
+          className="w-full h-full z-0"
+          style={{ width: "100%", height: "100%", minHeight: "220px" }}
+        />
 
         {/* Top-right quick actions */}
         <div className="absolute top-2 right-2 z-[400] flex items-center gap-1.5">

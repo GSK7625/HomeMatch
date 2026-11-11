@@ -4,7 +4,17 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import type L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { PropertyListing } from "@/types";
-import { MapPin, Navigation, Sparkles } from "lucide-react";
+import {
+  MapPin,
+  Navigation,
+  Sparkles,
+  Plus,
+  Minus,
+  Maximize2,
+  Minimize2,
+  RotateCcw,
+  X,
+} from "lucide-react";
 
 interface ListingsInteractiveMapProps {
   listings: PropertyListing[];
@@ -70,6 +80,15 @@ function getListingCoordinates(listing: PropertyListing): [number, number] {
   ];
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
   listings,
   userLocation,
@@ -79,8 +98,11 @@ export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
   const mapRef = useRef<L.Map | null>(null);
   const leafletRef = useRef<typeof L | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const lastBoundsRef = useRef<L.LatLngBounds | null>(null);
+
   const [isMapReady, setIsMapReady] = useState(false);
   const [activeListingCount, setActiveListingCount] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Hook 1: Initialize map ONCE on component mount
   useEffect(() => {
@@ -89,6 +111,7 @@ export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
     let resizeObserver: ResizeObserver | null = null;
     let timer1: NodeJS.Timeout | null = null;
     let timer2: NodeJS.Timeout | null = null;
+    let timer3: NodeJS.Timeout | null = null;
 
     const setupMap = async () => {
       const LModule = (await import("leaflet")).default;
@@ -103,7 +126,7 @@ export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
 
       const map = LModule
         .map(containerRef.current, {
-          zoomControl: true,
+          zoomControl: false, // Sleek custom controls to prevent layout clashes
           scrollWheelZoom: true,
           fadeAnimation: false, // Turn off to eliminate _leaflet_pos race condition
           zoomAnimation: false, // Turn off animated transitions to prevent unmount clashes
@@ -124,22 +147,31 @@ export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
       markersLayerRef.current = markersGroup;
       mapRef.current = map;
 
-      // Observe size changes
+      // Multi-stage size invalidation to handle mobile reflow & container mount
+      const triggerSizeAndFit = () => {
+        if (!isCancelled && mapRef.current) {
+          mapRef.current.invalidateSize({ pan: false });
+          if (lastBoundsRef.current && lastBoundsRef.current.isValid()) {
+            const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+            mapRef.current.fitBounds(lastBoundsRef.current, {
+              padding: isMobile ? [20, 20] : [40, 40],
+              maxZoom: 16,
+              animate: false,
+            });
+          }
+        }
+      };
+
       if (typeof ResizeObserver !== "undefined" && containerRef.current) {
         resizeObserver = new ResizeObserver(() => {
-          if (!isCancelled && mapRef.current) {
-            mapRef.current.invalidateSize();
-          }
+          triggerSizeAndFit();
         });
         resizeObserver.observe(containerRef.current);
       }
 
-      timer1 = setTimeout(() => {
-        if (!isCancelled && mapRef.current) mapRef.current.invalidateSize();
-      }, 150);
-      timer2 = setTimeout(() => {
-        if (!isCancelled && mapRef.current) mapRef.current.invalidateSize();
-      }, 400);
+      timer1 = setTimeout(triggerSizeAndFit, 100);
+      timer2 = setTimeout(triggerSizeAndFit, 350);
+      timer3 = setTimeout(triggerSizeAndFit, 700);
 
       setIsMapReady(true);
     };
@@ -150,6 +182,7 @@ export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
       isCancelled = true;
       if (timer1) clearTimeout(timer1);
       if (timer2) clearTimeout(timer2);
+      if (timer3) clearTimeout(timer3);
       if (resizeObserver) resizeObserver.disconnect();
       if (mapRef.current) {
         try {
@@ -181,15 +214,15 @@ export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
       // 1. Add user location marker if present
       if (userLocation) {
         const userIcon = LModule.divIcon({
-          className: "hm-user-gps-marker",
+          className: "hm-user-gps-marker-wrapper",
           html: `
-            <div style="position: relative; width: 22px; height: 22px; transform: translate(-50%, -50%); pointer-events: none;">
-              <div style="position: absolute; inset: 0; background: #3b82f6; border-radius: 50%; opacity: 0.45;"></div>
-              <div style="position: absolute; inset: 3px; background: #2563eb; border: 2.5px solid #ffffff; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.35);"></div>
+            <div class="hm-user-gps-marker">
+              <span class="hm-user-gps-ping"></span>
+              <span class="hm-user-gps-dot"></span>
             </div>
           `,
-          iconSize: [22, 22],
-          iconAnchor: [11, 11],
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
         });
 
         LModule
@@ -200,7 +233,7 @@ export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
         bounds.extend([userLocation.lat, userLocation.lng]);
       }
 
-      // 2. Add listing price markers
+      // 2. Add listing price markers in Airbnb style
       let validCount = 0;
       listings.forEach((listing) => {
         const coords = getListingCoordinates(listing);
@@ -215,33 +248,17 @@ export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
             : (listing.price / 1000).toLocaleString("vi-VN") + "k";
 
         const markerHtml = `
-          <div style="
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: #1e40af;
-            color: #ffffff;
-            font-family: inherit;
-            font-weight: 800;
-            font-size: 11px;
-            padding: 3px 8px;
-            border-radius: 9999px;
-            border: 2px solid #ffffff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-            cursor: pointer;
-            white-space: nowrap;
-            transition: all 0.15s ease;
-            transform: translate(-50%, -50%);
-          " onmouseover="this.style.background='#2563eb'; this.style.transform='translate(-50%, -50%) scale(1.15)';" onmouseout="this.style.background='#1e40af'; this.style.transform='translate(-50%, -50%) scale(1)';">
-            ${priceText}
+          <div class="hm-price-pin" title="${escapeHtml(listing.title)} - ${priceText}">
+            <span>${priceText}</span>
           </div>
         `;
 
         const priceIcon = LModule.divIcon({
-          className: "hm-price-marker",
+          className: "hm-price-marker-wrapper",
           html: markerHtml,
-          iconSize: [60, 24],
-          iconAnchor: [30, 12],
+          iconSize: [64, 30],
+          iconAnchor: [32, 30],
+          popupAnchor: [0, -32],
         });
 
         const coverImage =
@@ -250,25 +267,30 @@ export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
             : "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500&q=80";
 
         const popupContent = `
-          <div style="width: 220px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; line-height: 1.4; padding: 2px;">
-            <img src="${coverImage}" style="width: 100%; height: 115px; object-fit: cover; border-radius: 10px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" alt="${listing.title}" />
-            <div style="font-weight: 800; color: #0f172a; margin-bottom: 2px; font-size: 13px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;" title="${listing.title}">
-              ${listing.title}
+          <div class="hm-map-popup-card">
+            <div class="hm-map-popup-img-wrap">
+              <img src="${coverImage}" alt="${escapeHtml(listing.title)}" />
+              <span class="hm-map-popup-type-tag">${escapeHtml(listing.roomType || "Phòng trọ")}</span>
             </div>
-            <div style="color: #64748b; font-size: 11px; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;">
-              📍 ${listing.address}
+            <div class="hm-map-popup-body">
+              <h4 class="hm-map-popup-title" title="${escapeHtml(listing.title)}">
+                ${escapeHtml(listing.title)}
+              </h4>
+              <p class="hm-map-popup-address">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: -1px; margin-right: 3px; color: #ef4444;"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                ${escapeHtml(listing.address || "")}
+              </p>
+              <div class="hm-map-popup-meta">
+                <span class="hm-map-popup-price">
+                  ${priceText}<span class="hm-map-popup-price-unit">/tháng</span>
+                </span>
+                ${listing.area ? `<span class="hm-map-popup-area">${listing.area} m²</span>` : ""}
+              </div>
+              <a href="/listings/${listing.id}" class="hm-map-popup-btn">
+                <span>Xem chi tiết</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </a>
             </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border-top: 1px solid #f1f5f9; padding-top: 6px;">
-              <span style="font-weight: 900; color: #2563eb; font-size: 13px;">
-                ${priceText}/tháng
-              </span>
-              <span style="font-size: 10px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 700; color: #475569;">
-                ${listing.area} m² • ${listing.roomType}
-              </span>
-            </div>
-            <a href="/listings/${listing.id}" style="display: block; text-align: center; background: #2563eb; color: #ffffff; padding: 6px 12px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 11px; transition: background 0.15s ease;">
-              Xem chi tiết phòng &rarr;
-            </a>
           </div>
         `;
 
@@ -276,67 +298,216 @@ export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
           .marker(coords, { icon: priceIcon })
           .bindPopup(popupContent, {
             maxWidth: 240,
+            autoPan: true,
+            autoPanPadding: [12, 12],
             closeButton: true,
             className: "hm-leaflet-popup",
           })
           .addTo(markersGroup);
       });
 
+      lastBoundsRef.current = bounds;
       setActiveListingCount(validCount);
 
       if (bounds.isValid() && validCount > 0) {
-        map.fitBounds(bounds, { padding: [45, 45], maxZoom: 16, animate: false });
+        const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+        map.invalidateSize({ pan: false });
+        map.fitBounds(bounds, {
+          padding: isMobile ? [20, 20] : [45, 45],
+          maxZoom: 16,
+          animate: false,
+        });
       }
     } catch (err) {
       console.warn("Could not update map markers", err);
     }
   }, [isMapReady, listings, userLocation]);
 
+  // Hook 3: Fly to user location if changed and available
+  useEffect(() => {
+    if (!isMapReady || !mapRef.current || !userLocation) return;
+    mapRef.current.flyTo([userLocation.lat, userLocation.lng], 15, {
+      animate: true,
+      duration: 0.8,
+    });
+  }, [userLocation, isMapReady]);
+
+  // Hook 4: Re-calculate map size & bounds when entering/exiting fullscreen
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const timer = setTimeout(() => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize({ pan: false });
+        if (lastBoundsRef.current && lastBoundsRef.current.isValid()) {
+          const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+          mapRef.current.fitBounds(lastBoundsRef.current, {
+            padding: isMobile ? [20, 20] : [40, 40],
+            maxZoom: 16,
+            animate: false,
+          });
+        }
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [isFullscreen]);
+
+  // Zoom and fit controls
+  const handleZoomIn = useCallback(() => {
+    mapRef.current?.zoomIn();
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    mapRef.current?.zoomOut();
+  }, []);
+
+  const handleFitAll = useCallback(() => {
+    const map = mapRef.current;
+    const LModule = leafletRef.current;
+    if (!map || !LModule || listings.length === 0) return;
+
+    const bounds = LModule.latLngBounds([]);
+    if (userLocation) {
+      bounds.extend([userLocation.lat, userLocation.lng]);
+    }
+    listings.forEach((l) => bounds.extend(getListingCoordinates(l)));
+
+    if (bounds.isValid()) {
+      const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+      map.invalidateSize({ pan: false });
+      map.fitBounds(bounds, {
+        padding: isMobile ? [20, 20] : [45, 45],
+        maxZoom: 16,
+      });
+    }
+  }, [listings, userLocation]);
+
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen((prev) => !prev);
+  }, []);
+
   return (
-    <div className="bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 shadow-xl text-white space-y-3 relative p-4 sm:p-5">
+    <div
+      className={
+        isFullscreen
+          ? "fixed inset-0 z-[9999] bg-white flex flex-col p-3 sm:p-5"
+          : "bg-white rounded-2xl border border-slate-200/90 shadow-sm p-3.5 sm:p-5 space-y-3 transition-all"
+      }
+    >
       {/* Map Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0">
-            <MapPin className="w-4 h-4 text-rose-400" />
+      <div className="flex items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0 shadow-xs">
+            <MapPin className="w-4 h-4 text-blue-600" />
           </div>
-          <div>
-            <h3 className="font-black text-sm text-slate-100 tracking-tight flex items-center gap-2">
-              <span>Bản Đồ Không Gian Vị Trí Phòng Trọ</span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                <Sparkles className="w-2.5 h-2.5" /> PostGIS (WGS 84)
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-bold text-xs sm:text-base text-slate-900 tracking-tight truncate">
+                Bản Đồ Vị Trí Phòng Trọ
+              </h3>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 shrink-0">
+                <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-600" />
+                {activeListingCount > 0 ? `${activeListingCount} phòng` : "Đang tìm phòng"}
               </span>
-            </h3>
-            <p className="text-[11px] text-slate-400">
-              Định vị tọa độ thực tế của {activeListingCount} phòng trọ • Click vào giá tiền để xem nhanh
+            </div>
+            <p className="text-[11px] sm:text-xs text-slate-500 truncate hidden xs:block">
+              Định vị tọa độ thực tế • Bấm vào giá để xem chi tiết
             </p>
           </div>
         </div>
 
-        {onLocateMe && (
+        <div className="flex items-center gap-1.5 shrink-0">
+          {onLocateMe && (
+            <button
+              type="button"
+              onClick={onLocateMe}
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-[11px] sm:text-xs font-semibold shadow-xs transition-all cursor-pointer"
+              title="Định vị vị trí hiện tại của bạn trên bản đồ"
+            >
+              <Navigation className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />
+              <span className="hidden sm:inline">Tìm gần tôi</span>
+              <span className="sm:hidden">Gần tôi</span>
+            </button>
+          )}
+
           <button
             type="button"
-            onClick={onLocateMe}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-colors shadow-xs shrink-0 self-end sm:self-auto"
-            title="Định vị vị trí hiện tại của bạn trên bản đồ"
+            onClick={toggleFullscreen}
+            className="p-1.5 sm:p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 active:scale-95 transition-all cursor-pointer"
+            title={isFullscreen ? "Thu nhỏ lại" : "Mở rộng toàn màn hình"}
+            aria-label={isFullscreen ? "Thu nhỏ lại" : "Mở rộng toàn màn hình"}
           >
-            <Navigation className="w-3.5 h-3.5 text-blue-400" />
-            <span>Tìm gần tôi</span>
+            {isFullscreen ? (
+              <Minimize2 className="w-4 h-4 text-slate-700" />
+            ) : (
+              <Maximize2 className="w-4 h-4 text-slate-700" />
+            )}
           </button>
-        )}
+
+          {isFullscreen && (
+            <button
+              type="button"
+              onClick={() => setIsFullscreen(false)}
+              className="p-1.5 sm:p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 active:scale-95 transition-all cursor-pointer"
+              title="Đóng bản đồ"
+              aria-label="Đóng bản đồ"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Interactive Leaflet Map Container */}
-      <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950 shadow-inner">
+      <div
+        className={
+          isFullscreen
+            ? "relative flex-1 w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-inner"
+            : "relative w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-inner h-[320px] sm:h-[420px]"
+        }
+      >
         <div
           ref={containerRef}
-          className="w-full h-[340px] sm:h-[400px] z-0"
+          className="w-full h-full z-0"
         />
 
-        {/* Floating helper pill */}
-        <div className="absolute top-2.5 left-2.5 z-[400] bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700/80 text-[11px] font-medium text-slate-200 shadow-md flex items-center gap-2 pointer-events-none">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span>Click vào ghim giá tiền để xem phòng</span>
+        {/* Floating Custom Map Controls (Top-Right) */}
+        <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-[400] flex flex-col gap-1 bg-white/95 backdrop-blur-md p-1 rounded-xl border border-slate-200/90 shadow-md">
+          <button
+            type="button"
+            onClick={handleZoomIn}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center text-slate-700 hover:bg-slate-100 hover:text-blue-600 active:scale-95 transition-all cursor-pointer"
+            title="Phóng to bản đồ"
+            aria-label="Phóng to bản đồ"
+          >
+            <Plus className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+          </button>
+          <div className="w-full h-px bg-slate-200/80" />
+          <button
+            type="button"
+            onClick={handleZoomOut}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center text-slate-700 hover:bg-slate-100 hover:text-blue-600 active:scale-95 transition-all cursor-pointer"
+            title="Thu nhỏ bản đồ"
+            aria-label="Thu nhỏ bản đồ"
+          >
+            <Minus className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+          </button>
+          <div className="w-full h-px bg-slate-200/80" />
+          <button
+            type="button"
+            onClick={handleFitAll}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center text-slate-700 hover:bg-slate-100 hover:text-blue-600 active:scale-95 transition-all cursor-pointer"
+            title="Căn chỉnh hiển thị toàn bộ phòng"
+            aria-label="Căn chỉnh hiển thị toàn bộ phòng"
+          >
+            <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          </button>
+        </div>
+
+        {/* Floating helper pill (Bottom-Left - compact on mobile) */}
+        <div className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 z-[400] max-w-[calc(100%-140px)] bg-white/95 backdrop-blur-md px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-slate-200/90 shadow-md text-[11px] sm:text-xs font-medium text-slate-700 flex items-center gap-1.5 sm:gap-2 pointer-events-none truncate">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+          <span className="sm:hidden truncate">Chạm ghim để xem</span>
+          <span className="hidden sm:inline">Bấm vào ghim giá tiền để xem phòng</span>
         </div>
       </div>
     </div>

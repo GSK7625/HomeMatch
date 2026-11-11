@@ -149,6 +149,27 @@ export function getStoredToken(): string | null {
   return localStorage.getItem(TOKEN_STORAGE_KEY);
 }
 
+/**
+ * Lấy Access Token hợp lệ. Nếu token đã hết hạn hoặc sắp hết hạn (trong vòng 10s),
+ * hàm sẽ tự động gọi refreshAccessTokenSilently() để lấy token mới nhất.
+ */
+export async function getValidAccessToken(): Promise<string | null> {
+  let token = getStoredToken();
+  if (!token) return null;
+
+  if (isTokenExpired(token)) {
+    const refreshed = await refreshAccessTokenSilently();
+    token = refreshed || null;
+    if (!token && typeof window !== "undefined") {
+      setStoredToken(null);
+      setStoredUser(null);
+      window.dispatchEvent(new Event("homematch:auth-expired"));
+    }
+  }
+
+  return token;
+}
+
 export function setStoredToken(token: string | null) {
   if (typeof window === "undefined") return;
   if (token) {
@@ -474,20 +495,31 @@ export const authApi = {
 };
 
 /**
- * Helper to convert listing IDs like "lst-001", "lst-002", or "101" into a valid numeric ListingId (> 0)
+ * Helper to convert listing IDs like "101" into a valid numeric ListingId (> 0)
+ * Returns 0 if ID is invalid or a legacy mock format (e.g. "lst-001") so it never falsely targets listing 1.
  */
 export function parseListingNumericId(rawId: string | number | undefined | null): number {
   if (typeof rawId === "number" && Number.isFinite(rawId) && rawId > 0) {
     return Math.floor(rawId);
   }
   if (typeof rawId === "string") {
-    const digits = rawId.replace(/\D+/g, "");
-    const parsed = parseInt(digits, 10);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
+    const trimmed = rawId.trim();
+    if (trimmed.startsWith("lst-")) {
+      return 0;
+    }
+    const parsedDirect = parseInt(trimmed, 10);
+    if (Number.isFinite(parsedDirect) && parsedDirect > 0 && String(parsedDirect) === trimmed) {
+      return parsedDirect;
+    }
+    const digits = trimmed.replace(/\D+/g, "");
+    if (digits.length > 0) {
+      const parsed = parseInt(digits, 10);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
     }
   }
-  return 1;
+  return 0;
 }
 
 // ============================================================================

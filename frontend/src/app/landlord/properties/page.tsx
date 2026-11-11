@@ -18,6 +18,8 @@ import { useToast } from "@/components/Toast";
 import { Modal } from "@/components/Modal";
 import { MapLocationPickerModal } from "@/components/MapLocationPickerModal";
 import { MapLocationViewer } from "@/components/MapLocationViewer";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { AddressAutocompleteInput } from "@/components/AddressAutocompleteInput";
 import {
   Home,
   Plus,
@@ -39,6 +41,7 @@ import {
   Check,
   Search,
   Compass,
+  ChevronDown,
 } from "lucide-react";
 import { cn, formatAmenityName } from "@/lib/utils";
 
@@ -173,7 +176,6 @@ export default function LandlordPropertiesPage() {
   const [newPropType, setNewPropType] = useState("BOARDING_HOUSE");
   const [newPropProvince, setNewPropProvince] = useState("01"); // Hà Nội
   const [newPropWard, setNewPropWard] = useState("");
-  const [wardSearchTerm, setWardSearchTerm] = useState("");
   const [newPropAddress, setNewPropAddress] = useState("");
   const [newPropLat, setNewPropLat] = useState<number | null>(null);
   const [newPropLng, setNewPropLng] = useState<number | null>(null);
@@ -185,7 +187,6 @@ export default function LandlordPropertiesPage() {
   const [editPropProvince, setEditPropProvince] = useState("01");
   const [editPropWards, setEditPropWards] = useState<WardDto[]>([]);
   const [editPropWard, setEditPropWard] = useState("");
-  const [editWardSearchTerm, setEditWardSearchTerm] = useState("");
   const [editPropAddress, setEditPropAddress] = useState("");
   const [editPropLat, setEditPropLat] = useState<number | null>(null);
   const [editPropLng, setEditPropLng] = useState<number | null>(null);
@@ -679,26 +680,6 @@ export default function LandlordPropertiesPage() {
       ? FALLBACK_WARDS_HCM
       : [];
 
-  const filteredWards = availableWards.filter((w) => {
-    if (!wardSearchTerm.trim()) return true;
-    const term = wardSearchTerm.toLowerCase().trim();
-    return (
-      (w.fullName || "").toLowerCase().includes(term) ||
-      (w.name || "").toLowerCase().includes(term) ||
-      (w.code || "").toLowerCase().includes(term)
-    );
-  });
-
-  const filteredEditWards = availableEditWards.filter((w) => {
-    if (!editWardSearchTerm.trim()) return true;
-    const term = editWardSearchTerm.toLowerCase().trim();
-    return (
-      (w.fullName || "").toLowerCase().includes(term) ||
-      (w.name || "").toLowerCase().includes(term) ||
-      (w.code || "").toLowerCase().includes(term)
-    );
-  });
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-6">
       {/* Header */}
@@ -753,20 +734,23 @@ export default function LandlordPropertiesPage() {
               <Building2 className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                 Đang xem bất động sản:
               </label>
-              <select
-                value={selectedPropertyId || ""}
-                onChange={(e) => setSelectedPropertyId(Number(e.target.value))}
-                className="font-bold text-slate-900 text-sm bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
-              >
-                {properties.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.addressDetail})
-                  </option>
-                ))}
-              </select>
+              <div className="relative inline-flex items-center w-full max-w-sm sm:max-w-md">
+                <select
+                  value={selectedPropertyId || ""}
+                  onChange={(e) => setSelectedPropertyId(Number(e.target.value))}
+                  className="w-full appearance-none bg-slate-50 hover:bg-slate-100/80 active:bg-slate-100 text-slate-900 font-bold text-sm pl-3 pr-9 py-2 rounded-xl border border-slate-200/90 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer select-none transition-all truncate"
+                >
+                  {properties.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.addressDetail})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3 pointer-events-none" />
+              </div>
             </div>
           </div>
 
@@ -1085,76 +1069,47 @@ export default function LandlordPropertiesPage() {
                 <label className="block text-xs font-bold text-slate-700 uppercase">
                   Phường / Xã *
                 </label>
-                <div className="flex items-center gap-2">
-                  {loadingWards && (
-                    <span className="text-[10px] text-blue-600 font-medium inline-flex items-center gap-1">
-                      <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                      <span>Đang tải...</span>
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => loadWardsForProvince(newPropProvince)}
-                    className="text-[10px] text-blue-600 hover:underline"
-                  >
-                    Làm mới danh sách
-                  </button>
-                </div>
-              </div>
-              <div className="relative mb-2">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Tìm nhanh phường / xã (VD: Văn Miếu, Dịch Vọng...)"
-                  value={wardSearchTerm}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setWardSearchTerm(val);
-                    const matches = availableWards.filter((w) => {
-                      if (!val.trim()) return true;
-                      const term = val.toLowerCase().trim();
-                      return (
-                        (w.fullName || "").toLowerCase().includes(term) ||
-                        (w.name || "").toLowerCase().includes(term) ||
-                        (w.code || "").toLowerCase().includes(term)
-                      );
-                    });
-                    if (matches.length > 0 && !matches.some((m) => m.code === newPropWard)) {
-                      setNewPropWard(matches[0].code);
-                    }
-                  }}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                />
-              </div>
-              <select
-                value={newPropWard}
-                onChange={(e) => setNewPropWard(e.target.value)}
-                required
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                {filteredWards.length > 0 ? (
-                  filteredWards.map((w) => (
-                    <option key={w.code} value={w.code}>
-                      {w.fullName || w.name}
-                    </option>
-                  ))
-                ) : (
-                  <option value="">{loadingWards ? "Đang tải danh sách phường/xã..." : "Không tìm thấy phường/xã phù hợp"}</option>
+                {loadingWards && (
+                  <span className="text-[10px] text-blue-600 font-medium inline-flex items-center gap-1">
+                    <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                    <span>Đang tải...</span>
+                  </span>
                 )}
-              </select>
+              </div>
+              <SearchableSelect
+                value={newPropWard}
+                onChange={(code) => setNewPropWard(code)}
+                options={availableWards.map((w) => ({
+                  value: w.code,
+                  label: w.fullName || w.name,
+                }))}
+                placeholder={loadingWards ? "Đang tải danh sách phường/xã..." : "Chọn phường / xã..."}
+                searchPlaceholder="Tìm nhanh phường / xã (VD: Văn Miếu, Dịch Vọng...)"
+                loading={loadingWards}
+                disabled={loadingWards || availableWards.length === 0}
+                required
+              />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                 Địa chỉ chi tiết (Số nhà, ngõ, tên đường) *
               </label>
-              <input
-                type="text"
-                required
-                placeholder="VD: Số 18 Ngõ 68 Cầu Giấy, Quan Hoa"
+              <AddressAutocompleteInput
                 value={newPropAddress}
-                onChange={(e) => setNewPropAddress(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+                onChange={(val) => setNewPropAddress(val)}
+                onSelectCoords={(lat, lng) => {
+                  setNewPropLat(lat);
+                  setNewPropLng(lng);
+                }}
+                provinceName={
+                  availableProvinces.find((p) => p.code === newPropProvince)?.name || "Hà Nội"
+                }
+                wardName={
+                  availableWards.find((w) => w.code === newPropWard)?.name || ""
+                }
+                placeholder="VD: Số 18 Ngõ 68 Cầu Giấy hoặc gõ tên đường..."
+                required
               />
             </div>
 
@@ -1445,75 +1400,47 @@ export default function LandlordPropertiesPage() {
                 <label className="block text-xs font-bold text-slate-700 uppercase">
                   Phường / Xã *
                 </label>
-                <div className="flex items-center gap-2">
-                  {loadingEditWards && (
-                    <span className="text-[10px] text-blue-600 font-medium inline-flex items-center gap-1">
-                      <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                      <span>Đang tải...</span>
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => loadEditWardsForProvince(editPropProvince)}
-                    className="text-[10px] text-blue-600 hover:underline"
-                  >
-                    Làm mới danh sách
-                  </button>
-                </div>
-              </div>
-              <div className="relative mb-2">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Tìm nhanh phường / xã (VD: Bến Nghé, Thảo Điền...)"
-                  value={editWardSearchTerm}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setEditWardSearchTerm(val);
-                    const matches = availableEditWards.filter((w) => {
-                      if (!val.trim()) return true;
-                      const term = val.toLowerCase().trim();
-                      return (
-                        (w.fullName || "").toLowerCase().includes(term) ||
-                        (w.name || "").toLowerCase().includes(term) ||
-                        (w.code || "").toLowerCase().includes(term)
-                      );
-                    });
-                    if (matches.length > 0 && !matches.some((m) => m.code === editPropWard)) {
-                      setEditPropWard(matches[0].code);
-                    }
-                  }}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                />
-              </div>
-              <select
-                value={editPropWard}
-                onChange={(e) => setEditPropWard(e.target.value)}
-                required
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                {filteredEditWards.length > 0 ? (
-                  filteredEditWards.map((w) => (
-                    <option key={w.code} value={w.code}>
-                      {w.fullName || w.name}
-                    </option>
-                  ))
-                ) : (
-                  <option value={editPropWard}>{editPropWard || (loadingEditWards ? "Đang tải danh sách phường/xã..." : "Không tìm thấy phường/xã phù hợp")}</option>
+                {loadingEditWards && (
+                  <span className="text-[10px] text-blue-600 font-medium inline-flex items-center gap-1">
+                    <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                    <span>Đang tải...</span>
+                  </span>
                 )}
-              </select>
+              </div>
+              <SearchableSelect
+                value={editPropWard}
+                onChange={(code) => setEditPropWard(code)}
+                options={availableEditWards.map((w) => ({
+                  value: w.code,
+                  label: w.fullName || w.name,
+                }))}
+                placeholder={loadingEditWards ? "Đang tải danh sách phường/xã..." : "Chọn phường / xã..."}
+                searchPlaceholder="Tìm nhanh phường / xã (VD: Bến Nghé, Thảo Điền...)"
+                loading={loadingEditWards}
+                disabled={loadingEditWards || availableEditWards.length === 0}
+                required
+              />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                 Địa chỉ chi tiết (Số nhà, ngõ, tên đường) *
               </label>
-              <input
-                type="text"
-                required
+              <AddressAutocompleteInput
                 value={editPropAddress}
-                onChange={(e) => setEditPropAddress(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+                onChange={(val) => setEditPropAddress(val)}
+                onSelectCoords={(lat, lng) => {
+                  setEditPropLat(lat);
+                  setEditPropLng(lng);
+                }}
+                provinceName={
+                  availableProvinces.find((p) => p.code === editPropProvince)?.name || "Hà Nội"
+                }
+                wardName={
+                  availableEditWards.find((w) => w.code === editPropWard)?.name || ""
+                }
+                placeholder="VD: Số 18 Ngõ 68 Cầu Giấy hoặc gõ tên đường..."
+                required
               />
             </div>
 
@@ -1553,7 +1480,7 @@ export default function LandlordPropertiesPage() {
                 </div>
               ) : (
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Tòa nhà hiện chưa có tọa độ ghim tay. Bấm <strong>&quot;Ghim trên bản đồ&quot;</strong> để chọn vị trí chính xác trên OpenStreetMap.
+                  Tòa nhà hiện chưa có tọa độ ghim tay. Bấm <strong>&quot;Ghim trên bản đồ&quot;</strong> để chọn vị trí chính xác trên bản đồ.
                 </p>
               )}
             </div>

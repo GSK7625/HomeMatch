@@ -1,4 +1,4 @@
-import { API_BASE, getStoredToken } from "@/lib/api-client";
+import { API_BASE, getStoredToken, getValidAccessToken } from "@/lib/api-client";
 import { MessageDto, NotificationDto } from "@/types";
 
 const RECORD_SEPARATOR = "\x1e";
@@ -65,14 +65,19 @@ export class ChatRealtimeClient {
     this.handlers = handlers;
   }
 
-  public start(): void {
-    const token = getStoredToken();
-    if (!token || typeof window === "undefined") {
+  public async start(): Promise<void> {
+    if (typeof window === "undefined") {
       this.setState("disconnected");
       return;
     }
 
     this.shouldReconnect = true;
+    const token = await getValidAccessToken();
+    if (!token || !this.shouldReconnect) {
+      this.setState("disconnected");
+      return;
+    }
+
     this.connectInternal(token);
   }
 
@@ -189,11 +194,13 @@ export class ChatRealtimeClient {
         this.ws = null;
         if (this.shouldReconnect) {
           this.setState("reconnecting");
-          this.reconnectTimer = setTimeout(() => {
-            const latestToken = getStoredToken();
-            if (latestToken && this.shouldReconnect) {
-              this.connectInternal(latestToken);
+          this.reconnectTimer = setTimeout(async () => {
+            if (!this.shouldReconnect) return;
+            const validToken = await getValidAccessToken();
+            if (validToken && this.shouldReconnect) {
+              this.connectInternal(validToken);
             } else {
+              this.shouldReconnect = false;
               this.setState("disconnected");
             }
           }, 3000);

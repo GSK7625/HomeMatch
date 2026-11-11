@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
-import { fetchHealth, listingsApi } from "@/lib/api-client";
+import { fetchHealth, listingsApi, getStoredToken } from "@/lib/api-client";
+import { listingService } from "@/lib/services";
 import { PropertyListing, HealthCheck } from "@/types";
 import { ListingCard } from "@/features/listings/ListingCard";
 import {
@@ -15,7 +16,6 @@ import {
   ShieldCheck,
   Zap,
   Calendar,
-  Sparkles,
   ArrowRight,
   CheckCircle2,
   FileText,
@@ -25,7 +25,6 @@ import {
   Flame,
   PhoneCall,
   Clock,
-  Award,
   ChevronDown,
 } from "lucide-react";
 import { cn, mapListingSummaryToCard } from "@/lib/utils";
@@ -85,6 +84,15 @@ export default function HomePage() {
       });
 
     fetchHealth().then(setHealth).catch(() => null);
+
+    if (getStoredToken()) {
+      listingsApi.getSavedListings().then((res) => {
+        if (isMounted && res.isSuccess && Array.isArray(res.data)) {
+          listingService.syncFavorites(res.data.map((s) => String(s.listingId)));
+        }
+      }).catch(() => null);
+    }
+
     return () => {
       isMounted = false;
     };
@@ -105,8 +113,7 @@ export default function HomePage() {
     router.push(`/listings?city=${encodeURIComponent(locCity)}&district=${encodeURIComponent(locDistrict)}`);
   };
 
-  const featuredListings = listings.filter((x) => x.isFeatured).slice(0, 3);
-  const affordableListings = listings.filter((x) => x.price <= 4500000).slice(0, 4);
+  const displayListings = listings.slice(0, 6);
 
   // Computed landlord projected income
   const monthlyRevenue = calcRooms * calcRent * 0.95; // 95% occupancy rate
@@ -342,16 +349,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Featured Listings Section */}
+      {/* Listings Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <div className="flex items-center gap-2 text-blue-600 text-xs font-bold uppercase tracking-wider mb-1">
-              <Sparkles className="w-4 h-4" />
-              <span>Phòng tuyển chọn chất lượng cao</span>
-            </div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-              Phòng Trọ & Căn Hộ Hot Trong Tuần
+              Danh sách phòng trọ và căn hộ
             </h2>
           </div>
           <Link
@@ -363,55 +366,17 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {featuredListings.length > 0 ? (
+        {displayListings.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredListings.map((listing) => (
+            {displayListings.map((listing) => (
               <ListingCard key={listing.id} listing={listing} />
             ))}
           </div>
         ) : (
           <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center">
             <Building className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-            <p className="text-sm font-semibold text-slate-700">Chưa có tin nổi bật nào</p>
+            <p className="text-sm font-semibold text-slate-700">Chưa có tin đăng nào</p>
             <p className="text-xs text-slate-500 mt-1">Các tin đăng mới nhất sẽ tự động hiển thị khi chủ nhà đăng phòng.</p>
-          </div>
-        )}
-      </section>
-
-      {/* Curated Collection: Affordable Rooms */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <div className="flex items-center gap-2 text-emerald-600 text-xs font-bold uppercase tracking-wider mb-1">
-              <Award className="w-4 h-4" />
-              <span>Dành cho sinh viên & người mới đi làm</span>
-            </div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-              Phòng Trọ Tiết Kiệm Dưới 4.5 Triệu / Tháng
-            </h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Gần các trường đại học lớn, giao thông thuận tiện xe buýt và metro.
-            </p>
-          </div>
-          <Link
-            href="/listings?price=under3"
-            className="text-xs font-bold text-blue-600 hover:text-blue-700"
-          >
-            Xem phòng giá rẻ →
-          </Link>
-        </div>
-
-        {affordableListings.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {affordableListings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
-          </div>
-        ) : (
-          <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center">
-            <Building className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-            <p className="text-sm font-semibold text-slate-700">Chưa có phòng trong mức giá này</p>
-            <p className="text-xs text-slate-500 mt-1">Khám phá thêm nhiều lựa chọn tại trang danh sách phòng.</p>
           </div>
         )}
       </section>

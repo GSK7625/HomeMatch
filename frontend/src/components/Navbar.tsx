@@ -25,7 +25,6 @@ import {
   ChevronDown,
   Menu,
   X,
-  PlusCircle,
   Loader2,
   Bell,
   Eye,
@@ -220,19 +219,22 @@ export function Navbar() {
               <Link
                 href="/compare"
                 className={cn(
-                  "hidden lg:flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
+                  "hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap relative shrink-0",
                   pathname === "/compare"
                     ? "text-blue-600 bg-blue-50/80 shadow-xs"
-                    : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
                 )}
                 title="So sánh phòng đối chiếu"
               >
-                <Scale className="w-4 h-4 shrink-0" />
-                {compareCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
-                    {compareCount}
-                  </span>
-                )}
+                <div className="relative flex items-center justify-center">
+                  <Scale className="w-4 h-4 shrink-0" />
+                  {compareCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 rounded-full bg-blue-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                      {compareCount}
+                    </span>
+                  )}
+                </div>
+                <span>So sánh</span>
               </Link>
             )}
 
@@ -241,19 +243,22 @@ export function Navbar() {
               <Link
                 href="/tenant/favorites"
                 className={cn(
-                  "hidden lg:flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
+                  "hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap relative shrink-0",
                   pathname === "/tenant/favorites"
                     ? "text-rose-600 bg-rose-50/80 shadow-xs"
-                    : "text-slate-600 hover:text-rose-600 hover:bg-slate-100/80"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
                 )}
                 title="Danh sách phòng đã lưu"
               >
-                <Heart className="w-4 h-4 shrink-0" />
-                {favCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
-                    {favCount}
-                  </span>
-                )}
+                <div className="relative flex items-center justify-center">
+                  <Heart className="w-4 h-4 shrink-0" />
+                  {favCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                      {favCount}
+                    </span>
+                  )}
+                </div>
+                <span>Yêu thích</span>
               </Link>
             )}
 
@@ -262,15 +267,18 @@ export function Navbar() {
               <Link
                 href="/messages"
                 className={cn(
-                  "hidden lg:flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
+                  "hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap relative shrink-0",
                   pathname === "/messages"
                     ? "text-blue-600 bg-blue-50/80 shadow-xs"
-                    : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
                 )}
                 title="Hộp thư tin nhắn trực tiếp"
               >
-                <MessageSquare className="w-4 h-4 shrink-0" />
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
+                <div className="relative flex items-center justify-center">
+                  <MessageSquare className="w-4 h-4 shrink-0" />
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
+                </div>
+                <span>Tin nhắn</span>
               </Link>
             )}
 
@@ -284,19 +292,22 @@ export function Navbar() {
                     if (!notifDropdownOpen) fetchNotificationsSummary();
                   }}
                   className={cn(
-                    "flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold transition-all relative shrink-0",
+                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap relative shrink-0",
                     pathname === "/tenant/notifications" || notifDropdownOpen
                       ? "text-blue-600 bg-blue-50/80 shadow-xs"
-                      : "text-slate-600 hover:text-blue-600 hover:bg-slate-100/80"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
                   )}
                   title="Thông báo tài khoản"
                 >
-                  <Bell className="w-4 h-4 shrink-0" />
-                  {unreadNotifCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
-                      {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
-                    </span>
-                  )}
+                  <div className="relative flex items-center justify-center">
+                    <Bell className="w-4 h-4 shrink-0" />
+                    {unreadNotifCount > 0 && (
+                      <span className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                        {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                      </span>
+                    )}
+                  </div>
+                  <span className="hidden sm:inline">Thông báo</span>
                 </button>
 
                 {notifDropdownOpen && (
@@ -415,16 +426,8 @@ export function Navbar() {
 
             <div className="h-5 w-px bg-slate-200 hidden lg:block mx-0.5" />
 
-            {/* Standout Commercial CTA Button */}
-            {role === "Landlord" ? (
-              <Link
-                href="/landlord/listings"
-                className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all whitespace-nowrap shrink-0"
-              >
-                <PlusCircle className="w-3.5 h-3.5 shrink-0" />
-                <span>Đăng tin</span>
-              </Link>
-            ) : !user ? (
+            {/* Guest CTA Button */}
+            {!user && (
               <Link
                 href="/landlord/dashboard"
                 className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50/90 hover:bg-blue-100 border border-blue-200/90 shadow-2xs transition-all whitespace-nowrap shrink-0"
@@ -432,7 +435,7 @@ export function Navbar() {
                 <Building2 className="w-3.5 h-3.5 shrink-0 text-blue-600" />
                 <span>Kênh Chủ Nhà</span>
               </Link>
-            ) : null}
+            )}
 
             {/* User Profile Menu or High-Contrast Auth Buttons */}
             {user ? (

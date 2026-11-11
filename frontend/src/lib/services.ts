@@ -34,6 +34,20 @@ if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_KEYS.MESSAGES);
       localStorage.removeItem(STORAGE_KEYS.REPORTS);
     }
+    const rawFavs = localStorage.getItem(STORAGE_KEYS.FAVORITES);
+    if (rawFavs && (rawFavs.includes("lst-001") || rawFavs.includes("lst-002") || rawFavs.includes("lst-"))) {
+      try {
+        const parsed = JSON.parse(rawFavs);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter((id: string) => typeof id === "string" && !id.startsWith("lst-"));
+          localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(cleaned));
+        } else {
+          localStorage.removeItem(STORAGE_KEYS.FAVORITES);
+        }
+      } catch {
+        localStorage.removeItem(STORAGE_KEYS.FAVORITES);
+      }
+    }
   } catch {
     // Ignore storage errors in restricted iframe/private mode
   }
@@ -116,14 +130,40 @@ export const listingService = {
 
   // Favorites
   getFavorites: (): string[] => {
-    return getItem<string[]>(STORAGE_KEYS.FAVORITES, []);
+    const items = getItem<string[]>(STORAGE_KEYS.FAVORITES, []);
+    return items.filter((id) => typeof id === "string" && !id.startsWith("lst-"));
   },
   toggleFavorite: (id: string): boolean => {
     const favs = listingService.getFavorites();
     const exists = favs.includes(id);
     const updated = exists ? favs.filter((x) => x !== id) : [...favs, id];
     setItem(STORAGE_KEYS.FAVORITES, updated);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("homematch:favorites-updated", { detail: { id, isFavorite: !exists } }));
+    }
     return !exists;
+  },
+  setFavorite: (id: string, isFav: boolean): void => {
+    const favs = listingService.getFavorites();
+    const exists = favs.includes(id);
+    if (isFav && !exists) {
+      setItem(STORAGE_KEYS.FAVORITES, [...favs, id]);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("homematch:favorites-updated", { detail: { id, isFavorite: true } }));
+      }
+    } else if (!isFav && exists) {
+      setItem(STORAGE_KEYS.FAVORITES, favs.filter((x) => x !== id));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("homematch:favorites-updated", { detail: { id, isFavorite: false } }));
+      }
+    }
+  },
+  syncFavorites: (ids: string[]): void => {
+    const cleaned = ids.filter((id) => typeof id === "string" && !id.startsWith("lst-"));
+    setItem(STORAGE_KEYS.FAVORITES, cleaned);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("homematch:favorites-updated", { detail: { ids: cleaned } }));
+    }
   },
   isFavorite: (id: string): boolean => listingService.getFavorites().includes(id),
 

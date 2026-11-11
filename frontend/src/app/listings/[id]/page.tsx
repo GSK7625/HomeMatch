@@ -38,7 +38,6 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { cn, formatRoomTypeLabel } from "@/lib/utils";
-import LeafletMapView from "@/components/LeafletMapView";
 
 export default function ListingDetailPage() {
   const params = useParams();
@@ -54,6 +53,7 @@ export default function ListingDetailPage() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isFav, setIsFav] = useState(false);
   const [showFullPhone, setShowFullPhone] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Booking Modal
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -77,9 +77,14 @@ export default function ListingDetailPage() {
   }, [user]);
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [id]);
+
+  useEffect(() => {
     let isMounted = true;
     async function loadDetail() {
       if (!id) return;
+      setLoading(true);
       const numericId = parseListingNumericId(id);
       if (numericId > 0) {
         try {
@@ -149,12 +154,12 @@ export default function ListingDetailPage() {
               title: d.title,
               description: d.description || "",
               address: d.property
-                ? `${d.property.addressDetail}, ${d.property.wardName}, ${
-                    d.property.districtName || d.property.provinceName
-                  }`
+                ? [d.property.addressDetail, d.property.wardName, d.property.provinceName]
+                    .filter(Boolean)
+                    .join(", ")
                 : "Hà Nội, Việt Nam",
               ward: d.property?.wardName || "Phường / Xã",
-              district: d.property?.districtName || d.property?.wardName || "Quận / Huyện",
+              district: d.property?.wardName || "",
               city: d.property?.provinceName || "Hà Nội",
               price: d.price,
               deposit: d.depositAmount,
@@ -195,12 +200,15 @@ export default function ListingDetailPage() {
             setIsFav(listingService.isFavorite(id));
             if (getStoredToken()) {
               listingsApi.getSavedListings().then((sRes) => {
-                if (isMounted && sRes.isSuccess && sRes.data) {
+                if (isMounted && sRes.isSuccess && Array.isArray(sRes.data)) {
+                  const savedIds = sRes.data.map((s) => String(s.listingId));
+                  listingService.syncFavorites(savedIds);
                   const savedOnServer = sRes.data.some((s) => s.listingId === d.id);
                   setIsFav(savedOnServer);
                 }
               }).catch(() => null);
             }
+            if (isMounted) setLoading(false);
             return;
           }
         } catch (err) {
@@ -211,6 +219,7 @@ export default function ListingDetailPage() {
       // If not found in backend
       if (isMounted) {
         setListing(null);
+        setLoading(false);
       }
     }
     loadDetail();
@@ -218,6 +227,41 @@ export default function ListingDetailPage() {
       isMounted = false;
     };
   }, [id]);
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-8 space-y-6 animate-pulse">
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-24 bg-slate-200 rounded" />
+          <span className="text-slate-300">/</span>
+          <div className="h-4 w-32 bg-slate-200 rounded" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="aspect-[16/10] bg-slate-200 rounded-2xl" />
+            <div className="grid grid-cols-4 gap-2">
+              <div className="aspect-[4/3] bg-slate-200 rounded-xl" />
+              <div className="aspect-[4/3] bg-slate-200 rounded-xl" />
+              <div className="aspect-[4/3] bg-slate-200 rounded-xl" />
+              <div className="aspect-[4/3] bg-slate-200 rounded-xl" />
+            </div>
+            <div className="space-y-3 pt-4">
+              <div className="h-8 w-3/4 bg-slate-200 rounded-lg" />
+              <div className="h-4 w-1/2 bg-slate-200 rounded" />
+              <div className="h-24 bg-slate-100 rounded-xl border border-slate-200/60" />
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div className="h-72 bg-slate-100 rounded-2xl border border-slate-200 p-6 space-y-4">
+              <div className="h-8 w-2/3 bg-slate-200 rounded" />
+              <div className="h-12 bg-slate-200 rounded-xl" />
+              <div className="h-12 bg-slate-200 rounded-xl" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!listing) {
     return (
@@ -236,24 +280,46 @@ export default function ListingDetailPage() {
   }
 
   const handleToggleFav = async () => {
-    let finalState = listingService.toggleFavorite(listing.id);
-    setIsFav(finalState);
+    if (!listing) return;
+    const previousState = isFav;
+    const nextState = !previousState;
     const numericId = parseListingNumericId(listing.id);
-    if (numericId > 0 && getStoredToken()) {
+    const token = getStoredToken();
+
+    // Optimistic update
+    setIsFav(nextState);
+    listingService.setFavorite(listing.id, nextState);
+
+    if (numericId > 0 && token) {
       try {
         const res = await listingsApi.toggleSaveListing(numericId);
         if (res.isSuccess && typeof res.data === "boolean") {
-          finalState = res.data;
-          setIsFav(finalState);
+          const serverState = res.data;
+          setIsFav(serverState);
+          listingService.setFavorite(listing.id, serverState);
+          showToast(
+            serverState ? "Đã thêm vào phòng yêu thích!" : "Đã xóa khỏi phòng yêu thích",
+            serverState ? "success" : "info"
+          );
+        } else {
+          // Revert on server error / forbidden role
+          setIsFav(previousState);
+          listingService.setFavorite(listing.id, previousState);
+          const errorMsg = res.error?.message || "Không thể đồng bộ trạng thái yêu thích với máy chủ";
+          showToast(errorMsg, "error");
         }
       } catch (err) {
         console.warn("Could not sync favorite to backend", err);
+        setIsFav(previousState);
+        listingService.setFavorite(listing.id, previousState);
+        showToast("Lỗi kết nối máy chủ khi lưu tin", "error");
       }
+    } else {
+      showToast(
+        nextState ? "Đã thêm vào phòng yêu thích!" : "Đã xóa khỏi phòng yêu thích",
+        nextState ? "success" : "info"
+      );
     }
-    showToast(
-      finalState ? "Đã thêm vào phòng yêu thích!" : "Đã xóa khỏi phòng yêu thích",
-      finalState ? "success" : "info"
-    );
   };
 
   const handleAddToCompare = () => {
@@ -447,7 +513,7 @@ export default function ListingDetailPage() {
 
               <div className="flex items-center gap-2 text-xs text-slate-500 mt-2">
                 <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
-                <span>{listing.address}, {listing.district}, {listing.city}</span>
+                <span>{listing.address}</span>
               </div>
 
               {/* Rating & Review Summary */}
@@ -628,28 +694,6 @@ export default function ListingDetailPage() {
                 </div>
               </div>
             )}
-
-            {/* Real Interactive Map via PostGIS Coordinates */}
-            <div className="space-y-3 pt-4 border-t border-slate-100">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-rose-500" />
-                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                    Vị trí phòng trên bản đồ PostGIS
-                  </h3>
-                </div>
-                <span className="text-xs text-slate-500 font-medium">
-                  {listing.latitude.toFixed(4)}, {listing.longitude.toFixed(4)}
-                </span>
-              </div>
-              <p className="text-xs text-slate-600">{listing.address}</p>
-              <LeafletMapView
-                listings={[listing]}
-                center={[listing.latitude, listing.longitude]}
-                zoom={15}
-                height="280px"
-              />
-            </div>
 
             {/* Transparent Utility Breakdown */}
             <div className="space-y-3 pt-4 border-t border-slate-100">

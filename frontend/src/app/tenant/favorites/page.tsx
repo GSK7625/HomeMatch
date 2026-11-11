@@ -21,8 +21,10 @@ export default function FavoritesPage() {
     if (token) {
       try {
         const res = await listingsApi.getSavedListings();
-        if (res.isSuccess && res.data && res.data.length > 0) {
+        if (res.isSuccess && Array.isArray(res.data)) {
           const savedIds = res.data.map((s) => String(s.listingId));
+          listingService.syncFavorites(savedIds);
+
           const matches = all.filter((x) => savedIds.includes(String(x.id)));
 
           // For any backend listings not in local all, map using real backend summary fields
@@ -109,6 +111,7 @@ export default function FavoritesPage() {
             <ListingCard
               key={listing.id}
               listing={listing}
+              isFavorite={true}
               onFavoriteChange={loadFavorites}
             />
           ))}

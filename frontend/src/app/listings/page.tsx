@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { listingService } from "@/lib/services";
-import { listingsApi, catalogsApi } from "@/lib/api-client";
+import { listingsApi, catalogsApi, getStoredToken } from "@/lib/api-client";
 import { PropertyListing, ProvinceDto, WardDto, AmenityDto } from "@/types";
 import { ListingCard } from "@/features/listings/ListingCard";
 import { useToast } from "@/components/Toast";
@@ -184,6 +184,20 @@ function ListingsContent() {
       isMounted = false;
     };
   }, [keyword, provinceCode, wardCode, priceRange, areaRange, selectedTypes, occupants, selectedAmenities, catalogAmenities]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (getStoredToken()) {
+      listingsApi.getSavedListings().then((res) => {
+        if (isMounted && res.isSuccess && Array.isArray(res.data)) {
+          listingService.syncFavorites(res.data.map((s) => String(s.listingId)));
+        }
+      }).catch(() => null);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -554,11 +568,22 @@ function ListingsContent() {
 
           {/* Map toggle */}
           <button
-            onClick={() => setShowMap(!showMap)}
+            onClick={() => {
+              const next = !showMap;
+              setShowMap(next);
+              if (next) {
+                setTimeout(() => {
+                  document.getElementById("listings-map-section")?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                }, 100);
+              }
+            }}
             className={cn(
               "h-10 flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 rounded-xl text-xs font-bold border transition-colors whitespace-nowrap shrink-0",
               showMap
-                ? "bg-slate-900 text-white border-slate-900"
+                ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                 : "bg-white text-slate-700 border-slate-200/80 hover:bg-slate-50"
             )}
           >
@@ -670,11 +695,13 @@ function ListingsContent() {
         <div className="lg:col-span-3 space-y-6">
           {/* Real Interactive PostGIS Leaflet Map */}
           {showMap && (
-            <ListingsInteractiveMap
-              listings={filteredListings}
-              userLocation={userCoords}
-              onLocateMe={handleNearMe}
-            />
+            <div id="listings-map-section" className="scroll-mt-24 animate-in fade-in duration-200">
+              <ListingsInteractiveMap
+                listings={filteredListings}
+                userLocation={userCoords}
+                onLocateMe={handleNearMe}
+              />
+            </div>
           )}
 
           {/* Commercial Quick Filter Chips */}
@@ -856,6 +883,43 @@ function ListingsContent() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Floating Mobile Map/List Toggle Switcher (Airbnb style) */}
+      <div
+        className={cn(
+          "lg:hidden fixed left-1/2 -translate-x-1/2 z-40 transition-all duration-300",
+          compareList.length > 0 ? "bottom-20" : "bottom-6"
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            const next = !showMap;
+            setShowMap(next);
+            if (next) {
+              setTimeout(() => {
+                document.getElementById("listings-map-section")?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+              }, 100);
+            }
+          }}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-900/95 hover:bg-slate-800 active:scale-95 text-white font-bold text-xs shadow-xl border border-slate-700/60 backdrop-blur-md transition-all cursor-pointer"
+        >
+          {showMap ? (
+            <>
+              <List className="w-4 h-4 text-blue-400" />
+              <span>Xem danh sách ({filteredListings.length})</span>
+            </>
+          ) : (
+            <>
+              <MapIcon className="w-4 h-4 text-blue-400" />
+              <span>Xem bản đồ ({filteredListings.length})</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* Floating Comparison Bar if items exist */}

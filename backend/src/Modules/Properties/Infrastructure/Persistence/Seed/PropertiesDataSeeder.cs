@@ -22,7 +22,7 @@ public static class PropertiesDataSeeder
     private static async Task SeedProvincesAsync(PropertiesDbContext db, ILogger? logger)
     {
         var existingCodes = await db.AdministrativeProvinces.Select(p => p.Code).ToHashSetAsync();
-        if (existingCodes.Count >= 63)
+        if (existingCodes.Count >= 34)
         {
             return;
         }
@@ -38,14 +38,14 @@ public static class PropertiesDataSeeder
         {
             await db.AdministrativeProvinces.AddRangeAsync(toAdd);
             await db.SaveChangesAsync();
-            logger?.LogInformation("Đã nạp toàn bộ {Count} tỉnh thành chính thức của Việt Nam.", toAdd.Count);
+            logger?.LogInformation("Đã nạp toàn bộ {Count} tỉnh thành chính thức của Việt Nam (QĐ 19/2025/QĐ-TTg).", toAdd.Count);
         }
     }
 
     private static async Task SeedWardsAsync(PropertiesDbContext db, ILogger? logger)
     {
         var existingWardCount = await db.AdministrativeWards.CountAsync();
-        if (existingWardCount >= 10000)
+        if (existingWardCount >= 3321)
         {
             return;
         }
@@ -60,7 +60,7 @@ public static class PropertiesDataSeeder
         var toAdd = wards.Where(w => !existingWardCodes.Contains(w.Code)).ToList();
         if (toAdd.Count > 0)
         {
-            const int batchSize = 2500;
+            const int batchSize = 1000;
             for (var i = 0; i < toAdd.Count; i += batchSize)
             {
                 var batch = toAdd.Skip(i).Take(batchSize).ToList();
@@ -68,7 +68,7 @@ public static class PropertiesDataSeeder
                 await db.SaveChangesAsync();
             }
 
-            logger?.LogInformation("Đã nạp thành công toàn bộ {Count} phường/xã/thị trấn chính thức toàn quốc.", toAdd.Count);
+            logger?.LogInformation("Đã nạp thành công toàn bộ {Count} xã/phường/đặc khu chính thức toàn quốc (QĐ 19/2025/QĐ-TTg).", toAdd.Count);
         }
     }
 

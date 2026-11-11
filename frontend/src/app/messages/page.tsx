@@ -387,9 +387,14 @@ function MessagesContent() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 w-full flex-1 flex flex-col space-y-3">
-      {/* Top Header Card */}
-      <div className="bg-white px-4 py-3 sm:py-3.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-row items-center justify-between gap-3">
+    <div className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 py-0 sm:py-6 w-full flex-1 flex flex-col sm:space-y-3 h-[calc(100dvh-4rem)] sm:h-auto">
+      {/* Top Header Card - Tối ưu ẩn trên mobile khi đang xem đoạn hội thoại */}
+      <div
+        className={cn(
+          "bg-white px-4 py-3 sm:py-3.5 rounded-none sm:rounded-2xl border-b sm:border border-slate-200/90 shadow-2xs flex-row items-center justify-between gap-3 shrink-0",
+          activeConv && !showMobileList ? "hidden sm:flex" : "flex"
+        )}
+      >
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
             <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -439,7 +444,7 @@ function MessagesContent() {
       </div>
 
       {/* Main 2-Column Chat Box */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm flex flex-col md:flex-row overflow-hidden h-[calc(100dvh-175px)] sm:h-[calc(100vh-210px)] min-h-[460px] sm:min-h-[580px] max-h-[760px]">
+      <div className="bg-white rounded-none sm:rounded-2xl border-0 sm:border border-slate-200/90 shadow-none sm:shadow-sm flex flex-col md:flex-row overflow-hidden flex-1 sm:h-[calc(100vh-210px)] sm:min-h-[580px] sm:max-h-[760px]">
         {/* Left Column: Conversation Sidebar (Fixed Width 320px) */}
         <div
           className={cn(
@@ -879,17 +884,17 @@ function MessagesContent() {
 
             {/* Quick Reply Chips Bar - CHỈ hiển thị cho Người thuê, ẩn hoàn toàn với Chủ nhà và Admin */}
             {!isLandlord && !isAdmin && (
-              <div className="px-3.5 py-2 bg-slate-50/90 border-t border-slate-200/80 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-blue-600 shrink-0 tracking-wider">
+              <div className="px-3 py-2 bg-slate-50/95 border-t border-slate-200/80 flex items-center gap-1.5 overflow-x-auto no-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shrink-0">
+                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-blue-600 shrink-0 tracking-wider pl-0.5">
                   <Sparkles className="w-3 h-3 text-blue-500" />
-                  <span>Gợi ý:</span>
+                  <span className="hidden xs:inline">Gợi ý:</span>
                 </span>
                 {QUICK_REPLIES.map((reply, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => handleInputChange(reply)}
-                    className="px-2.5 py-1 rounded-full bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-[11px] text-slate-700 hover:text-blue-700 font-medium whitespace-nowrap transition-all shadow-2xs shrink-0"
+                    className="px-2.5 py-1 rounded-full bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-[11px] text-slate-700 hover:text-blue-700 font-medium whitespace-nowrap transition-all shadow-2xs shrink-0 active:scale-95"
                   >
                     {reply}
                   </button>
@@ -897,26 +902,33 @@ function MessagesContent() {
               </div>
             )}
 
-            {/* Chat Input Bar */}
+            {/* Chat Input Bar - Tối ưu cho thiết bị di động */}
             <form
               onSubmit={handleSendMessage}
-              className="p-3 border-t border-slate-200/90 flex items-center gap-2 bg-white"
+              className="p-2 sm:p-3 border-t border-slate-200/90 flex items-center gap-2 bg-white sticky bottom-0 z-20 pb-[max(0.6rem,env(safe-area-inset-bottom))] shrink-0"
             >
-              <input
-                type="text"
-                placeholder="Nhập tin nhắn..."
-                value={inputText}
-                onChange={(e) => handleInputChange(e.target.value)}
-                className="flex-1 px-4 py-2.5 text-xs sm:text-[13px] rounded-xl bg-slate-50 border border-slate-200/90 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all text-slate-900"
-              />
+              <div className="flex-1 relative flex items-center">
+                <input
+                  type="text"
+                  placeholder="Nhập tin nhắn..."
+                  value={inputText}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  className="w-full pl-3.5 pr-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-xs rounded-2xl bg-slate-100/80 sm:bg-slate-50 border border-slate-200/90 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all text-slate-900 placeholder:text-slate-400 font-medium shadow-2xs"
+                />
+              </div>
 
               <button
                 type="submit"
                 disabled={!inputText.trim() || isSending}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all disabled:opacity-40 flex items-center gap-1.5 shadow-sm shadow-blue-500/25 shrink-0"
+                className="w-10 h-10 sm:w-auto sm:px-4 sm:py-2.5 rounded-full sm:rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all disabled:opacity-40 flex items-center justify-center gap-1.5 shadow-sm shadow-blue-500/25 shrink-0 active:scale-95"
+                title="Gửi tin nhắn"
               >
-                <Send className="w-3.5 h-3.5" />
-                <span>{isSending ? "Đang gửi..." : "Gửi"}</span>
+                {isSending ? (
+                  <RefreshCw className="w-4 h-4 sm:w-3.5 sm:h-3.5 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                )}
+                <span className="hidden sm:inline">{isSending ? "Đang gửi..." : "Gửi"}</span>
               </button>
             </form>
           </div>

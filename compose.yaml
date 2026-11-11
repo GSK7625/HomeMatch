@@ -20,6 +20,7 @@ services:
       - homematch-network
 
   backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/gsk7625/homematch/backend:latest}
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -53,6 +54,7 @@ services:
       - homematch-network
 
   frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/gsk7625/homematch/frontend:latest}
     build:
       context: ./frontend
       dockerfile: Dockerfile

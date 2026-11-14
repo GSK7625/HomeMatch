@@ -40,6 +40,51 @@ public interface IContractRepository
         DateOnly asOfDate,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Lấy danh sách hợp đồng PENDING_SIGNATURE đã quá hạn ký điện tử
+    /// </summary>
+    Task<IReadOnlyList<Contract>> GetPendingSignatureExpiredContractsAsync(
+        DateTimeOffset asOf,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lấy danh sách hợp đồng SIGNED đã đến hoặc qua ngày bắt đầu thuê (StartDate) cần kích hoạt ACTIVE
+    /// </summary>
+    Task<IReadOnlyList<Contract>> GetSignedContractsReadyForActivationAsync(
+        DateOnly asOfDate,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lấy danh sách hợp đồng ACTIVE đã qua ngày kết thúc thuê (EndDate < today) cần chuyển sang EXPIRED_PENDING_HANDOVER
+    /// </summary>
+    Task<IReadOnlyList<Contract>> GetActiveContractsPastEndDateAsync(
+        DateOnly today,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lấy danh sách hợp đồng EXPIRED_PENDING_HANDOVER đã quá hạn bàn giao phòng cần chuyển sang HANDOVER_OVERDUE
+    /// </summary>
+    Task<IReadOnlyList<Contract>> GetExpiredContractsPastHandoverDueAsync(
+        DateOnly today,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lấy danh sách hợp đồng ACTIVE sắp hết hạn thuê trong khoảng thời gian chỉ định của Chủ nhà (dành cho API truy vấn)
+    /// </summary>
+    Task<IReadOnlyList<Contract>> GetExpiringContractsForLandlordAsync(
+        long landlordId,
+        DateOnly fromDate,
+        DateOnly toDate,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lấy danh sách hợp đồng ACTIVE sắp hết hạn thuê cần gửi thông báo nhắc nhở (chưa gửi hôm nay)
+    /// </summary>
+    Task<IReadOnlyList<Contract>> GetContractsNeedingExpirationReminderAsync(
+        DateOnly asOfDate,
+        int daysWindow,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(Contract contract, CancellationToken cancellationToken = default);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);

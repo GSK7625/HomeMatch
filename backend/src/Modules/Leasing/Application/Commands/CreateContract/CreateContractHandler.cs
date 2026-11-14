@@ -6,6 +6,7 @@ using HomeMatch.Modules.Leasing.Domain.Entities;
 using HomeMatch.Shared.Common;
 using HomeMatch.Shared.Contracts;
 using HomeMatch.Shared.Contracts.Identity;
+using HomeMatch.Shared.Contracts.Notifications;
 using Microsoft.Extensions.Logging;
 
 namespace HomeMatch.Modules.Leasing.Application.Commands.CreateContract;
@@ -17,6 +18,7 @@ public sealed class CreateContractHandler
     private readonly IRoomListingReader _roomReader;
     private readonly IIdentityUserReader _userReader;
     private readonly IContractDocumentStorage _storage;
+    private readonly INotificationPublisher _notificationPublisher;
     private readonly ILogger<CreateContractHandler> _logger;
 
     public CreateContractHandler(
@@ -24,12 +26,14 @@ public sealed class CreateContractHandler
         IRoomListingReader roomReader,
         IIdentityUserReader userReader,
         IContractDocumentStorage storage,
+        INotificationPublisher notificationPublisher,
         ILogger<CreateContractHandler> logger)
     {
         _contractRepository = contractRepository;
         _roomReader = roomReader;
         _userReader = userReader;
         _storage = storage;
+        _notificationPublisher = notificationPublisher;
         _logger = logger;
     }
 
@@ -168,6 +172,22 @@ public sealed class CreateContractHandler
 
             _logger.LogInformation("Đã upload PDF hợp đồng [ID: {ContractId}] lên Cloudflare R2, Hash=[{Hash}], Key=[{Key}] và chuyển sang PENDING_SIGNATURE.",
                 contract.Id, documentHash, storageKey);
+
+            try
+            {
+                await _notificationPublisher.PublishAsync(
+                    userId: contract.TenantId,
+                    title: "Hợp đồng thuê mới chờ bạn ký",
+                    content: $"Chủ nhà đã tạo hợp đồng thuê #{contract.ContractCode} kèm văn bản hoàn chỉnh để bạn xem và ký xác thực.",
+                    type: NotificationTypeConstants.ContractPendingSignature,
+                    referenceType: "CONTRACT",
+                    referenceId: contract.Id,
+                    cancellationToken: cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi gửi thông báo hợp đồng mới #{ContractCode} cho người thuê", contract.ContractCode);
+            }
         }
         else
         {

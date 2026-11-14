@@ -117,6 +117,9 @@ public class ContractConfiguration : IEntityTypeConfiguration<Contract>
         builder.Property(c => c.ActualOccupancyEndDate)
             .HasColumnName("actual_occupancy_end_date");
 
+        builder.Property(c => c.LastExpirationReminderSentAt)
+            .HasColumnName("last_expiration_reminder_sent_at");
+
         builder.Property(c => c.CreatedAt)
             .HasColumnName("created_at")
             .HasDefaultValueSql("CURRENT_TIMESTAMP")

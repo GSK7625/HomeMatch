@@ -135,6 +135,85 @@ internal sealed class ContractRepository : IContractRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Contract>> GetPendingSignatureExpiredContractsAsync(
+        DateTimeOffset asOf,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Contracts
+            .Where(c => c.Status == ContractStatus.PendingSignature
+                     && c.SignatureExpiresAt != null
+                     && c.SignatureExpiresAt <= asOf)
+            .OrderBy(c => c.SignatureExpiresAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Contract>> GetSignedContractsReadyForActivationAsync(
+        DateOnly asOfDate,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Contracts
+            .Where(c => c.Status == ContractStatus.Signed
+                     && c.StartDate <= asOfDate)
+            .OrderBy(c => c.StartDate)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Contract>> GetActiveContractsPastEndDateAsync(
+        DateOnly today,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Contracts
+            .Where(c => c.Status == ContractStatus.Active
+                     && c.EndDate < today)
+            .OrderBy(c => c.EndDate)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Contract>> GetExpiredContractsPastHandoverDueAsync(
+        DateOnly today,
+        CancellationToken cancellationToken = default)
+    {
+        var todayBeginning = new DateTimeOffset(today.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        return await _dbContext.Contracts
+            .Where(c => c.Status == ContractStatus.ExpiredPendingHandover
+                     && c.HandoverDueAt != null
+                     && c.HandoverDueAt < todayBeginning)
+            .OrderBy(c => c.HandoverDueAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Contract>> GetExpiringContractsForLandlordAsync(
+        long landlordId,
+        DateOnly fromDate,
+        DateOnly toDate,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Contracts
+            .AsNoTracking()
+            .Where(c => c.LandlordId == landlordId
+                     && c.Status == ContractStatus.Active
+                     && c.EndDate >= fromDate
+                     && c.EndDate <= toDate)
+            .OrderBy(c => c.EndDate)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Contract>> GetContractsNeedingExpirationReminderAsync(
+        DateOnly asOfDate,
+        int daysWindow,
+        CancellationToken cancellationToken = default)
+    {
+        var maxDate = asOfDate.AddDays(daysWindow);
+        var asOfDateBeginning = new DateTimeOffset(asOfDate.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        return await _dbContext.Contracts
+            .Where(c => c.Status == ContractStatus.Active
+                     && c.EndDate >= asOfDate
+                     && c.EndDate <= maxDate
+                     && (c.LastExpirationReminderSentAt == null || c.LastExpirationReminderSentAt.Value < asOfDateBeginning))
+            .OrderBy(c => c.EndDate)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(Contract contract, CancellationToken cancellationToken = default)
     {
         await _dbContext.Contracts.AddAsync(contract, cancellationToken);

@@ -4,6 +4,7 @@ using HomeMatch.Modules.Leasing.Domain.Constants;
 using HomeMatch.Modules.Leasing.Domain.Enums;
 using HomeMatch.Shared.Common;
 using HomeMatch.Shared.Contracts.Identity;
+using HomeMatch.Shared.Contracts.Notifications;
 using Microsoft.Extensions.Logging;
 
 namespace HomeMatch.Modules.Leasing.Application.Commands.SignContract;
@@ -13,6 +14,7 @@ public sealed class SignContractHandler
     private readonly IContractRepository _contractRepository;
     private readonly IIdentityOtpService _identityOtpService;
     private readonly IIdentityUserReader _identityUserReader;
+    private readonly INotificationPublisher _notificationPublisher;
     private readonly ILeasingEmailService _leasingEmailService;
     private readonly ILogger<SignContractHandler> _logger;
 
@@ -20,12 +22,14 @@ public sealed class SignContractHandler
         IContractRepository contractRepository,
         IIdentityOtpService identityOtpService,
         IIdentityUserReader identityUserReader,
+        INotificationPublisher notificationPublisher,
         ILeasingEmailService leasingEmailService,
         ILogger<SignContractHandler> logger)
     {
         _contractRepository = contractRepository;
         _identityOtpService = identityOtpService;
         _identityUserReader = identityUserReader;
+        _notificationPublisher = notificationPublisher;
         _leasingEmailService = leasingEmailService;
         _logger = logger;
     }
@@ -94,7 +98,7 @@ public sealed class SignContractHandler
         _logger.LogInformation("Người dùng [ID: {ActorId}] đã ký xác thực OTP thành công trên hợp đồng [ID: {ContractId}]. Trạng thái hiện tại: {Status}",
             command.ActorId, contract.Id, contract.Status);
 
-        // 6. Nếu cả hai bên đều đã ký xong (chuyển sang SIGNED) -> Gửi email thông báo cho cả Chủ nhà và Người thuê
+        // 6. Nếu cả hai bên đều đã ký xong (chuyển sang SIGNED) -> Gửi email & notification cho cả Chủ nhà và Người thuê
         if (contract.Status == ContractStatus.Signed)
         {
             try
@@ -113,10 +117,28 @@ public sealed class SignContractHandler
                     await _leasingEmailService.SendContractSignedNotificationAsync(
                         tenant.Email, tenant.FullName, contract.ContractCode, cancellationToken);
                 }
+
+                await _notificationPublisher.PublishAsync(
+                    userId: contract.LandlordId,
+                    title: "Hợp đồng đã hoàn tất ký",
+                    content: $"Hợp đồng thuê #{contract.ContractCode} đã được cả hai bên ký thành công và chuyển sang SIGNED.",
+                    type: NotificationTypeConstants.ContractSigned,
+                    referenceType: "CONTRACT",
+                    referenceId: contract.Id,
+                    cancellationToken: cancellationToken);
+
+                await _notificationPublisher.PublishAsync(
+                    userId: contract.TenantId,
+                    title: "Hợp đồng đã hoàn tất ký",
+                    content: $"Hợp đồng thuê #{contract.ContractCode} đã được cả hai bên ký thành công và chuyển sang SIGNED.",
+                    type: NotificationTypeConstants.ContractSigned,
+                    referenceType: "CONTRACT",
+                    referenceId: contract.Id,
+                    cancellationToken: cancellationToken);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi khi gửi email thông báo hoàn tất ký hợp đồng [ID: {ContractId}]", contract.Id);
+                _logger.LogError(ex, "Lỗi khi gửi thông báo hoàn tất ký hợp đồng [ID: {ContractId}]", contract.Id);
             }
         }
 

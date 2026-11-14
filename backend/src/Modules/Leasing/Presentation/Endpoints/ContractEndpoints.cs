@@ -17,6 +17,7 @@ using HomeMatch.Modules.Leasing.Application.Queries.GetContractsByLandlord;
 using HomeMatch.Modules.Leasing.Application.Queries.GetContractsByTenant;
 using HomeMatch.Modules.Leasing.Application.Queries.GetDepositBalance;
 using HomeMatch.Modules.Leasing.Application.Queries.GetDepositTransactions;
+using HomeMatch.Modules.Leasing.Application.Queries.GetExpiringContracts;
 using HomeMatch.Modules.Leasing.Application.Queries.GetHandoverDetails;
 using HomeMatch.Modules.Leasing.Domain.Constants;
 using HomeMatch.Modules.Leasing.Domain.Enums;
@@ -164,6 +165,35 @@ public static class ContractEndpoints
         .WithSummary("Xem danh sách hợp đồng thuê có phân trang (Chủ nhà hoặc Người thuê)")
         .Produces<ApiResponse<PagedContractsResponse>>(StatusCodes.Status200OK)
         .Produces<ApiResponse<PagedContractsResponse>>(StatusCodes.Status401Unauthorized);
+
+        // 2.1. Lấy danh sách hợp đồng sắp hết hạn trong N ngày tới - Dành cho Chủ nhà (BR-Phase7)
+        group.MapGet("/expiring", async (
+            [FromQuery] int days = 30,
+            [FromServices] GetExpiringContractsHandler handler = default!,
+            HttpContext httpContext = default!,
+            CancellationToken cancellationToken = default) =>
+        {
+            if (!TryGetUserId(httpContext, out var userId))
+            {
+                return Results.Json(
+                    ApiResponse.Failure<IReadOnlyList<ContractResponse>>(LeasingErrors.AuthenticationRequired),
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+
+            var query = new GetExpiringContractsQuery(userId, days);
+            var result = await handler.HandleAsync(query, cancellationToken);
+            if (result.IsFailure)
+            {
+                return MapFailureResult<IReadOnlyList<ContractResponse>>(result.Error);
+            }
+
+            var responseList = result.Value.Select(ContractResponseMapper.ToResponse).ToList();
+            return Results.Ok(ApiResponse.Success<IReadOnlyList<ContractResponse>>(responseList));
+        })
+        .WithName("GetExpiringContracts")
+        .WithSummary("Xem danh sách hợp đồng sắp hết hạn trong vòng N ngày tới (Chủ nhà)")
+        .Produces<ApiResponse<IReadOnlyList<ContractResponse>>>(StatusCodes.Status200OK)
+        .Produces<ApiResponse<IReadOnlyList<ContractResponse>>>(StatusCodes.Status401Unauthorized);
 
         // 3. Xem thông tin tóm tắt hợp đồng theo ID
         group.MapGet("/{id:long}", async (

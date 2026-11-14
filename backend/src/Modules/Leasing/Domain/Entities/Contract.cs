@@ -38,6 +38,9 @@ public class Contract
     public long? HandoverConfirmedBy { get; set; }
     public DateOnly? ActualOccupancyEndDate { get; set; }
 
+    // Theo dõi gửi nhắc nhở hết hạn hợp đồng (Tránh gửi lặp lại)
+    public DateTimeOffset? LastExpirationReminderSentAt { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
@@ -539,6 +542,15 @@ public class Contract
         UpdatedAt = terminatedAt.ToUniversalTime();
 
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Đánh dấu mốc thời gian đã gửi thông báo nhắc hết hạn hợp đồng để tránh gửi trùng lặp
+    /// </summary>
+    public void MarkExpirationReminderSent(DateTimeOffset sentAt)
+    {
+        LastExpirationReminderSentAt = sentAt.ToUniversalTime();
+        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     // ==========================================================================================

@@ -2,9 +2,12 @@ using HomeMatch.Modules.Leasing.Application.Commands.ActivateContract;
 using HomeMatch.Modules.Leasing.Application.Commands.CancelContract;
 using HomeMatch.Modules.Leasing.Application.Commands.ConfirmHandover;
 using HomeMatch.Modules.Leasing.Application.Commands.CreateContract;
+using HomeMatch.Modules.Leasing.Application.Commands.ExpirePendingSignatures;
+using HomeMatch.Modules.Leasing.Application.Commands.ProcessContractLifecycle;
 using HomeMatch.Modules.Leasing.Application.Commands.RecordDepositTransaction;
 using HomeMatch.Modules.Leasing.Application.Commands.RejectContract;
 using HomeMatch.Modules.Leasing.Application.Commands.RequestSignatureOtp;
+using HomeMatch.Modules.Leasing.Application.Commands.SendContractExpirationReminders;
 using HomeMatch.Modules.Leasing.Application.Commands.SendContractForSignature;
 using HomeMatch.Modules.Leasing.Application.Commands.SignContract;
 using HomeMatch.Modules.Leasing.Application.Commands.TerminateContract;
@@ -16,7 +19,9 @@ using HomeMatch.Modules.Leasing.Application.Queries.GetContractsByLandlord;
 using HomeMatch.Modules.Leasing.Application.Queries.GetContractsByTenant;
 using HomeMatch.Modules.Leasing.Application.Queries.GetDepositBalance;
 using HomeMatch.Modules.Leasing.Application.Queries.GetDepositTransactions;
+using HomeMatch.Modules.Leasing.Application.Queries.GetExpiringContracts;
 using HomeMatch.Modules.Leasing.Application.Queries.GetHandoverDetails;
+using HomeMatch.Modules.Leasing.Infrastructure.BackgroundJobs;
 using HomeMatch.Modules.Leasing.Infrastructure.Persistence;
 using HomeMatch.Modules.Leasing.Infrastructure.Repositories;
 using HomeMatch.Modules.Leasing.Infrastructure.Services;
@@ -67,6 +72,9 @@ public static class LeasingModuleExtensions
         services.AddScoped<ConfirmHandoverHandler>();
         services.AddScoped<TerminateContractHandler>();
         services.AddScoped<RecordDepositTransactionHandler>();
+        services.AddScoped<ExpirePendingSignaturesHandler>();
+        services.AddScoped<ProcessContractLifecycleHandler>();
+        services.AddScoped<SendContractExpirationRemindersHandler>();
 
         // Use Case Handlers (Queries)
         services.AddScoped<GetContractByIdHandler>();
@@ -77,6 +85,12 @@ public static class LeasingModuleExtensions
         services.AddScoped<GetDepositTransactionsHandler>();
         services.AddScoped<GetDepositBalanceHandler>();
         services.AddScoped<GetHandoverDetailsHandler>();
+        services.AddScoped<GetExpiringContractsHandler>();
+
+        // Background Jobs (Phase 7 - Automated Contract Lifecycle & Reminders)
+        services.AddHostedService<SignatureExpirationBackgroundService>();
+        services.AddHostedService<ContractLifecycleBackgroundService>();
+        services.AddHostedService<ContractExpirationReminderBackgroundService>();
 
         return services;
     }

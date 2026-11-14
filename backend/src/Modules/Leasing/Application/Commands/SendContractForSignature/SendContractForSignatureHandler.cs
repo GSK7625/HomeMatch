@@ -2,6 +2,7 @@ using HomeMatch.Modules.Leasing.Application.DTOs;
 using HomeMatch.Modules.Leasing.Application.Interfaces;
 using HomeMatch.Modules.Leasing.Domain.Constants;
 using HomeMatch.Shared.Common;
+using HomeMatch.Shared.Contracts.Notifications;
 using Microsoft.Extensions.Logging;
 
 namespace HomeMatch.Modules.Leasing.Application.Commands.SendContractForSignature;
@@ -9,13 +10,16 @@ namespace HomeMatch.Modules.Leasing.Application.Commands.SendContractForSignatur
 public sealed class SendContractForSignatureHandler
 {
     private readonly IContractRepository _contractRepository;
+    private readonly INotificationPublisher _notificationPublisher;
     private readonly ILogger<SendContractForSignatureHandler> _logger;
 
     public SendContractForSignatureHandler(
         IContractRepository contractRepository,
+        INotificationPublisher notificationPublisher,
         ILogger<SendContractForSignatureHandler> logger)
     {
         _contractRepository = contractRepository;
+        _notificationPublisher = notificationPublisher;
         _logger = logger;
     }
 
@@ -57,6 +61,22 @@ public sealed class SendContractForSignatureHandler
 
         _logger.LogInformation("Hợp đồng [ID: {ContractId}] đã được gửi ký. Hạn chót: {ExpiresAt}",
             contract.Id, command.SignatureExpiresAt);
+
+        try
+        {
+            await _notificationPublisher.PublishAsync(
+                userId: contract.TenantId,
+                title: "Yêu cầu ký hợp đồng thuê mới",
+                content: $"Chủ nhà đã gửi hợp đồng thuê #{contract.ContractCode} để bạn xem và ký xác thực. Hạn chót: {command.SignatureExpiresAt:dd/MM/yyyy HH:mm} UTC.",
+                type: NotificationTypeConstants.ContractPendingSignature,
+                referenceType: "CONTRACT",
+                referenceId: contract.Id,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi gửi thông báo gửi ký hợp đồng #{ContractCode}", contract.ContractCode);
+        }
 
         return Result.Success(ContractMapper.ToDto(contract));
     }

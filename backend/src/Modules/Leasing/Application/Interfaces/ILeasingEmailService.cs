@@ -14,4 +14,31 @@ public interface ILeasingEmailService
         string recipientName,
         string contractCode,
         CancellationToken cancellationToken = default);
+
+    Task SendContractExpiringReminderEmailAsync(
+        string toEmail,
+        string recipientName,
+        string contractCode,
+        DateOnly endDate,
+        int daysRemaining,
+        CancellationToken cancellationToken = default);
+
+    Task SendSignatureExpiredEmailAsync(
+        string toEmail,
+        string recipientName,
+        string contractCode,
+        CancellationToken cancellationToken = default);
+
+    Task SendContractExpiredPendingHandoverEmailAsync(
+        string toEmail,
+        string recipientName,
+        string contractCode,
+        DateTimeOffset? handoverDueAt,
+        CancellationToken cancellationToken = default);
+
+    Task SendHandoverOverdueEmailAsync(
+        string toEmail,
+        string recipientName,
+        string contractCode,
+        CancellationToken cancellationToken = default);
 }

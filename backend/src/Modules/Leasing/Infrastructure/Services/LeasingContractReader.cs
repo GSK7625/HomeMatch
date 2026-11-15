@@ -53,4 +53,12 @@ internal sealed class LeasingContractReader : ILeasingContractReader
                 c.Status))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<long> GetTotalDepositAmountAsync(long landlordId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Contracts
+            .AsNoTracking()
+            .Where(c => c.LandlordId == landlordId && c.Status == ContractStatus.Active)
+            .SumAsync(c => c.DepositAmount, cancellationToken);
+    }
 }

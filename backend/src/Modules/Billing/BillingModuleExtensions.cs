@@ -6,9 +6,12 @@ using HomeMatch.Modules.Billing.Application.Commands.ProcessPaymentCallback;
 using HomeMatch.Modules.Billing.Application.Interfaces;
 using HomeMatch.Modules.Billing.Application.Queries.GetDebtInvoices;
 using HomeMatch.Modules.Billing.Application.Queries.GetDebtSummary;
+using HomeMatch.Modules.Billing.Application.Queries.GetFinancialSummary;
 using HomeMatch.Modules.Billing.Application.Queries.GetInvoiceById;
 using HomeMatch.Modules.Billing.Application.Queries.GetInvoices;
+using HomeMatch.Modules.Billing.Application.Queries.GetMonthlyCashflow;
 using HomeMatch.Modules.Billing.Application.Queries.GetPaymentById;
+using HomeMatch.Modules.Billing.Application.Queries.GetPropertyFinancialReport;
 using HomeMatch.Modules.Billing.Infrastructure.BackgroundJobs;
 using HomeMatch.Modules.Billing.Infrastructure.Persistence;
 using HomeMatch.Modules.Billing.Infrastructure.Repositories;
@@ -65,6 +68,11 @@ public static class BillingModuleExtensions
         services.AddScoped<GetDebtSummaryHandler>();
         services.AddScoped<GetDebtInvoicesHandler>();
 
+        // Application Handlers - Reports
+        services.AddScoped<GetFinancialSummaryHandler>();
+        services.AddScoped<GetPropertyFinancialReportHandler>();
+        services.AddScoped<GetMonthlyCashflowHandler>();
+
         // Background Services
         services.AddHostedService<BillingOverdueBackgroundService>();
 
@@ -78,6 +86,7 @@ public static class BillingModuleExtensions
         group.MapInvoiceEndpoints();
         group.MapPaymentEndpoints();
         group.MapDebtEndpoints();
+        group.MapBillingReportEndpoints();
         return endpoints;
     }
 }

@@ -4,4 +4,5 @@ public interface ILeasingContractReader
 {
     Task<LeasingContractInfo?> GetContractByIdAsync(long contractId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<LeasingContractInfo>> GetActiveContractsByLandlordIdAsync(long landlordId, CancellationToken cancellationToken = default);
+    Task<long> GetTotalDepositAmountAsync(long landlordId, CancellationToken cancellationToken = default);
 }

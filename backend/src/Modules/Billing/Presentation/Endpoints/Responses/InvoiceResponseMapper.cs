@@ -79,6 +79,7 @@ public static class InvoiceResponseMapper
             dto.BankCode,
             dto.CardType,
             dto.GatewayResponseCode,
+            dto.PaymentUrl,
             dto.Status,
             dto.ExpiredAt,
             dto.CompletedAt,

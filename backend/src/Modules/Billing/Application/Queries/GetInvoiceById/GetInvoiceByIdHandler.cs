@@ -48,6 +48,7 @@ public class GetInvoiceByIdHandler
                 p.BankCode,
                 p.CardType,
                 p.GatewayResponseCode,
+                p.PaymentUrl,
                 p.Status,
                 p.ExpiredAt,
                 p.CompletedAt,

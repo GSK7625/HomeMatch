@@ -10,6 +10,7 @@ public sealed record PaymentResponse(
     string? BankCode,
     string? CardType,
     string? GatewayResponseCode,
+    string? PaymentUrl,
     string Status,
     DateTimeOffset ExpiredAt,
     DateTimeOffset? CompletedAt,

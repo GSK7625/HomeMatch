@@ -1,3 +1,4 @@
+using HomeMatch.Modules.Billing.Application.DTOs;
 using HomeMatch.Modules.Billing.Application.Interfaces;
 using HomeMatch.Modules.Billing.Domain.Entities;
 using HomeMatch.Modules.Billing.Domain.Enums;
@@ -33,6 +34,62 @@ public class InvoiceRepository(BillingDbContext context) : IInvoiceRepository
               && i.BillingYear == billingYear
               && i.Status != InvoiceStatus.Cancelled,
             cancellationToken);
+    }
+
+    public async Task<(IReadOnlyList<Invoice> Items, int TotalCount)> GetPagedAsync(
+        InvoiceFilter filter, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var query = context.Invoices.AsNoTracking().AsQueryable();
+
+        if (filter.ContractId.HasValue)
+        {
+            query = query.Where(i => i.ContractId == filter.ContractId.Value);
+        }
+
+        if (filter.PropertyId.HasValue)
+        {
+            query = query.Where(i => i.PropertyId == filter.PropertyId.Value);
+        }
+
+        if (filter.LandlordId.HasValue)
+        {
+            query = query.Where(i => i.LandlordId == filter.LandlordId.Value);
+        }
+
+        if (filter.TenantId.HasValue)
+        {
+            query = query.Where(i => i.TenantId == filter.TenantId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Status))
+        {
+            query = query.Where(i => i.Status == filter.Status);
+        }
+
+        if (filter.BillingMonth.HasValue)
+        {
+            query = query.Where(i => i.BillingMonth == filter.BillingMonth.Value);
+        }
+
+        if (filter.BillingYear.HasValue)
+        {
+            query = query.Where(i => i.BillingYear == filter.BillingYear.Value);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var safePage = page > 0 ? page : 1;
+        var safePageSize = pageSize > 0 ? Math.Min(pageSize, 100) : 20;
+
+        var items = await query
+            .OrderByDescending(i => i.BillingYear)
+            .ThenByDescending(i => i.BillingMonth)
+            .ThenByDescending(i => i.CreatedAt)
+            .Skip((safePage - 1) * safePageSize)
+            .Take(safePageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
     }
 
     public async Task AddAsync(Invoice invoice, CancellationToken cancellationToken = default)

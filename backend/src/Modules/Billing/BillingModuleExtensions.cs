@@ -1,4 +1,8 @@
+using HomeMatch.Modules.Billing.Application.Commands.CancelInvoice;
+using HomeMatch.Modules.Billing.Application.Commands.CreateInvoice;
 using HomeMatch.Modules.Billing.Application.Interfaces;
+using HomeMatch.Modules.Billing.Application.Queries.GetInvoiceById;
+using HomeMatch.Modules.Billing.Application.Queries.GetInvoices;
 using HomeMatch.Modules.Billing.Infrastructure.Persistence;
 using HomeMatch.Modules.Billing.Infrastructure.Repositories;
 using HomeMatch.Modules.Billing.Presentation.Endpoints;
@@ -33,6 +37,12 @@ public static class BillingModuleExtensions
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
 
+        // Application Handlers
+        services.AddScoped<CreateInvoiceHandler>();
+        services.AddScoped<CancelInvoiceHandler>();
+        services.AddScoped<GetInvoiceByIdHandler>();
+        services.AddScoped<GetInvoicesHandler>();
+
         return services;
     }
 
@@ -40,6 +50,7 @@ public static class BillingModuleExtensions
     {
         var group = endpoints.MapGroup("/api/v1/billing").WithTags("Billing");
         group.MapBillingEndpointsInternal();
+        group.MapInvoiceEndpoints();
         return endpoints;
     }
 }

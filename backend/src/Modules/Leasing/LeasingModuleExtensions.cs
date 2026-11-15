@@ -26,6 +26,7 @@ using HomeMatch.Modules.Leasing.Infrastructure.Persistence;
 using HomeMatch.Modules.Leasing.Infrastructure.Repositories;
 using HomeMatch.Modules.Leasing.Infrastructure.Services;
 using HomeMatch.Modules.Leasing.Presentation.Endpoints;
+using HomeMatch.Shared.Contracts.Leasing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -56,6 +57,7 @@ public static class LeasingModuleExtensions
         services.AddScoped<IContractRepository, ContractRepository>();
         services.AddScoped<IDepositTransactionRepository, DepositTransactionRepository>();
         services.AddScoped<ILeasingEmailService, LeasingEmailService>();
+        services.AddScoped<ILeasingContractReader, LeasingContractReader>();
 
         // Storage & Cloudflare R2
         services.Configure<R2Settings>(configuration.GetSection(R2Settings.SectionName));

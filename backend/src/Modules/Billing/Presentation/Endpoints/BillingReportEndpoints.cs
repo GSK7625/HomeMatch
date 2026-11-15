@@ -45,7 +45,7 @@ public static class BillingReportEndpoints
             var result = await handler.HandleAsync(query, cancellationToken);
             if (result.IsFailure)
             {
-                return Results.Json(ApiResponse.Failure<FinancialSummaryResponse>(result.Error), statusCode: StatusCodes.Status403Forbidden);
+                return ToErrorResult<FinancialSummaryResponse>(result.Error);
             }
 
             var response = new FinancialSummaryResponse(
@@ -89,7 +89,7 @@ public static class BillingReportEndpoints
             var result = await handler.HandleAsync(query, cancellationToken);
             if (result.IsFailure)
             {
-                return Results.Json(ApiResponse.Failure<IReadOnlyList<PropertyFinancialResponse>>(result.Error), statusCode: StatusCodes.Status403Forbidden);
+                return ToErrorResult<IReadOnlyList<PropertyFinancialResponse>>(result.Error);
             }
 
             var responses = result.Value.Select(p => new PropertyFinancialResponse(
@@ -130,7 +130,7 @@ public static class BillingReportEndpoints
             var result = await handler.HandleAsync(query, cancellationToken);
             if (result.IsFailure)
             {
-                return Results.Json(ApiResponse.Failure<IReadOnlyList<MonthlyCashflowResponse>>(result.Error), statusCode: StatusCodes.Status403Forbidden);
+                return ToErrorResult<IReadOnlyList<MonthlyCashflowResponse>>(result.Error);
             }
 
             var responses = result.Value.Select(m => new MonthlyCashflowResponse(
@@ -166,4 +166,16 @@ public static class BillingReportEndpoints
 
     private static bool IsLandlord(ClaimsPrincipal user) =>
         user.IsInRole("Landlord") || user.IsInRole("LANDLORD");
+
+    private static IResult ToErrorResult<T>(Error error)
+    {
+        int statusCode = error.Code switch
+        {
+            "Billing.AuthenticationRequired" => StatusCodes.Status401Unauthorized,
+            "Billing.Forbidden" => StatusCodes.Status403Forbidden,
+            _ => StatusCodes.Status400BadRequest
+        };
+
+        return Results.Json(ApiResponse.Failure<T>(error), statusCode: statusCode);
+    }
 }

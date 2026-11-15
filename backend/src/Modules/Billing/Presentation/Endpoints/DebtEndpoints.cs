@@ -44,7 +44,7 @@ public static class DebtEndpoints
             var result = await handler.HandleAsync(query, cancellationToken);
             if (result.IsFailure)
             {
-                return Results.Json(ApiResponse.Failure<DebtSummaryResponse>(result.Error), statusCode: StatusCodes.Status400BadRequest);
+                return ToErrorResult<DebtSummaryResponse>(result.Error);
             }
 
             var response = new DebtSummaryResponse(
@@ -95,7 +95,7 @@ public static class DebtEndpoints
             var result = await handler.HandleAsync(query, cancellationToken);
             if (result.IsFailure)
             {
-                return Results.Json(ApiResponse.Failure<PagedDebtInvoicesResponse>(result.Error), statusCode: StatusCodes.Status400BadRequest);
+                return ToErrorResult<PagedDebtInvoicesResponse>(result.Error);
             }
 
             var responseItems = result.Value.Items.Select(i => new DebtInvoiceResponse(
@@ -169,4 +169,17 @@ public static class DebtEndpoints
 
     private static bool IsTenant(ClaimsPrincipal user) =>
         user.IsInRole("Tenant") || user.IsInRole("TENANT");
+
+    private static IResult ToErrorResult<T>(Error error)
+    {
+        int statusCode = error.Code switch
+        {
+            "Billing.AuthenticationRequired" => StatusCodes.Status401Unauthorized,
+            "Billing.Forbidden" => StatusCodes.Status403Forbidden,
+            "Billing.InvoiceNotFound" => StatusCodes.Status404NotFound,
+            _ => StatusCodes.Status400BadRequest
+        };
+
+        return Results.Json(ApiResponse.Failure<T>(error), statusCode: statusCode);
+    }
 }

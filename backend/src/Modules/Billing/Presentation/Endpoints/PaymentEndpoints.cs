@@ -175,6 +175,8 @@ public static class PaymentEndpoints
             "Billing.Forbidden" => StatusCodes.Status403Forbidden,
             "Billing.PaymentNotFound" => StatusCodes.Status404NotFound,
             "Billing.InvoiceNotFound" => StatusCodes.Status404NotFound,
+            "Billing.PendingPaymentAlreadyExists" => StatusCodes.Status409Conflict,
+            "Billing.InvoiceAlreadyPaid" => StatusCodes.Status409Conflict,
             _ => StatusCodes.Status400BadRequest
         };
 

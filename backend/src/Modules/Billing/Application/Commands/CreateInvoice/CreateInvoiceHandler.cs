@@ -6,6 +6,7 @@ using HomeMatch.Modules.Billing.Domain.Services;
 using HomeMatch.Shared.Common;
 using HomeMatch.Shared.Contracts;
 using HomeMatch.Shared.Contracts.Leasing;
+using Microsoft.EntityFrameworkCore;
 
 namespace HomeMatch.Modules.Billing.Application.Commands.CreateInvoice;
 
@@ -134,7 +135,14 @@ public class CreateInvoiceHandler
         }
 
         var invoice = invoiceResult.Value;
-        await _invoiceRepository.AddAsync(invoice, cancellationToken);
+        try
+        {
+            await _invoiceRepository.AddAsync(invoice, cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Result.Failure<InvoiceDto>(BillingErrors.DuplicatePeriodInvoice);
+        }
 
         var dto = new InvoiceDto(
             invoice.Id,

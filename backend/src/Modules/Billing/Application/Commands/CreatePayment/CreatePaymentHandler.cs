@@ -5,6 +5,7 @@ using HomeMatch.Modules.Billing.Domain.Constants;
 using HomeMatch.Modules.Billing.Domain.Entities;
 using HomeMatch.Modules.Billing.Domain.Enums;
 using HomeMatch.Shared.Common;
+using Microsoft.EntityFrameworkCore;
 
 namespace HomeMatch.Modules.Billing.Application.Commands.CreatePayment;
 
@@ -86,7 +87,14 @@ public class CreatePaymentHandler(
         var paymentUrl = vnpayGateway.CreatePaymentUrl(vnpayRequest);
         payment.PaymentUrl = paymentUrl;
 
-        await paymentRepository.AddAsync(payment, cancellationToken);
+        try
+        {
+            await paymentRepository.AddAsync(payment, cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Result.Failure<PaymentDto>(BillingErrors.PendingPaymentAlreadyExists);
+        }
 
         var dto = new PaymentDto(
             payment.Id,

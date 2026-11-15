@@ -1,5 +1,6 @@
 using HomeMatch.Api.Middleware;
 using HomeMatch.Modules.Billing;
+using HomeMatch.Modules.Billing.Infrastructure.Persistence;
 using HomeMatch.Modules.Identity;
 using HomeMatch.Modules.Identity.Infrastructure.Persistence;
 using HomeMatch.Modules.Identity.Infrastructure.Persistence.Seed;
@@ -142,6 +143,9 @@ using (var scope = app.Services.CreateScope())
 
     var leasingDb = scope.ServiceProvider.GetRequiredService<LeasingDbContext>();
     await leasingDb.Database.MigrateAsync();
+
+    var billingDb = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+    await billingDb.Database.MigrateAsync();
 }
 
 app.UseCors("AllowFrontend");

@@ -1,11 +1,15 @@
 using HomeMatch.Modules.Billing.Application.Commands.CancelInvoice;
 using HomeMatch.Modules.Billing.Application.Commands.CreateInvoice;
 using HomeMatch.Modules.Billing.Application.Commands.CreatePayment;
+using HomeMatch.Modules.Billing.Application.Commands.ProcessInvoiceOverdue;
 using HomeMatch.Modules.Billing.Application.Commands.ProcessPaymentCallback;
 using HomeMatch.Modules.Billing.Application.Interfaces;
+using HomeMatch.Modules.Billing.Application.Queries.GetDebtInvoices;
+using HomeMatch.Modules.Billing.Application.Queries.GetDebtSummary;
 using HomeMatch.Modules.Billing.Application.Queries.GetInvoiceById;
 using HomeMatch.Modules.Billing.Application.Queries.GetInvoices;
 using HomeMatch.Modules.Billing.Application.Queries.GetPaymentById;
+using HomeMatch.Modules.Billing.Infrastructure.BackgroundJobs;
 using HomeMatch.Modules.Billing.Infrastructure.Persistence;
 using HomeMatch.Modules.Billing.Infrastructure.Repositories;
 using HomeMatch.Modules.Billing.Infrastructure.Services;
@@ -56,6 +60,14 @@ public static class BillingModuleExtensions
         services.AddScoped<ProcessPaymentCallbackHandler>();
         services.AddScoped<GetPaymentByIdHandler>();
 
+        // Application Handlers - Debts & Background Jobs
+        services.AddScoped<ProcessInvoiceOverdueHandler>();
+        services.AddScoped<GetDebtSummaryHandler>();
+        services.AddScoped<GetDebtInvoicesHandler>();
+
+        // Background Services
+        services.AddHostedService<BillingOverdueBackgroundService>();
+
         return services;
     }
 
@@ -65,6 +77,7 @@ public static class BillingModuleExtensions
         group.MapBillingEndpointsInternal();
         group.MapInvoiceEndpoints();
         group.MapPaymentEndpoints();
+        group.MapDebtEndpoints();
         return endpoints;
     }
 }

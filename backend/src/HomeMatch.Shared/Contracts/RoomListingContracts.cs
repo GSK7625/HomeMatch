@@ -70,6 +70,12 @@ public sealed record RoomListingAmenitySnapshot(long Id, string Code, string Nam
 
 public sealed record RoomListingTariffSnapshot(long Id, string TariffType, string CalcMethod, long UnitPrice);
 
+public interface IRoomListingEditReader
+{
+    Task<bool> IsRoomEditBlockedAsync(long roomId, CancellationToken cancellationToken);
+    Task<bool> IsAnyRoomEditBlockedAsync(IReadOnlyCollection<long> roomIds, CancellationToken cancellationToken);
+}
+
 public interface IListingVisibilityWriter
 {
     Task HidePublishedForRoomAsync(long roomId, CancellationToken cancellationToken);

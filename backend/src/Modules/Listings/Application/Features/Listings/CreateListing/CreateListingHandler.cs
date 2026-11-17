@@ -16,6 +16,8 @@ public sealed class CreateListingHandler(IListingRepository listings, IRoomListi
         var room = await rooms.GetRoomAsync(command.RoomId, cancellationToken);
         if (room is null || room.LandlordId != command.LandlordId)
             return Result.Failure<ListingDto>(ListingsErrors.RoomNotFound);
+        if (await listings.RoomHasListingAsync(command.RoomId, cancellationToken))
+            return Result.Failure<ListingDto>(ListingsErrors.RoomAlreadyListed);
 
         string slug;
         do

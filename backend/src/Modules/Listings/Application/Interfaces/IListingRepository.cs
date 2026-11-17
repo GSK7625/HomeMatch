@@ -17,6 +17,7 @@ public interface IListingRepository
     Task<IReadOnlyList<Listing>> GetPublicCandidatesAsync(int offset, int limit, CancellationToken cancellationToken);
     Task<bool> SlugExistsAsync(string slug, long? exceptId, CancellationToken cancellationToken);
     Task<bool> HasOtherPublishedAsync(long roomId, long listingId, CancellationToken cancellationToken);
+    Task<bool> RoomHasListingAsync(long roomId, CancellationToken cancellationToken);
     Task<ListingCoordinates?> GetCoordinatesAsync(long listingId, CancellationToken cancellationToken);
     Task<IReadOnlyDictionary<long, ListingCoordinates>> GetCoordinatesBatchAsync(IReadOnlyCollection<long> listingIds, CancellationToken cancellationToken);
     Task SetCoordinatesAsync(Listing listing, double longitude, double latitude, CancellationToken cancellationToken);

@@ -9,19 +9,23 @@ public sealed class UpdatePropertyHandler
 {
     private readonly IPropertyRepository _properties;
     private readonly IAddressGeocoder _geocoder;
-    private readonly IListingVisibilityWriter _listingVisibility;
+    private readonly IRoomListingEditReader _listingEditReader;
 
-    public UpdatePropertyHandler(IPropertyRepository properties, IAddressGeocoder geocoder, IListingVisibilityWriter listingVisibility)
+    public UpdatePropertyHandler(IPropertyRepository properties, IAddressGeocoder geocoder, IRoomListingEditReader listingEditReader)
     {
         _properties = properties;
         _geocoder = geocoder;
-        _listingVisibility = listingVisibility;
+        _listingEditReader = listingEditReader;
     }
 
     public async Task<Result<PropertyResult>> HandleAsync(UpdatePropertyCommand command, CancellationToken cancellationToken = default)
     {
         var property = await _properties.GetOwnedAsync(command.LandlordId, command.PropertyId, cancellationToken);
         if (property is null) return Result.Failure<PropertyResult>(PropertiesErrors.PropertyNotFound);
+        var roomIds = await _properties.GetRoomIdsAsync(command.PropertyId, cancellationToken);
+        // shortcut: this check does not serialize property edits with submit/approve; use a shared lock if atomic transitions are required.
+        if (await _listingEditReader.IsAnyRoomEditBlockedAsync(roomIds, cancellationToken))
+            return Result.Failure<PropertyResult>(PropertiesErrors.PropertyEditLocked);
         var name = command.Name ?? property.Name;
         var province = command.ProvinceCode ?? property.ProvinceCode;
         var ward = command.WardCode ?? property.WardCode;
@@ -40,9 +44,6 @@ public sealed class UpdatePropertyHandler
             // An unresolved new address must never retain the old address's coordinates.
             property.Latitude = location?.Latitude;
             property.Longitude = location?.Longitude;
-            var roomIds = await _properties.GetRoomIdsAsync(command.PropertyId, cancellationToken);
-            foreach (var roomId in roomIds)
-                await _listingVisibility.HidePublishedForRoomAsync(roomId, cancellationToken);
         }
         property.Name = name.Trim();
         property.ProvinceCode = province.Trim();

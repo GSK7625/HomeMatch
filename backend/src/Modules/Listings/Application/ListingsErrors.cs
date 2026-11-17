@@ -19,6 +19,7 @@ public static class ListingsErrors
     public static readonly Error Incomplete = new("Listing.Incomplete", "Tin cần tọa độ và ít nhất một ảnh đại diện.");
     public static readonly Error MissingTariffs = new("Listing.MissingTariffs", "Cần có đơn giá điện và nước đang hiệu lực.");
     public static readonly Error RoomAlreadyPublished = new("Listing.RoomAlreadyPublished", "Phòng đã có tin đang đăng.");
+    public static readonly Error RoomAlreadyListed = new("Listing.RoomAlreadyListed", "Phòng đã có tin đăng. Hãy sử dụng tin hiện có để chỉnh sửa và gửi duyệt lại.");
     public static readonly Error ImageNotFound = new("Listing.ImageNotFound", "Không tìm thấy ảnh của tin.");
     public static readonly Error InvalidImage = new("Listing.InvalidImage", "Thông tin ảnh không hợp lệ.");
     public static readonly Error LastImage = new("Listing.LastImage", "Ẩn tin trước khi xóa ảnh cuối cùng.");

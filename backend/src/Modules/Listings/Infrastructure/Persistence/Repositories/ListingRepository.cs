@@ -86,6 +86,9 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
     public Task<bool> HasOtherPublishedAsync(long roomId, long listingId, CancellationToken cancellationToken) =>
         db.Listings.AnyAsync(item => item.RoomId == roomId && item.Id != listingId && item.Status == "PUBLISHED", cancellationToken);
 
+    public Task<bool> RoomHasListingAsync(long roomId, CancellationToken cancellationToken) =>
+        db.Listings.AnyAsync(item => item.RoomId == roomId, cancellationToken);
+
     public async Task<ListingCoordinates?> GetCoordinatesAsync(long listingId, CancellationToken cancellationToken)
     {
         // Read the point before X/Y: PostGIS ST_X/ST_Y accept geometry, not geography.
@@ -132,6 +135,11 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
             { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "ux_listings_slug" })
         {
             return Result.Failure(ListingsErrors.DuplicateSlug);
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException
+            { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "ux_listings_room" })
+        {
+            return Result.Failure(ListingsErrors.RoomAlreadyListed);
         }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException
             { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "ux_listings_published_room" })

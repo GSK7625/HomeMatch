@@ -22,6 +22,12 @@ public sealed class ApproveListingHandler(IListingRepository listings, IRoomList
         var error = ListingPublicationPolicy.ValidateReadiness(room, listing.LandlordId, coordinates is not null,
             listing.Images.Select(image => image.IsPrimary).ToArray(), hasRates, anotherPublished);
         if (error is not null) return Result.Failure<ListingDto>(error);
+        if (room!.Latitude is not (>= -90m and <= 90m)
+            || room.Longitude is not (>= -180m and <= 180m))
+            return Result.Failure<ListingDto>(ListingsErrors.InvalidCoordinates);
+        if (coordinates!.Latitude != (double)room.Latitude.Value
+            || coordinates.Longitude != (double)room.Longitude.Value)
+            return Result.Failure<ListingDto>(ListingsErrors.CoordinatesOutOfDate);
         var now = DateTimeOffset.UtcNow;
         listing.Status = "PUBLISHED";
         listing.ReviewedBy = command.AdminId;

@@ -8,13 +8,11 @@ namespace HomeMatch.Modules.Properties.Application.Features.Properties.UpdatePro
 public sealed class UpdatePropertyHandler
 {
     private readonly IPropertyRepository _properties;
-    private readonly IAddressGeocoder _geocoder;
     private readonly IRoomListingEditReader _listingEditReader;
 
-    public UpdatePropertyHandler(IPropertyRepository properties, IAddressGeocoder geocoder, IRoomListingEditReader listingEditReader)
+    public UpdatePropertyHandler(IPropertyRepository properties, IRoomListingEditReader listingEditReader)
     {
         _properties = properties;
-        _geocoder = geocoder;
         _listingEditReader = listingEditReader;
     }
 
@@ -38,12 +36,13 @@ public sealed class UpdatePropertyHandler
         var addressChanged = province.Trim() != property.ProvinceCode || ward.Trim() != property.WardCode
             || address.Trim() != property.AddressDetail;
 
-        if (addressChanged)
+        error = PropertyValidation.ValidateCoordinates(command.Latitude, command.Longitude, required: addressChanged);
+        if (error is not null) return Result.Failure<PropertyResult>(error);
+
+        if (command.Latitude.HasValue && command.Longitude.HasValue)
         {
-            var location = await _geocoder.FindAsync(fullAddress, cancellationToken);
-            // An unresolved new address must never retain the old address's coordinates.
-            property.Latitude = location?.Latitude;
-            property.Longitude = location?.Longitude;
+            property.Latitude = decimal.Round(command.Latitude.Value, 6);
+            property.Longitude = decimal.Round(command.Longitude.Value, 6);
         }
         property.Name = name.Trim();
         property.ProvinceCode = province.Trim();

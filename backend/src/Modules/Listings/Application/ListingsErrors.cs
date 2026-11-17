@@ -14,6 +14,7 @@ public static class ListingsErrors
     public static readonly Error DuplicateSlug = new("Listing.DuplicateSlug", "Đường dẫn tin đã tồn tại.");
     public static readonly Error InvalidInput = new("Listing.InvalidInput", "Thông tin tin đăng không hợp lệ.");
     public static readonly Error InvalidCoordinates = new("Listing.InvalidCoordinates", "Tọa độ phải có cả kinh độ và vĩ độ hợp lệ.");
+    public static readonly Error CoordinatesOutOfDate = new("Listing.CoordinatesOutOfDate", "Không thể duyệt: tọa độ tin đăng không còn khớp với tọa độ hiện tại của tòa nhà.");
     public static readonly Error InvalidStatus = new("Listing.InvalidStatus", "Trạng thái tin đăng không hợp lệ.");
     public static readonly Error RoomUnavailable = new("Listing.RoomUnavailable", "Phòng phải còn trống và thuộc chủ nhà.");
     public static readonly Error Incomplete = new("Listing.Incomplete", "Tin cần tọa độ và ít nhất một ảnh đại diện.");

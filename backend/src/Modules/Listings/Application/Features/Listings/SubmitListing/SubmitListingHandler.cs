@@ -16,12 +16,14 @@ public sealed class SubmitListingHandler(IListingRepository listings, IRoomListi
             return Result.Failure<ListingDto>(ListingsErrors.InvalidStatus);
         await listings.ExpirePublishedAsync(DateTimeOffset.UtcNow, listing.RoomId, cancellationToken);
         var room = await rooms.GetRoomAsync(listing.RoomId, cancellationToken);
-        var coordinates = await listings.GetCoordinatesAsync(listing.Id, cancellationToken);
+        ListingCoordinates? coordinates = room is { Longitude: { } longitude, Latitude: { } latitude }
+            ? new((double)longitude, (double)latitude) : null;
         var hasRates = await rooms.HasElectricityAndWaterRatesAsync(listing.RoomId, BusinessDate.Today(), cancellationToken);
         var anotherPublished = await listings.HasOtherPublishedAsync(listing.RoomId, listing.Id, cancellationToken);
         var error = ListingPublicationPolicy.ValidateCanSubmit(listing.Status, room, command.LandlordId,
             coordinates is not null, listing.Images.Select(image => image.IsPrimary).ToArray(), hasRates, anotherPublished);
         if (error is not null) return Result.Failure<ListingDto>(error);
+        await listings.SetCoordinatesAsync(listing, coordinates!.Longitude, coordinates.Latitude, cancellationToken);
         listing.Status = "PENDING_APPROVAL";
         listing.ReviewedBy = null;
         listing.ReviewedAt = null;

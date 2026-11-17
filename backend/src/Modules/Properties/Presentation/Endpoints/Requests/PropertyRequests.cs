@@ -24,6 +24,14 @@ public sealed record CreatePropertyRequest
     [Required]
     [RegularExpression("^(APARTMENT|BOARDING_HOUSE|SERVICED_APARTMENT|HOMESTAY)$")]
     public string PropertyType { get; init; } = string.Empty;
+
+    [Required]
+    [Range(typeof(decimal), "-90", "90")]
+    public decimal? Latitude { get; init; }
+
+    [Required]
+    [Range(typeof(decimal), "-180", "180")]
+    public decimal? Longitude { get; init; }
 }
 
 /// <summary>Request DTO để cập nhật một phần bất động sản (PATCH)</summary>
@@ -43,4 +51,10 @@ public sealed record UpdatePropertyRequest
 
     [RegularExpression("^(APARTMENT|BOARDING_HOUSE|SERVICED_APARTMENT|HOMESTAY)$")]
     public string? PropertyType { get; init; }
+
+    [Range(typeof(decimal), "-90", "90")]
+    public decimal? Latitude { get; init; }
+
+    [Range(typeof(decimal), "-180", "180")]
+    public decimal? Longitude { get; init; }
 }

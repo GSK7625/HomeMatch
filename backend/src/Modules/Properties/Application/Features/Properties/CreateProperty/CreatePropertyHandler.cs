@@ -8,12 +8,10 @@ namespace HomeMatch.Modules.Properties.Application.Features.Properties.CreatePro
 public sealed class CreatePropertyHandler
 {
     private readonly IPropertyRepository _properties;
-    private readonly IAddressGeocoder _geocoder;
 
-    public CreatePropertyHandler(IPropertyRepository properties, IAddressGeocoder geocoder)
+    public CreatePropertyHandler(IPropertyRepository properties)
     {
         _properties = properties;
-        _geocoder = geocoder;
     }
 
     public async Task<Result<PropertyResult>> HandleAsync(CreatePropertyCommand command, CancellationToken cancellationToken = default)
@@ -21,11 +19,11 @@ public sealed class CreatePropertyHandler
         var error = PropertyValidation.Validate(command.Name, command.ProvinceCode, command.WardCode,
             command.AddressDetail, command.PropertyType);
         if (error is not null) return Result.Failure<PropertyResult>(error);
+        error = PropertyValidation.ValidateCoordinates(command.Latitude, command.Longitude, required: true);
+        if (error is not null) return Result.Failure<PropertyResult>(error);
         var fullAddress = await _properties.GetFullAddressAsync(command.ProvinceCode, command.WardCode,
             command.AddressDetail, cancellationToken);
         if (fullAddress is null) return Result.Failure<PropertyResult>(PropertiesErrors.InvalidAddress);
-
-        var location = await _geocoder.FindAsync(fullAddress, cancellationToken);
 
         var now = DateTimeOffset.UtcNow;
         var property = new Property
@@ -36,8 +34,8 @@ public sealed class CreatePropertyHandler
             WardCode = command.WardCode.Trim(),
             AddressDetail = command.AddressDetail.Trim(),
             PropertyType = command.PropertyType,
-            Latitude = location?.Latitude,
-            Longitude = location?.Longitude,
+            Latitude = decimal.Round(command.Latitude!.Value, 6),
+            Longitude = decimal.Round(command.Longitude!.Value, 6),
             CreatedAt = now,
             UpdatedAt = now
         };

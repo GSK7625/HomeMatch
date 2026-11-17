@@ -1,6 +1,6 @@
 using HomeMatch.Modules.Listings.Application.Common;
 using HomeMatch.Modules.Listings.Application.Interfaces;
-using HomeMatch.Modules.Listings.Application.Models;
+using HomeMatch.Modules.Listings.Application.DTOs;
 using HomeMatch.Modules.Listings.Domain.Entities;
 using HomeMatch.Shared.Common;
 using HomeMatch.Shared.Contracts;
@@ -9,13 +9,13 @@ namespace HomeMatch.Modules.Listings.Application.Features.Listings.CreateListing
 
 public sealed class CreateListingHandler(IListingRepository listings, IRoomListingReader rooms)
 {
-    public async Task<Result<ListingResult>> HandleAsync(CreateListingCommand command, CancellationToken cancellationToken = default)
+    public async Task<Result<ListingDto>> HandleAsync(CreateListingCommand command, CancellationToken cancellationToken = default)
     {
         var error = CreateListingValidator.Validate(command);
-        if (error is not null) return Result.Failure<ListingResult>(error);
+        if (error is not null) return Result.Failure<ListingDto>(error);
         var room = await rooms.GetRoomAsync(command.RoomId, cancellationToken);
         if (room is null || room.LandlordId != command.LandlordId)
-            return Result.Failure<ListingResult>(ListingsErrors.RoomNotFound);
+            return Result.Failure<ListingDto>(ListingsErrors.RoomNotFound);
 
         string slug;
         do
@@ -36,7 +36,7 @@ public sealed class CreateListingHandler(IListingRepository listings, IRoomListi
         if (room.Longitude.HasValue && room.Latitude.HasValue)
             await listings.SetCoordinatesAsync(listing, (double)room.Longitude.Value, (double)room.Latitude.Value, cancellationToken);
         var saved = await listings.SaveChangesAsync(cancellationToken);
-        if (saved.IsFailure) return Result.Failure<ListingResult>(saved.Error);
+        if (saved.IsFailure) return Result.Failure<ListingDto>(saved.Error);
         return Result.Success(ListingMapping.ToResult(listing, await listings.GetCoordinatesAsync(listing.Id, cancellationToken)));
     }
 }

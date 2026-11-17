@@ -1,7 +1,7 @@
-namespace HomeMatch.Modules.Listings.Application.Models;
+namespace HomeMatch.Modules.Listings.Application.DTOs;
 
-/// <summary>Result DTO thông tin ảnh tin đăng</summary>
-public sealed class ListingImageResult(
+/// <summary>DTO thông tin ảnh tin đăng</summary>
+public sealed class ListingImageDto(
     long id, string imageUrl, bool isPrimary, int sortOrder,
     string mediaType = "IMAGE", string? thumbnailUrl = null, int? durationSeconds = null)
 {
@@ -15,13 +15,13 @@ public sealed class ListingImageResult(
 }
 
 
-/// <summary>Result DTO thông tin đầy đủ tin đăng</summary>
-public sealed class ListingResult(
+/// <summary>DTO thông tin đầy đủ tin đăng</summary>
+public sealed class ListingDto(
     long id, long roomId, long landlordId, string title, string slug,
     string description, long price, long depositAmount, int minLeaseMonths,
     string? houseRules, string status,
-    double? longitude, double? latitude, IReadOnlyList<ListingImageResult> images,
-    long viewCount = 0, ListingReviewResult? review = null, DateTimeOffset? expiresAt = null)
+    double? longitude, double? latitude, IReadOnlyList<ListingImageDto> images,
+    long viewCount = 0, ListingReviewDto? review = null, DateTimeOffset? expiresAt = null)
 {
     public long Id { get; } = id;
     public long RoomId { get; } = roomId;
@@ -36,15 +36,15 @@ public sealed class ListingResult(
     public string Status { get; } = status;
     public DateTimeOffset? ExpiresAt { get; } = expiresAt;
     public long ViewCount { get; } = viewCount;
-    public ListingReviewResult? Review { get; } = review;
+    public ListingReviewDto? Review { get; } = review;
     public double? Longitude { get; } = longitude;
     public double? Latitude { get; } = latitude;
-    public IReadOnlyList<ListingImageResult> Images { get; } = images;
+    public IReadOnlyList<ListingImageDto> Images { get; } = images;
 }
 
 
-/// <summary>Result DTO tóm tắt tin đăng (dùng cho danh sách và thẻ tìm kiếm)</summary>
-public sealed class ListingSummaryResult(
+/// <summary>DTO tóm tắt tin đăng (dùng cho danh sách và thẻ tìm kiếm)</summary>
+public sealed class ListingSummaryDto(
     long id, long roomId, string title, string slug, long price,
     string status, string? coverImageUrl,
     long depositAmount = 0,
@@ -72,12 +72,12 @@ public sealed class ListingSummaryResult(
 }
 
 
-/// <summary>Result DTO tin đăng đã lưu yêu thích</summary>
-public sealed class SavedListingResult(long id, long listingId, ListingSummaryResult listing, DateTimeOffset createdAt)
+/// <summary>DTO tin đăng đã lưu yêu thích</summary>
+public sealed class SavedListingDto(long id, long listingId, ListingSummaryDto listing, DateTimeOffset createdAt)
 {
     public long Id { get; } = id;
     public long ListingId { get; } = listingId;
-    public ListingSummaryResult Listing { get; } = listing;
+    public ListingSummaryDto Listing { get; } = listing;
     public DateTimeOffset CreatedAt { get; } = createdAt;
 }
 

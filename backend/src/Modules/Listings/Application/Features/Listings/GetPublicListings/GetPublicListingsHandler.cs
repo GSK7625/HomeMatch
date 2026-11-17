@@ -1,5 +1,5 @@
 using HomeMatch.Modules.Listings.Application.Interfaces;
-using HomeMatch.Modules.Listings.Application.Models;
+using HomeMatch.Modules.Listings.Application.DTOs;
 using HomeMatch.Modules.Listings.Domain.Entities;
 using HomeMatch.Shared.Common;
 using HomeMatch.Shared.Contracts;
@@ -8,11 +8,11 @@ namespace HomeMatch.Modules.Listings.Application.Features.Listings.GetPublicList
 
 public sealed class GetPublicListingsHandler(IListingRepository listings, IRoomListingReader rooms)
 {
-    public async Task<Result<IReadOnlyList<ListingSummaryResult>>> HandleAsync(GetPublicListingsQuery query, CancellationToken cancellationToken = default)
+    public async Task<Result<IReadOnlyList<ListingSummaryDto>>> HandleAsync(GetPublicListingsQuery query, CancellationToken cancellationToken = default)
     {
         if (query.Limit is < 1 or > 50)
-            return Result.Failure<IReadOnlyList<ListingSummaryResult>>(ListingsErrors.InvalidLimit);
-        var result = new List<ListingSummaryResult>(query.Limit);
+            return Result.Failure<IReadOnlyList<ListingSummaryDto>>(ListingsErrors.InvalidLimit);
+        var result = new List<ListingSummaryDto>(query.Limit);
         var offset = 0;
         while (result.Count < query.Limit)
         {
@@ -23,6 +23,6 @@ public sealed class GetPublicListingsHandler(IListingRepository listings, IRoomL
             result.AddRange(candidates.Where(listing => publicIds.Contains(listing.Id))
                 .Take(query.Limit - result.Count).Select(ListingMapping.ToSummary));
         }
-        return Result.Success<IReadOnlyList<ListingSummaryResult>>(result);
+        return Result.Success<IReadOnlyList<ListingSummaryDto>>(result);
     }
 }

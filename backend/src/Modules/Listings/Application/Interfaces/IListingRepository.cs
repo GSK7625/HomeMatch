@@ -1,4 +1,4 @@
-using HomeMatch.Modules.Listings.Application.Models;
+using HomeMatch.Modules.Listings.Application.DTOs;
 using HomeMatch.Modules.Listings.Application.Features.Listings.SearchListings;
 using HomeMatch.Modules.Listings.Domain.Entities;
 using HomeMatch.Shared.Common;

@@ -1,10 +1,10 @@
-using HomeMatch.Modules.Listings.Application.Models;
+using HomeMatch.Modules.Listings.Application.DTOs;
 
 namespace HomeMatch.Modules.Listings.Presentation.Endpoints.Responses;
 
 internal static class ListingResponseMapper
 {
-    public static PublicListingDetailResponse ToResponse(PublicListingDetailResult result)
+    public static PublicListingDetailResponse ToResponse(PublicListingDetailDto result)
     {
         var room = result.Room;
         var property = room.Property;
@@ -18,7 +18,7 @@ internal static class ListingResponseMapper
                 tariff.Id, tariff.TariffType, tariff.CalcMethod, tariff.UnitPrice)).ToArray());
     }
 
-    public static ListingResponse ToResponse(ListingResult result, bool includeReview = false) =>
+    public static ListingResponse ToResponse(ListingDto result, bool includeReview = false) =>
         new(result.Id, result.RoomId, result.LandlordId, result.Title, result.Slug, result.Description,
             result.Price, result.DepositAmount, result.MinLeaseMonths, result.HouseRules,
             result.Status, result.Longitude, result.Latitude,
@@ -26,14 +26,14 @@ internal static class ListingResponseMapper
             includeReview && result.Review is { } review
                 ? new(review.Revision, review.ReviewedBy, review.ReviewedAt, review.RejectionReason, review.PublishedAt)
                 : null, result.ExpiresAt);
-    public static ListingImageResponse ToResponse(ListingImageResult result) =>
+    public static ListingImageResponse ToResponse(ListingImageDto result) =>
         new(result.Id, result.ImageUrl, result.IsPrimary, result.SortOrder, result.MediaType, result.ThumbnailUrl, result.DurationSeconds);
-    public static ListingSummaryResponse ToResponse(ListingSummaryResult result) =>
+    public static ListingSummaryResponse ToResponse(ListingSummaryDto result) =>
         new(result.Id, result.RoomId, result.Title, result.Slug, result.Price, result.Status, result.CoverImageUrl,
             result.DepositAmount, result.AreaSqm, result.RoomType,
             result.DistrictName, result.ProvinceName, result.AddressDetail, result.ElectricityPrice, result.WaterPrice, result.Amenities);
-    public static IReadOnlyList<ListingSummaryResponse> ToResponse(IReadOnlyList<ListingSummaryResult> results) =>
+    public static IReadOnlyList<ListingSummaryResponse> ToResponse(IReadOnlyList<ListingSummaryDto> results) =>
         results.Select(ToResponse).ToArray();
-    public static IReadOnlyList<SavedListingResponse> ToResponse(IReadOnlyList<SavedListingResult> results) =>
+    public static IReadOnlyList<SavedListingResponse> ToResponse(IReadOnlyList<SavedListingDto> results) =>
         results.Select(result => new SavedListingResponse(result.Id, result.ListingId, ToResponse(result.Listing), result.CreatedAt)).ToArray();
 }

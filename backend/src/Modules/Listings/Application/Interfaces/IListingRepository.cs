@@ -11,6 +11,7 @@ public interface IListingRepository
     Task<(IReadOnlyList<Listing> Items, int TotalCount)> SearchPublicAsync(
         SearchListingsQuery query, long[] roomIds, long[] keywordRoomIds, CancellationToken cancellationToken);
     Task<Listing?> GetByIdAsync(long listingId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Listing>> GetPublicByRoomIdsAsync(IReadOnlyCollection<long> roomIds, CancellationToken cancellationToken);
     Task<Listing?> GetOwnedAsync(long landlordId, long listingId, CancellationToken cancellationToken);
     Task<IReadOnlyList<Listing>> GetMineAsync(long landlordId, CancellationToken cancellationToken);
     Task<(IReadOnlyList<Listing> Items, int TotalCount)> GetPendingAsync(int page, int pageSize, CancellationToken cancellationToken);

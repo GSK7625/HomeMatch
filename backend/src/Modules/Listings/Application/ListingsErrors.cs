@@ -4,6 +4,7 @@ namespace HomeMatch.Modules.Listings.Application;
 
 public static class ListingsErrors
 {
+    public static readonly Error InvalidComparison = new("Listing.InvalidComparison", "Chọn từ 1 đến 3 RoomId dương, không trùng nhau.");
     public static readonly Error InvalidSearch = new("Listing.InvalidSearch", "Bộ lọc tìm kiếm không hợp lệ. Kiểm tra khoảng giá, diện tích, số người, loại phòng và tiện nghi.");
     public static readonly Error RevisionConflict = new("Listing.RevisionConflict", "Tin đã thay đổi, vui lòng tải lại trước khi thao tác.");
     public static readonly Error EditLocked = new("Listing.EditLocked", "Ẩn hoặc rút tin trước khi sửa nội dung và ảnh.");

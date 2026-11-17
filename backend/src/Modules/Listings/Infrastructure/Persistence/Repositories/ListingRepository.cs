@@ -53,6 +53,16 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
     public Task<Listing?> GetByIdAsync(long listingId, CancellationToken cancellationToken) =>
         db.Listings.Include(item => item.Images).FirstOrDefaultAsync(item => item.Id == listingId, cancellationToken);
 
+    public async Task<IReadOnlyList<Listing>> GetPublicByRoomIdsAsync(
+        IReadOnlyCollection<long> roomIds, CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return await db.Listings.AsNoTracking().Include(item => item.Images)
+            .Where(item => roomIds.Contains(item.RoomId) && item.Status == "PUBLISHED"
+                && (item.ExpiresAt == null || item.ExpiresAt > now))
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<Listing?> GetOwnedAsync(long landlordId, long listingId, CancellationToken cancellationToken) =>
         db.Listings.Include(item => item.Images).FirstOrDefaultAsync(
             item => item.Id == listingId && item.LandlordId == landlordId, cancellationToken);

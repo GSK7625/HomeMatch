@@ -17,6 +17,8 @@ using HomeMatch.Modules.Billing.Infrastructure.Persistence;
 using HomeMatch.Modules.Billing.Infrastructure.Repositories;
 using HomeMatch.Modules.Billing.Infrastructure.Services;
 using HomeMatch.Modules.Billing.Presentation.Endpoints;
+using HomeMatch.Shared.Common;
+using HomeMatch.Shared.Contracts.Billing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -51,6 +53,7 @@ public static class BillingModuleExtensions
         services.AddScoped<IBillingDbContext>(sp => sp.GetRequiredService<BillingDbContext>());
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
+        services.AddScoped<ILandlordDashboardService, LandlordDashboardService>();
 
         // Application Handlers - Invoices
         services.AddScoped<CreateInvoiceHandler>();
@@ -82,11 +85,41 @@ public static class BillingModuleExtensions
     public static IEndpointRouteBuilder MapBillingEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/v1/billing").WithTags("Billing");
+
         group.MapBillingEndpointsInternal();
         group.MapInvoiceEndpoints();
         group.MapPaymentEndpoints();
         group.MapDebtEndpoints();
         group.MapBillingReportEndpoints();
+
+        group.MapGet("/landlord-dashboard", async (
+            string? buildingId,
+            string? period,
+            ILandlordDashboardService dashboardService,
+            CancellationToken cancellationToken) =>
+        {
+            var data = await dashboardService.GetDashboardAsync(buildingId, period, cancellationToken);
+            return Results.Ok(ApiResponse<LandlordDashboardDto>.Success(data));
+        })
+        .WithName("GetLandlordDashboard")
+        .WithSummary("Lấy dữ liệu tổng quan Dashboard và Báo cáo tài chính cho Chủ nhà")
+        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status200OK);
+
+        // Alias route: /api/v1/landlord/dashboard for direct semantic access
+        endpoints.MapGet("/api/v1/landlord/dashboard", async (
+            string? buildingId,
+            string? period,
+            ILandlordDashboardService dashboardService,
+            CancellationToken cancellationToken) =>
+        {
+            var data = await dashboardService.GetDashboardAsync(buildingId, period, cancellationToken);
+            return Results.Ok(ApiResponse<LandlordDashboardDto>.Success(data));
+        })
+        .WithTags("Landlord")
+        .WithName("GetLandlordDashboardDirect")
+        .WithSummary("Lấy dữ liệu tổng quan Dashboard Chủ nhà")
+        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status200OK);
+
         return endpoints;
     }
 }

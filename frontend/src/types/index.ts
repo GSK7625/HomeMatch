@@ -687,3 +687,94 @@ export interface PendingListingsDto {
   pageSize: number;
   totalCount: number;
 }
+
+// Landlord Dashboard & Financial Reports
+export interface LandlordOverview {
+  totalRooms: number;
+  vacantRooms: number;
+  rentedRooms: number;
+  activeListings: number;
+  occupancyRate: number;
+}
+
+export interface RevenueBreakdown {
+  rentAmount: number;
+  electricityAmount: number;
+  waterAmount: number;
+  serviceAmount: number;
+}
+
+export interface LandlordFinancials {
+  totalReceivables: number;
+  totalCollected: number;
+  remainingDebt: number;
+  collectionRate: number;
+  breakdown: RevenueBreakdown;
+}
+
+export interface LandlordDebtItem {
+  invoiceId: string;
+  roomName: string;
+  tenantName: string;
+  tenantPhone: string;
+  amount: number;
+  dueDate: string;
+  overdueDays: number;
+  agingBucket: "Trong hạn" | "1-30 ngày" | "31-60 ngày" | ">60 ngày" | string;
+}
+
+export interface LandlordDebtAging {
+  totalDebt: number;
+  overdueDebt: number;
+  currentAmount: number;
+  overdue1To30Days: number;
+  overdue31To60Days: number;
+  overdueOver60Days: number;
+  items: LandlordDebtItem[];
+}
+
+export interface LandlordDepositItem {
+  contractId: string;
+  contractCode: string;
+  roomName: string;
+  tenantName: string;
+  depositAmount: number;
+  startDate: string;
+  endDate: string;
+  daysRemaining: number;
+  depositStatus: string;
+}
+
+export interface LandlordDepositReport {
+  totalActiveDeposits: number;
+  activeContractsCount: number;
+  items: LandlordDepositItem[];
+}
+
+export interface LandlordMarketingFunnel {
+  activeListingsCount: number;
+  totalViewsCount: number;
+  newLeads: number;
+  contactedLeads: number;
+  viewingScheduledLeads: number;
+  contractSignedLeads: number;
+}
+
+export interface LandlordViewingItem {
+  appointmentId: string;
+  scheduledTime: string;
+  roomName: string;
+  tenantName: string;
+  tenantPhone: string;
+  viewingType: string;
+  status: string;
+}
+
+export interface LandlordDashboardData {
+  overview: LandlordOverview;
+  financials: LandlordFinancials;
+  debtAging: LandlordDebtAging;
+  deposits: LandlordDepositReport;
+  marketingAndLeads: LandlordMarketingFunnel;
+  viewingsToday: LandlordViewingItem[];
+}

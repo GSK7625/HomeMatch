@@ -38,7 +38,7 @@ public class LandlordDashboardService : ILandlordDashboardService
         var activeListings = vacantRooms;
 
         // 2. Query Invoices & Financials from PostgreSQL
-        var invoicesQuery = _db.Invoices.AsNoTracking();
+        var invoicesQuery = _db.DashboardInvoices.AsNoTracking();
         if (filterBuilding != null)
         {
             invoicesQuery = invoicesQuery.Where(i => i.BuildingId == filterBuilding);

@@ -1,29 +1,32 @@
+using HomeMatch.Modules.Billing.Application.Interfaces;
 using HomeMatch.Modules.Billing.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace HomeMatch.Modules.Billing.Infrastructure.Persistence;
 
-public class BillingDbContext : DbContext
+public class BillingDbContext(DbContextOptions<BillingDbContext> options) : DbContext(options), IBillingDbContext
 {
     public const string Schema = "billing";
 
-    public BillingDbContext(DbContextOptions<BillingDbContext> options) : base(options)
-    {
-    }
-
     public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<Payment> Payments => Set<Payment>();
+
+    // Landlord Dashboard entities
+    public DbSet<DashboardInvoice> DashboardInvoices => Set<DashboardInvoice>();
     public DbSet<BillingContract> Contracts => Set<BillingContract>();
     public DbSet<BillingRoom> Rooms => Set<BillingRoom>();
     public DbSet<BillingViewing> Viewings => Set<BillingViewing>();
 
-    protected override void OnModelCreating(ModelBuilder builder)
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        base.OnModelCreating(builder);
-        builder.HasDefaultSchema(Schema);
+        base.OnModelCreating(modelBuilder);
 
-        builder.Entity<Invoice>(b =>
+        modelBuilder.HasDefaultSchema(Schema);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(BillingDbContext).Assembly);
+
+        modelBuilder.Entity<DashboardInvoice>(b =>
         {
-            b.ToTable("invoices");
+            b.ToTable("dashboard_invoices");
             b.HasKey(x => x.Id);
             b.Property(x => x.Id).ValueGeneratedOnAdd();
             b.Property(x => x.InvoiceCode).HasMaxLength(50).IsRequired();
@@ -35,7 +38,7 @@ public class BillingDbContext : DbContext
             b.Property(x => x.Status).HasMaxLength(30).IsRequired();
         });
 
-        builder.Entity<BillingContract>(b =>
+        modelBuilder.Entity<BillingContract>(b =>
         {
             b.ToTable("contracts");
             b.HasKey(x => x.Id);
@@ -48,7 +51,7 @@ public class BillingDbContext : DbContext
             b.Property(x => x.DepositStatus).HasMaxLength(30).IsRequired();
         });
 
-        builder.Entity<BillingRoom>(b =>
+        modelBuilder.Entity<BillingRoom>(b =>
         {
             b.ToTable("rooms");
             b.HasKey(x => x.Id);
@@ -59,7 +62,7 @@ public class BillingDbContext : DbContext
             b.Property(x => x.Status).HasMaxLength(30).IsRequired();
         });
 
-        builder.Entity<BillingViewing>(b =>
+        modelBuilder.Entity<BillingViewing>(b =>
         {
             b.ToTable("viewing_appointments");
             b.HasKey(x => x.Id);

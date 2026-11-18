@@ -7,14 +7,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HomeMatch.Modules.Billing.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialBillingSchema : Migration
+    public partial class AddLandlordDashboardTables : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.EnsureSchema(
-                name: "billing");
-
             migrationBuilder.CreateTable(
                 name: "contracts",
                 schema: "billing",
@@ -38,7 +35,7 @@ namespace HomeMatch.Modules.Billing.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "invoices",
+                name: "dashboard_invoices",
                 schema: "billing",
                 columns: table => new
                 {
@@ -66,7 +63,7 @@ namespace HomeMatch.Modules.Billing.Infrastructure.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_invoices", x => x.Id);
+                    table.PrimaryKey("PK_dashboard_invoices", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -116,7 +113,7 @@ namespace HomeMatch.Modules.Billing.Infrastructure.Persistence.Migrations
                 schema: "billing");
 
             migrationBuilder.DropTable(
-                name: "invoices",
+                name: "dashboard_invoices",
                 schema: "billing");
 
             migrationBuilder.DropTable(

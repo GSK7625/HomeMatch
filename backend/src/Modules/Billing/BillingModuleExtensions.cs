@@ -1,6 +1,22 @@
+using HomeMatch.Modules.Billing.Application.Commands.CancelInvoice;
+using HomeMatch.Modules.Billing.Application.Commands.CreateInvoice;
+using HomeMatch.Modules.Billing.Application.Commands.CreatePayment;
+using HomeMatch.Modules.Billing.Application.Commands.ProcessInvoiceOverdue;
+using HomeMatch.Modules.Billing.Application.Commands.ProcessPaymentCallback;
 using HomeMatch.Modules.Billing.Application.Interfaces;
+using HomeMatch.Modules.Billing.Application.Queries.GetDebtInvoices;
+using HomeMatch.Modules.Billing.Application.Queries.GetDebtSummary;
+using HomeMatch.Modules.Billing.Application.Queries.GetFinancialSummary;
+using HomeMatch.Modules.Billing.Application.Queries.GetInvoiceById;
+using HomeMatch.Modules.Billing.Application.Queries.GetInvoices;
+using HomeMatch.Modules.Billing.Application.Queries.GetMonthlyCashflow;
+using HomeMatch.Modules.Billing.Application.Queries.GetPaymentById;
+using HomeMatch.Modules.Billing.Application.Queries.GetPropertyFinancialReport;
+using HomeMatch.Modules.Billing.Infrastructure.BackgroundJobs;
 using HomeMatch.Modules.Billing.Infrastructure.Persistence;
+using HomeMatch.Modules.Billing.Infrastructure.Repositories;
 using HomeMatch.Modules.Billing.Infrastructure.Services;
+using HomeMatch.Modules.Billing.Presentation.Endpoints;
 using HomeMatch.Shared.Common;
 using HomeMatch.Shared.Contracts.Billing;
 using Microsoft.AspNetCore.Builder;
@@ -29,7 +45,40 @@ public static class BillingModuleExtensions
             options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
         });
 
+        // VNPay Options & Gateway
+        services.Configure<VNPayOptions>(configuration.GetSection(VNPayOptions.SectionName));
+        services.AddScoped<IVNPayGateway, VNPayGateway>();
+
+        // Interfaces & Repositories
+        services.AddScoped<IBillingDbContext>(sp => sp.GetRequiredService<BillingDbContext>());
+        services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+        services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<ILandlordDashboardService, LandlordDashboardService>();
+
+        // Application Handlers - Invoices
+        services.AddScoped<CreateInvoiceHandler>();
+        services.AddScoped<CancelInvoiceHandler>();
+        services.AddScoped<GetInvoiceByIdHandler>();
+        services.AddScoped<GetInvoicesHandler>();
+
+        // Application Handlers - Payments
+        services.AddScoped<CreatePaymentHandler>();
+        services.AddScoped<ProcessPaymentCallbackHandler>();
+        services.AddScoped<GetPaymentByIdHandler>();
+
+        // Application Handlers - Debts & Background Jobs
+        services.AddScoped<ProcessInvoiceOverdueHandler>();
+        services.AddScoped<GetDebtSummaryHandler>();
+        services.AddScoped<GetDebtInvoicesHandler>();
+
+        // Application Handlers - Reports
+        services.AddScoped<GetFinancialSummaryHandler>();
+        services.AddScoped<GetPropertyFinancialReportHandler>();
+        services.AddScoped<GetMonthlyCashflowHandler>();
+
+        // Background Services
+        services.AddHostedService<BillingOverdueBackgroundService>();
+
         return services;
     }
 
@@ -37,12 +86,11 @@ public static class BillingModuleExtensions
     {
         var group = endpoints.MapGroup("/api/v1/billing").WithTags("Billing");
 
-        group.MapGet("/ping", () => Results.Ok(new
-        {
-            module = "Billing",
-            status = "Healthy",
-            timestamp = DateTime.UtcNow
-        }));
+        group.MapBillingEndpointsInternal();
+        group.MapInvoiceEndpoints();
+        group.MapPaymentEndpoints();
+        group.MapDebtEndpoints();
+        group.MapBillingReportEndpoints();
 
         group.MapGet("/landlord-dashboard", async (
             string? buildingId,

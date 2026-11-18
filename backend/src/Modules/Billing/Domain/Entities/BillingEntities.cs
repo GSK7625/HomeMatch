@@ -1,6 +1,6 @@
 namespace HomeMatch.Modules.Billing.Domain.Entities;
 
-public class Invoice
+public class DashboardInvoice
 {
     public long Id { get; set; }
     public string InvoiceCode { get; set; } = string.Empty;

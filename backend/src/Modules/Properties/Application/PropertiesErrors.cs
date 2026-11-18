@@ -6,9 +6,12 @@ public static class PropertiesErrors
 {
     public static readonly Error PropertyNotFound = new("Property.NotFound", "Không tìm thấy căn thuộc tài khoản này.");
     public static readonly Error InvalidProperty = new("Property.InvalidInput", "Thông tin căn không hợp lệ.");
+    public static readonly Error PropertyEditLocked = new("Property.EditLocked", "Tòa nhà có tin đang công khai hoặc chờ duyệt. Hãy ẩn hoặc rút các tin đó trước khi sửa tòa nhà.");
     public static readonly Error InvalidAddress = new("Property.InvalidAddress", "Phường/xã không thuộc tỉnh/thành phố đã chọn.");
+    public static readonly Error InvalidCoordinates = new("Property.InvalidCoordinates", "Cần cung cấp cả vĩ độ từ -90 đến 90 và kinh độ từ -180 đến 180; khi đổi địa chỉ phải gửi lại tọa độ.");
     public static readonly Error RoomNotFound = new("Room.NotFound", "Không tìm thấy phòng trong căn này.");
     public static readonly Error InvalidRoom = new("Room.InvalidInput", "Thông tin phòng không hợp lệ.");
+    public static readonly Error RoomEditLocked = new("Room.EditLocked", "Phòng có tin đang công khai hoặc chờ duyệt. Hãy ẩn hoặc rút tin trước khi sửa phòng.");
     public static readonly Error DuplicateRoomNumber = new("Room.DuplicateNumber", "Số phòng đã tồn tại trong căn này.");
     public static readonly Error InvalidRoomStatus = new("Room.InvalidStatus", "Trạng thái phòng không hợp lệ.");
     public static readonly Error InvalidAmenities = new("Room.InvalidAmenities", "Danh sách tiện ích không hợp lệ.");

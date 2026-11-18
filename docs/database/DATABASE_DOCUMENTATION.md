@@ -201,8 +201,8 @@
 
 <a id="rooms"></a>
 #### 10. Bảng `Rooms`
-* **Ý nghĩa nghiệp vụ**: Phòng cho thuê vật lý bên trong tòa nhà (diện tích, giá gốc, trạng thái trống/đã thuê).
-* **Số lượng trường**: 12 cột
+* **Ý nghĩa nghiệp vụ**: Phòng cho thuê vật lý bên trong tòa nhà (diện tích, sức chứa, trạng thái trống/đã thuê). Giá chào thuê được quản lý tại tin đăng.
+* **Số lượng trường**: 11 cột
 
 | STT | Tên trường (Column) | Kiểu dữ liệu | Khóa & Ràng buộc | Ý nghĩa dữ liệu |
 | :---: | :--- | :--- | :--- | :--- |
@@ -213,11 +213,10 @@
 | 5 | `area_sqm` | `DECIMAL(6,2)` | Not Null | Diện tích căn phòng (m²) |
 | 6 | `room_type` | `VARCHAR(50)` | Not Null | Phân loại phòng: SINGLE, STUDIO, 1B1B, 2B1B, DORMITORY |
 | 7 | `max_occupants` | `INT` | Not Null, Default: 2 | Số lượng người ở tối đa cho phép |
-| 8 | `base_price` | `BIGINT` | Not Null | Giá thuê gốc niêm yết của phòng (VNĐ/tháng) |
-| 9 | `status` | `VARCHAR(20)` | Not Null, Default: 'AVAILABLE' | Trạng thái hoạt động của đối tượng |
-| 10 | `available_from` | `DATE` | Not Null, Default: CAST(CURRENT_TIMESTAMP | Thuộc tính thông tin bản ghi |
-| 11 | `created_at` | `TIMESTAMPTZ` | Not Null, Default: CURRENT_TIMESTAMP | Thời điểm tạo bản ghi trong hệ thống |
-| 12 | `updated_at` | `TIMESTAMPTZ` | Not Null, Default: CURRENT_TIMESTAMP | Thời điểm cập nhật bản ghi gần nhất |
+| 8 | `status` | `VARCHAR(20)` | Not Null, Default: 'AVAILABLE' | Trạng thái hoạt động của đối tượng |
+| 9 | `available_from` | `DATE` | Not Null, Default: CAST(CURRENT_TIMESTAMP | Thuộc tính thông tin bản ghi |
+| 10 | `created_at` | `TIMESTAMPTZ` | Not Null, Default: CURRENT_TIMESTAMP | Thời điểm tạo bản ghi trong hệ thống |
+| 11 | `updated_at` | `TIMESTAMPTZ` | Not Null, Default: CURRENT_TIMESTAMP | Thời điểm cập nhật bản ghi gần nhất |
 
 
 <a id="amenities"></a>

@@ -67,7 +67,9 @@ public static class PropertiesEndpoints
             request.ProvinceCode,
             request.WardCode,
             request.AddressDetail,
-            request.PropertyType);
+            request.PropertyType,
+            request.Latitude,
+            request.Longitude);
         var result = await handler.HandleAsync(command, cancellationToken);
         if (result.IsFailure) return PropertiesHttpErrors.Failure(result.Error);
         var response = PropertyResponse.From(result.Value);
@@ -122,7 +124,9 @@ public static class PropertiesEndpoints
             request.ProvinceCode,
             request.WardCode,
             request.AddressDetail,
-            request.PropertyType);
+            request.PropertyType,
+            request.Latitude,
+            request.Longitude);
         var result = await handler.HandleAsync(command, cancellationToken);
         if (result.IsFailure) return PropertiesHttpErrors.Failure(result.Error);
         var response = PropertyResponse.From(result.Value);

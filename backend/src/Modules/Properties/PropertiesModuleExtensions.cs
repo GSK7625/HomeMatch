@@ -1,5 +1,3 @@
-using System.Net;
-using System.Net.Sockets;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetAmenities;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetProvinces;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetWards;
@@ -16,7 +14,6 @@ using HomeMatch.Modules.Properties.Application.Features.Tariffs.GetPropertyTarif
 using HomeMatch.Modules.Properties.Application.Features.Tariffs.SetPropertyTariffs;
 using HomeMatch.Modules.Properties.Application.Interfaces;
 using HomeMatch.Modules.Properties.Infrastructure.Persistence;
-using HomeMatch.Modules.Properties.Infrastructure.Geocoding;
 using HomeMatch.Modules.Properties.Infrastructure.Persistence.Repositories;
 using HomeMatch.Modules.Properties.Presentation.Endpoints;
 using HomeMatch.Shared.Contracts;
@@ -33,54 +30,6 @@ public static class PropertiesModuleExtensions
 {
     public static IServiceCollection AddPropertiesModule(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddOptions<GeocodingOptions>()
-            .Bind(configuration.GetSection(GeocodingOptions.SectionName))
-            .Validate(options => Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var uri)
-                && uri.Scheme == Uri.UriSchemeHttps && string.IsNullOrEmpty(uri.Query)
-                && options.BaseUrl.EndsWith('/'), "Geocoding:BaseUrl must be an HTTPS URL ending with '/'.")
-            .Validate(options => !string.IsNullOrWhiteSpace(options.UserAgent)
-                && System.Net.Http.Headers.ProductInfoHeaderValue.TryParse(options.UserAgent, out _),
-                "Geocoding:UserAgent must identify the application, for example HomeMatch/1.0.")
-            .Validate(options => options.TimeoutSeconds is >= 1 and <= 30,
-                "Geocoding:TimeoutSeconds must be between 1 and 30.")
-            .ValidateOnStart();
-        services.AddHttpClient(NominatimAddressGeocoder.ClientName)
-            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
-            {
-                ConnectCallback = async (context, cancellationToken) =>
-                {
-                    IPAddress[] addresses;
-                    try
-                    {
-                        addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken);
-                    }
-                    catch (SocketException) when (context.DnsEndPoint.Host.Contains("openstreetmap.org"))
-                    {
-                        // Fallback IPs for nominatim.openstreetmap.org (Fastly CDN) when local ISP/Router DNS fails
-                        addresses =
-                        [
-                            IPAddress.Parse("151.101.65.91"),
-                            IPAddress.Parse("151.101.129.91"),
-                            IPAddress.Parse("151.101.193.91"),
-                            IPAddress.Parse("151.101.1.91")
-                        ];
-                    }
-
-                    var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-                    try
-                    {
-                        await socket.ConnectAsync(addresses, context.DnsEndPoint.Port, cancellationToken);
-                        return new NetworkStream(socket, ownsSocket: true);
-                    }
-                    catch
-                    {
-                        socket.Dispose();
-                        throw;
-                    }
-                }
-            });
-        services.AddSingleton<IAddressGeocoder, NominatimAddressGeocoder>();
-
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         services.AddDbContext<PropertiesDbContext>(options =>
         {

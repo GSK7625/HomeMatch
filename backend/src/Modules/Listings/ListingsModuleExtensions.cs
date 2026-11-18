@@ -2,6 +2,7 @@ using HomeMatch.Modules.Listings.Application.Features.ListingImages.AddListingIm
 using HomeMatch.Modules.Listings.Application.Features.ListingImages.DeleteListingImage;
 using HomeMatch.Modules.Listings.Application.Features.ListingImages.UpdateListingImage;
 using HomeMatch.Modules.Listings.Application.Features.Listings.CreateListing;
+using HomeMatch.Modules.Listings.Application.Features.Listings.CompareRooms;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListingById;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListings;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetPublicListingById;
@@ -58,6 +59,7 @@ public static class ListingsModuleExtensions
 
         // Cross-module writers & readers
         services.AddScoped<IListingVisibilityWriter, ListingVisibilityWriter>();
+        services.AddScoped<IRoomListingEditReader, ListingContractReader>();
         services.AddScoped<IListingContractReader, ListingContractReader>();
         services.AddScoped<ITenantListingActivityReader, TenantListingActivityReader>();
 
@@ -73,6 +75,7 @@ public static class ListingsModuleExtensions
         services.AddScoped<GetPublicListingsHandler>();
         services.AddScoped<SearchListingsHandler>();
         services.AddScoped<GetPublicListingByIdHandler>();
+        services.AddScoped<CompareRoomsHandler>();
         services.AddScoped<GetMyListingsHandler>();
         services.AddScoped<GetMyListingByIdHandler>();
 

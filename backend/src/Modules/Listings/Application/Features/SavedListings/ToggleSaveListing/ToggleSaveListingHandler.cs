@@ -1,5 +1,5 @@
 using HomeMatch.Modules.Listings.Application.Interfaces;
-using HomeMatch.Modules.Listings.Application.Models;
+using HomeMatch.Modules.Listings.Application.DTOs;
 using HomeMatch.Modules.Listings.Domain.Entities;
 using HomeMatch.Shared.Common;
 using HomeMatch.Shared.Contracts;

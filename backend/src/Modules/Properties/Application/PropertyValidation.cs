@@ -11,4 +11,11 @@ internal static class PropertyValidation
         || string.IsNullOrWhiteSpace(address) || address.Length > 255
         || type is not ("APARTMENT" or "BOARDING_HOUSE" or "SERVICED_APARTMENT" or "HOMESTAY")
             ? PropertiesErrors.InvalidProperty : null;
+
+    public static Error? ValidateCoordinates(decimal? latitude, decimal? longitude, bool required)
+    {
+        if (!required && latitude is null && longitude is null) return null;
+        return latitude is >= -90m and <= 90m && longitude is >= -180m and <= 180m
+            ? null : PropertiesErrors.InvalidCoordinates;
+    }
 }

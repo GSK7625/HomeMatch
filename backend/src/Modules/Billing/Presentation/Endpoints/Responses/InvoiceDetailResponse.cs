@@ -1,0 +1,28 @@
+namespace HomeMatch.Modules.Billing.Presentation.Endpoints.Responses;
+
+public sealed record InvoiceDetailResponse(
+    long Id,
+    string InvoiceCode,
+    long ContractId,
+    string? ContractCode,
+    long LandlordId,
+    long TenantId,
+    long RoomId,
+    long PropertyId,
+    int BillingMonth,
+    int BillingYear,
+    long RentAmount,
+    long ElectricityAmount,
+    long WaterAmount,
+    long ServiceAmount,
+    long DiscountAmount,
+    long TotalAmount,
+    long PaidAmount,
+    DateOnly DueDate,
+    DateTimeOffset? PaidAt,
+    string Status,
+    string? CancelReason,
+    DateTimeOffset? CancelledAt,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    IReadOnlyList<PaymentResponse> Payments);

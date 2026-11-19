@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  price-estimation-service:
+    build:
+      context: ..
+      dockerfile: service/Dockerfile
+    container_name: homematch_price_service
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PORT=8000
+    restart: unless-stopped

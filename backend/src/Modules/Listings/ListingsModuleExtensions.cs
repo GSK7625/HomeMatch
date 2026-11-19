@@ -3,6 +3,7 @@ using HomeMatch.Modules.Listings.Application.Features.ListingImages.DeleteListin
 using HomeMatch.Modules.Listings.Application.Features.ListingImages.UpdateListingImage;
 using HomeMatch.Modules.Listings.Application.Features.Listings.CreateListing;
 using HomeMatch.Modules.Listings.Application.Features.Listings.CompareRooms;
+using HomeMatch.Modules.Listings.Application.Features.Listings.EstimateRoomPrice;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListingById;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListings;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetPublicListingById;
@@ -78,6 +79,18 @@ public static class ListingsModuleExtensions
         services.AddScoped<CompareRoomsHandler>();
         services.AddScoped<GetMyListingsHandler>();
         services.AddScoped<GetMyListingByIdHandler>();
+        services.AddScoped<EstimateRoomPriceHandler>();
+
+        // AI Price Estimation Microservice Client
+        services.Configure<PriceEstimationOptions>(configuration.GetSection(PriceEstimationOptions.SectionName));
+        services.AddHttpClient<IPriceEstimationService, HttpPriceEstimationService>((sp, client) =>
+        {
+            var opts = configuration.GetSection(PriceEstimationOptions.SectionName).Get<PriceEstimationOptions>()
+                       ?? new PriceEstimationOptions();
+            var baseUrl = string.IsNullOrWhiteSpace(opts.BaseUrl) ? "http://localhost:8000" : opts.BaseUrl;
+            client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
 
         // Listing Images Handlers
         services.AddScoped<AddListingImageHandler>();

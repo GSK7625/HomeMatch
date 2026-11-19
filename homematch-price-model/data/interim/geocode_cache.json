@@ -1,0 +1,57 @@
+{
+  "69 đường tân thới nhất 6, phường đông hưng thuận, hồ chí minh": {
+    "lat": 10.8612652,
+    "lng": 106.6642083,
+    "geo_precision": "district"
+  },
+  "44 đường nguyễn cửu vân, phường gia định, hồ chí minh": {
+    "lat": 10.7958664,
+    "lng": 106.7067714,
+    "geo_precision": "street"
+  },
+  "đường nguyễn lương bằng, phường tân mỹ, hồ chí minh": {
+    "lat": 10.7109699,
+    "lng": 106.7317062,
+    "geo_precision": "street"
+  },
+  "phố nguyễn xí, phường gia định, hồ chí minh": {
+    "lat": 10.7566964,
+    "lng": 106.6597263,
+    "geo_precision": "street"
+  },
+  "101 đường số 8, phường hiệp bình, hồ chí minh": {
+    "lat": 10.8481931,
+    "lng": 106.7238938,
+    "geo_precision": "street"
+  },
+  "43/3 đường thành thái, phường diên hồng, hồ chí minh": {
+    "lat": 10.775261,
+    "lng": 106.6632962,
+    "geo_precision": "street"
+  },
+  "97/13 đường ung văn khiêm, phường thạnh mỹ tây, hồ chí minh": {
+    "lat": 10.8082192,
+    "lng": 106.7149661,
+    "geo_precision": "street"
+  },
+  "13 đường số 2, phường bình đông, hồ chí minh": {
+    "lat": 10.7382847,
+    "lng": 106.6615604,
+    "geo_precision": "street"
+  },
+  "21b đường số 10, phường an khánh, hồ chí minh": {
+    "lat": 10.8045293,
+    "lng": 106.7464839,
+    "geo_precision": "street"
+  },
+  "91/20 phố trần quốc hoàn, phường tân sơn nhất, hồ chí minh": {
+    "lat": 10.8031222,
+    "lng": 106.6525073,
+    "geo_precision": "district"
+  },
+  "182/35 đường lê đức thọ, phường an nhơn, hồ chí minh": {
+    "lat": 10.8375549,
+    "lng": 106.680598,
+    "geo_precision": "street"
+  }
+}

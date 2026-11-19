@@ -901,6 +901,37 @@ export const listingsApi = {
       method: "DELETE",
     });
   },
+
+  estimateRoomPrice: async (roomId: number) => {
+    return apiRequest<{
+      p10: number;
+      p50: number;
+      p90: number;
+      currency: string;
+      unit: string;
+      factors: { label: string; impactVnd: number }[];
+      warnings: string[];
+      modelVersion: string;
+    }>(`/api/v1/listings/estimate-price`, {
+      method: "POST",
+      body: JSON.stringify({ roomId }),
+    });
+  },
+
+  getListingPriceBenchmark: async (listingId: number) => {
+    return apiRequest<{
+      p10: number;
+      p50: number;
+      p90: number;
+      currency: string;
+      unit: string;
+      factors: { label: string; impactVnd: number }[];
+      warnings: string[];
+      modelVersion: string;
+    }>(`/api/v1/listings/${listingId}/price-benchmark`, {
+      method: "GET",
+    });
+  },
 };
 
 // ============================================================================

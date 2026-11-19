@@ -3,6 +3,8 @@ using HomeMatch.Modules.Listings.Presentation.Endpoints.Requests;
 using HomeMatch.Modules.Listings.Presentation.Endpoints.Responses;
 using HomeMatch.Modules.Listings.Application.Features.Listings.CreateListing;
 using HomeMatch.Modules.Listings.Application.Features.Listings.CompareRooms;
+using HomeMatch.Modules.Listings.Application.Features.Listings.EstimateRoomPrice;
+using HomeMatch.Modules.Listings.Application.Interfaces;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListingById;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListings;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetPublicListingById;
@@ -52,6 +54,18 @@ public static class ListingsEndpoints
             .WithSummary("Lấy chi tiết tin đăng công khai")
             .Produces<ApiResponse<PublicListingDetailResponse>>(StatusCodes.Status200OK)
             .Produces<ApiResponse<string>>(StatusCodes.Status404NotFound);
+
+        group.MapPost("/estimate-price", EstimateRoomPriceAsync)
+            .RequireAuthorization()
+            .WithName("Listings.EstimatePrice")
+            .WithSummary("Dự đoán khoảng giá thuê đề xuất từ AI (P10-P50-P90) cho một phòng")
+            .Produces<ApiResponse<PriceEstimateResult>>(StatusCodes.Status200OK);
+
+        group.MapGet("/{listingId:long}/price-benchmark", GetListingPriceBenchmarkAsync)
+            .AllowAnonymous()
+            .WithName("Listings.PriceBenchmark")
+            .WithSummary("Lấy đánh giá mức giá thị trường từ AI (P10-P50-P90) cho tin đăng")
+            .Produces<ApiResponse<PriceEstimateResult>>(StatusCodes.Status200OK);
 
         group.MapPost("/", CreateAsync)
             .RequireAuthorization()
@@ -295,5 +309,33 @@ public static class ListingsEndpoints
         var result = await handler.HandleAsync(new GetSavedListingsQuery(tenantId.Value), cancellationToken);
         if (result.IsFailure) return ListingsHttpErrors.Failure(result.Error);
         return Results.Ok(ApiResponse<IReadOnlyList<SavedListingResponse>>.Success(ListingResponseMapper.ToResponse(result.Value)));
+    }
+
+    private sealed record EstimatePriceRequestBody(long RoomId);
+
+    private static async Task<IResult> EstimateRoomPriceAsync(
+        [FromBody] EstimatePriceRequestBody request,
+        EstimateRoomPriceHandler handler,
+        CancellationToken cancellationToken)
+    {
+        var result = await handler.HandleAsync(new EstimateRoomPriceQuery(request.RoomId), cancellationToken);
+        if (result.IsFailure) return ListingsHttpErrors.Failure(result.Error);
+        return Results.Ok(ApiResponse<PriceEstimateResult>.Success(result.Value));
+    }
+
+    private static async Task<IResult> GetListingPriceBenchmarkAsync(
+        long listingId,
+        GetPublicListingByIdHandler listingHandler,
+        EstimateRoomPriceHandler estimateHandler,
+        CancellationToken cancellationToken)
+    {
+        var listingResult = await listingHandler.HandleAsync(new GetPublicListingByIdQuery(listingId), cancellationToken);
+        if (listingResult.IsFailure) return ListingsHttpErrors.Failure(listingResult.Error);
+
+        var estimateResult = await estimateHandler.HandleAsync(
+            new EstimateRoomPriceQuery(listingResult.Value.Listing.RoomId), cancellationToken);
+        if (estimateResult.IsFailure) return ListingsHttpErrors.Failure(estimateResult.Error);
+
+        return Results.Ok(ApiResponse<PriceEstimateResult>.Success(estimateResult.Value));
     }
 }

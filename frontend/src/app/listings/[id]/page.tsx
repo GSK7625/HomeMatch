@@ -36,6 +36,7 @@ import {
   Flame,
   Check,
   AlertTriangle,
+  Sparkles,
 } from "lucide-react";
 import { cn, formatRoomTypeLabel } from "@/lib/utils";
 
@@ -54,6 +55,14 @@ export default function ListingDetailPage() {
   const [isFav, setIsFav] = useState(false);
   const [showFullPhone, setShowFullPhone] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [priceBenchmark, setPriceBenchmark] = useState<{
+    p10: number;
+    p50: number;
+    p90: number;
+    factors: { label: string; impactVnd: number }[];
+    warnings: string[];
+    modelVersion: string;
+  } | null>(null);
 
   // Booking Modal
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -206,6 +215,13 @@ export default function ListingDetailPage() {
                   listingService.syncFavorites(savedIds);
                   const savedOnServer = sRes.data.some((s) => s.listingId === d.id);
                   setIsFav(savedOnServer);
+                }
+              }).catch(() => null);
+            }
+            if (!preview) {
+              listingsApi.getListingPriceBenchmark(numericId).then((bRes) => {
+                if (isMounted && bRes.isSuccess && bRes.data) {
+                  setPriceBenchmark(bRes.data);
                 }
               }).catch(() => null);
             }
@@ -642,6 +658,74 @@ export default function ListingDetailPage() {
                 ))}
               </div>
             </div>
+
+            {/* AI Price Benchmark Section */}
+            {priceBenchmark && (
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-50/90 via-blue-50/70 to-white border border-indigo-200/80 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-indigo-600" />
+                    <span>Định giá tham khảo từ AI (LightGBM)</span>
+                  </h3>
+                  {(() => {
+                    const p = listing.price;
+                    if (p < priceBenchmark.p10) {
+                      return (
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
+                          Rẻ hơn mặt bằng khu vực
+                        </span>
+                      );
+                    }
+                    if (p > priceBenchmark.p90) {
+                      return (
+                        <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold">
+                          Cao hơn mặt bằng khu vực
+                        </span>
+                      );
+                    }
+                    return (
+                      <span className="px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 text-[11px] font-bold">
+                        Hợp lý với thị trường
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div className="p-3 rounded-xl bg-white border border-indigo-100">
+                    <span className="text-slate-400 block text-[11px]">Cận dưới (P10)</span>
+                    <span className="font-bold text-slate-800 text-sm">
+                      {priceBenchmark.p10.toLocaleString()}đ
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-indigo-600 text-white">
+                    <span className="text-indigo-100 block text-[11px]">Giá kỳ vọng (P50)</span>
+                    <span className="font-black text-sm">
+                      {priceBenchmark.p50.toLocaleString()}đ
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white border border-indigo-100">
+                    <span className="text-slate-400 block text-[11px]">Cận trên (P90)</span>
+                    <span className="font-bold text-slate-800 text-sm">
+                      {priceBenchmark.p90.toLocaleString()}đ
+                    </span>
+                  </div>
+                </div>
+
+                {priceBenchmark.factors.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {priceBenchmark.factors.map((f, i) => (
+                      <span
+                        key={i}
+                        className="px-2.5 py-1 rounded-lg bg-white border border-indigo-100 text-[11px] font-medium text-slate-700"
+                      >
+                        {f.label} ({f.impactVnd >= 0 ? "+" : ""}{(f.impactVnd / 1000).toLocaleString()}k)
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Map Location Section */}
             <div className="space-y-3 pt-4 border-t border-slate-100">

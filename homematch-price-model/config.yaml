@@ -1,0 +1,52 @@
+# Cấu hình hệ thống Scraper & Tiền xử lý dữ liệu HomeMatch
+
+project:
+  name: "homematch-price-model"
+  version: "1.0.0"
+
+paths:
+  data_raw: "data/raw"
+  data_interim: "data/interim"
+  data_processed: "data/processed"
+  models: "models"
+
+crawler:
+  user_agents:
+    - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0"
+  timeout_seconds: 20
+  delay_range: [1.2, 2.8] # Giây nghỉ ngẫu nhiên giữa các request
+  max_retries: 3
+  backoff_factor: 2.0
+
+sources:
+  phongtro123:
+    base_url: "https://phongtro123.com"
+    provinces:
+      ho-chi-minh: "/tinh-thanh/ho-chi-minh"
+      ha-noi: "/tinh-thanh/ha-noi"
+  thuephongtro: # Nguồn dự phòng
+    base_url: "https://thuephongtro.com"
+    provinces:
+      ho-chi-minh: "/cho-thue-phong-tro-ho-chi-minh"
+      ha-noi: "/cho-thue-phong-tro-ha-noi"
+
+cleaning:
+  price_min: 500000
+  price_max: 50000000
+  area_min: 5.0
+  area_max: 200.0
+  ppm2_quantiles: [0.01, 0.99]
+
+geo_bounding_box:
+  hanoi:
+    lat_min: 20.50
+    lat_max: 21.60
+    lng_min: 105.30
+    lng_max: 106.10
+  ho_chi_minh:
+    lat_min: 10.30
+    lat_max: 11.20
+    lng_min: 106.30
+    lng_max: 107.10

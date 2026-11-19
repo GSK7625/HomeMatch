@@ -1,0 +1,17 @@
+# homematch-price-model: requirements
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+pydantic>=2.0.0
+pyyaml>=6.0.0
+tqdm>=4.66.0
+pytest>=8.0.0
+fastapi>=0.110.0
+uvicorn>=0.28.0
+joblib>=1.3.0
+lightgbm>=4.0.0
+catboost>=1.2.0
+shap>=0.44.0

@@ -686,24 +686,24 @@ export default function ListingDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-2.5">
-                  {showPriceAssistant && priceBenchmark && (() => {
+                  {showPriceAssistant && !analyzingPrice && priceBenchmark && (() => {
                     const p = listing.price;
                     if (p < priceBenchmark.p10) {
                       return (
-                        <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold animate-in fade-in duration-300">
                           Rẻ hơn mặt bằng khu vực
                         </span>
                       );
                     }
                     if (p > priceBenchmark.p90) {
                       return (
-                        <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold">
+                        <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold animate-in fade-in duration-300">
                           Cao hơn mặt bằng khu vực
                         </span>
                       );
                     }
                     return (
-                      <span className="px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 text-[11px] font-bold">
+                      <span className="px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 text-[11px] font-bold animate-in fade-in duration-300">
                         Hợp lý với thị trường
                       </span>
                     );

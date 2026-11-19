@@ -101,7 +101,10 @@ export default function HomePage() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
-    if (keyword) params.set("q", keyword);
+    if (keyword) {
+      params.set("keyword", keyword);
+      params.set("q", keyword);
+    }
     if (city !== "Tất cả") params.set("city", city);
     if (district !== "Tất cả") params.set("district", district);
     if (priceRange !== "all") params.set("price", priceRange);

@@ -20,8 +20,21 @@ public sealed class GetPublicListingsHandler(IListingRepository listings, IRoomL
             if (candidates.Count == 0) break;
             offset += candidates.Count;
             var publicIds = await ListingVisibility.GetPublicIdsAsync(candidates, rooms, cancellationToken);
-            result.AddRange(candidates.Where(listing => publicIds.Contains(listing.Id))
-                .Take(query.Limit - result.Count).Select(ListingMapping.ToSummary));
+            var approved = candidates.Where(listing => publicIds.Contains(listing.Id))
+                .Take(query.Limit - result.Count).ToList();
+            if (approved.Count == 0) continue;
+
+            var approvedListingIds = approved.Select(a => a.Id).ToArray();
+            var approvedRoomIds = approved.Select(a => a.RoomId).Distinct().ToArray();
+            var coords = await listings.GetCoordinatesBatchAsync(approvedListingIds, cancellationToken);
+            var roomCards = await rooms.GetRoomCardSummariesAsync(approvedRoomIds, cancellationToken);
+
+            result.AddRange(approved.Select(listing =>
+            {
+                roomCards.TryGetValue(listing.RoomId, out var roomCard);
+                coords.TryGetValue(listing.Id, out var coord);
+                return ListingMapping.ToCardSummary(listing, roomCard, coord);
+            }));
         }
         return Result.Success<IReadOnlyList<ListingSummaryDto>>(result);
     }

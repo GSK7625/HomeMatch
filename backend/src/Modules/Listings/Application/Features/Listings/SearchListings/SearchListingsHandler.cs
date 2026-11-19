@@ -42,13 +42,16 @@ public sealed class SearchListingsHandler(IListingRepository listings, IRoomList
         if (items.Count == 0)
             return Result.Success(new SearchListingsDto([], query.Page, query.PageSize, total));
 
+        var pagedListingIds = items.Select(x => x.Id).ToArray();
         var pagedRoomIds = items.Select(x => x.RoomId).Distinct().ToArray();
         var roomCards = await rooms.GetRoomCardSummariesAsync(pagedRoomIds, cancellationToken);
+        var coords = await listings.GetCoordinatesBatchAsync(pagedListingIds, cancellationToken);
 
         var summaries = items.Select(listing =>
         {
             roomCards.TryGetValue(listing.RoomId, out var roomCard);
-            return ListingMapping.ToCardSummary(listing, roomCard);
+            coords.TryGetValue(listing.Id, out var coord);
+            return ListingMapping.ToCardSummary(listing, roomCard, coord);
         }).ToArray();
 
         return Result.Success(new SearchListingsDto(summaries, query.Page, query.PageSize, total));

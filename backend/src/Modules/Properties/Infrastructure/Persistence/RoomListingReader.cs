@@ -1,3 +1,4 @@
+using HomeMatch.Shared.Common;
 using HomeMatch.Shared.Contracts;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,29 +9,70 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
     public async Task<IReadOnlyList<RoomListingSearchMatch>> SearchAvailableRoomsAsync(
         RoomListingSearchFilter filter, CancellationToken cancellationToken)
     {
-        var query = db.Rooms.AsNoTracking().Where(room => room.Status == "AVAILABLE");
+        var roomsQuery = db.Rooms.AsNoTracking().Where(room => room.Status == "AVAILABLE");
         if (filter.ProvinceCode is not null)
-            query = query.Where(room => room.Property.ProvinceCode == filter.ProvinceCode);
+            roomsQuery = roomsQuery.Where(room => room.Property.ProvinceCode == filter.ProvinceCode);
         if (filter.WardCode is not null)
-            query = query.Where(room => room.Property.WardCode == filter.WardCode);
+            roomsQuery = roomsQuery.Where(room => room.Property.WardCode == filter.WardCode);
         if (filter.RoomType is not null)
-            query = query.Where(room => room.RoomType == filter.RoomType);
+            roomsQuery = roomsQuery.Where(room => room.RoomType == filter.RoomType);
         if (filter.Occupants.HasValue)
-            query = query.Where(room => room.MaxOccupants >= filter.Occupants.Value);
+            roomsQuery = roomsQuery.Where(room => room.MaxOccupants >= filter.Occupants.Value);
         if (filter.MinArea.HasValue)
-            query = query.Where(room => room.AreaSqm >= filter.MinArea.Value);
+            roomsQuery = roomsQuery.Where(room => room.AreaSqm >= filter.MinArea.Value);
         if (filter.MaxArea.HasValue)
-            query = query.Where(room => room.AreaSqm <= filter.MaxArea.Value);
+            roomsQuery = roomsQuery.Where(room => room.AreaSqm <= filter.MaxArea.Value);
 
         foreach (var amenityId in filter.AmenityIds.Distinct())
-            query = query.Where(room => db.RoomAmenities.Any(link => link.RoomId == room.Id && link.AmenityId == amenityId));
+            roomsQuery = roomsQuery.Where(room => db.RoomAmenities.Any(link => link.RoomId == room.Id && link.AmenityId == amenityId));
 
-        var pattern = "%" + filter.Keyword?.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
-        return await query.Select(room => new RoomListingSearchMatch(room.Id,
-            filter.Keyword == null
-            || EF.Functions.ILike(room.Property.Name, pattern, "\\")
-            || EF.Functions.ILike(room.Property.AddressDetail, pattern, "\\")))
-            .ToArrayAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(filter.Keyword))
+        {
+            return await roomsQuery.Select(room => new RoomListingSearchMatch(room.Id, true))
+                .ToArrayAsync(cancellationToken);
+        }
+
+        var rawKw = filter.Keyword.Trim();
+        var pattern = "%" + rawKw.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+        var normKw = VietnameseTextNormalizer.Normalize(rawKw);
+        var normPattern = "%" + normKw.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+
+        var joined = from room in roomsQuery
+                     join prop in db.Properties on room.PropertyId equals prop.Id
+                     join province in db.AdministrativeProvinces on prop.ProvinceCode equals province.Code into provGroup
+                     from province in provGroup.DefaultIfEmpty()
+                     join ward in db.AdministrativeWards
+                         on new { prop.ProvinceCode, Code = prop.WardCode }
+                         equals new { ward.ProvinceCode, ward.Code } into wardGroup
+                     from ward in wardGroup.DefaultIfEmpty()
+                     select new
+                     {
+                         room.Id,
+                         PropertyName = prop.Name,
+                         Address = prop.AddressDetail,
+                         District = ward != null ? ward.DistrictName : null,
+                         Ward = ward != null ? ward.FullName : null,
+                         WardShort = ward != null ? ward.Name : null,
+                         Province = province != null ? province.FullName : null,
+                         ProvinceShort = province != null ? province.Name : null
+                     };
+
+        return await joined.Select(item => new RoomListingSearchMatch(item.Id,
+            EF.Functions.ILike(item.PropertyName, pattern, "\\")
+            || EF.Functions.ILike(item.Address, pattern, "\\")
+            || (item.District != null && EF.Functions.ILike(item.District, pattern, "\\"))
+            || (item.Ward != null && EF.Functions.ILike(item.Ward, pattern, "\\"))
+            || (item.WardShort != null && EF.Functions.ILike(item.WardShort, pattern, "\\"))
+            || (item.Province != null && EF.Functions.ILike(item.Province, pattern, "\\"))
+            || (item.ProvinceShort != null && EF.Functions.ILike(item.ProvinceShort, pattern, "\\"))
+            || EF.Functions.ILike(EF.Functions.Unaccent(item.PropertyName), normPattern, "\\")
+            || EF.Functions.ILike(EF.Functions.Unaccent(item.Address), normPattern, "\\")
+            || (item.District != null && EF.Functions.ILike(EF.Functions.Unaccent(item.District), normPattern, "\\"))
+            || (item.Ward != null && EF.Functions.ILike(EF.Functions.Unaccent(item.Ward), normPattern, "\\"))
+            || (item.WardShort != null && EF.Functions.ILike(EF.Functions.Unaccent(item.WardShort), normPattern, "\\"))
+            || (item.Province != null && EF.Functions.ILike(EF.Functions.Unaccent(item.Province), normPattern, "\\"))
+            || (item.ProvinceShort != null && EF.Functions.ILike(EF.Functions.Unaccent(item.ProvinceShort), normPattern, "\\"))
+        )).ToArrayAsync(cancellationToken);
     }
 
     public async Task<RoomListingDetailSnapshot?> GetRoomDetailAsync(long roomId, CancellationToken cancellationToken)

@@ -17,12 +17,30 @@ import {
   RefreshCw,
   Sparkles,
   Home,
+  FileText,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 
 function getNotificationMeta(type: string) {
   const upper = (type || "").toUpperCase();
+  if (upper.includes("CONTRACT")) {
+    return {
+      icon: FileText,
+      badgeText: "Hợp đồng thuê",
+      iconWrapClass: "bg-indigo-50 text-indigo-600",
+      badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    };
+  }
+  if (upper.includes("INVOICE") || upper.includes("BILLING") || upper.includes("PAYMENT")) {
+    return {
+      icon: CreditCard,
+      badgeText: "Hóa đơn & Thanh toán",
+      iconWrapClass: "bg-amber-50 text-amber-600",
+      badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
+    };
+  }
   if (upper.includes("VIEWING")) {
     return {
       icon: Calendar,
@@ -43,8 +61,8 @@ function getNotificationMeta(type: string) {
     return {
       icon: Home,
       badgeText: "Tin phòng trọ",
-      iconWrapClass: "bg-amber-50 text-amber-600",
-      badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
+      iconWrapClass: "bg-orange-50 text-orange-600",
+      badgeClass: "bg-orange-50 text-orange-700 border-orange-200",
     };
   }
   return {
@@ -151,6 +169,11 @@ export default function TenantNotificationsPage() {
     const refType = (item.referenceType || "").toUpperCase();
     const typeUpper = (item.type || "").toUpperCase();
 
+    if (refType === "CONTRACT" || typeUpper.includes("CONTRACT")) {
+      const base = role === "Landlord" ? "/landlord/contracts" : "/tenant/contracts";
+      router.push(item.referenceId ? `${base}/${item.referenceId}` : base);
+      return;
+    }
     if (refType.includes("VIEWING") || typeUpper.includes("VIEWING")) {
       router.push(role === "Landlord" ? "/landlord/viewings" : "/tenant/viewings");
       return;
@@ -161,6 +184,14 @@ export default function TenantNotificationsPage() {
           ? `/messages?conversationId=${item.referenceId}`
           : "/messages"
       );
+      return;
+    }
+    if (refType === "INVOICE" || typeUpper.includes("INVOICE") || typeUpper.includes("BILLING") || typeUpper.includes("PAYMENT")) {
+      router.push(role === "Landlord" ? "/landlord/utilities" : "/tenant/dashboard?tab=bills");
+      return;
+    }
+    if (refType === "LISTING" || typeUpper.includes("LISTING")) {
+      router.push(role === "Landlord" ? "/landlord/listings" : item.referenceId ? `/listings/${item.referenceId}` : "/listings");
       return;
     }
     router.push("/tenant/dashboard");

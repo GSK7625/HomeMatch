@@ -7,4 +7,6 @@ public sealed record ProcessPaymentCallbackResult(
     bool IsSuccess,
     VNPayIpnResponse IpnResponse,
     PaymentDto? Payment,
-    string? ErrorMessage = null);
+    string? ErrorMessage = null,
+    long? ContractId = null,
+    bool ContractActivated = false);

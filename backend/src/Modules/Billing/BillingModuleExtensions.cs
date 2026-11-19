@@ -1,6 +1,7 @@
 using HomeMatch.Modules.Billing.Application.Commands.CancelInvoice;
 using HomeMatch.Modules.Billing.Application.Commands.CreateInvoice;
 using HomeMatch.Modules.Billing.Application.Commands.CreatePayment;
+using HomeMatch.Modules.Billing.Application.Commands.PayContractDeposit;
 using HomeMatch.Modules.Billing.Application.Commands.ProcessInvoiceOverdue;
 using HomeMatch.Modules.Billing.Application.Commands.ProcessPaymentCallback;
 using HomeMatch.Modules.Billing.Application.Interfaces;
@@ -63,6 +64,7 @@ public static class BillingModuleExtensions
 
         // Application Handlers - Payments
         services.AddScoped<CreatePaymentHandler>();
+        services.AddScoped<PayContractDepositHandler>();
         services.AddScoped<ProcessPaymentCallbackHandler>();
         services.AddScoped<GetPaymentByIdHandler>();
 

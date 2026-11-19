@@ -29,8 +29,58 @@ import {
   Bell,
   Eye,
   CheckCheck,
+  CreditCard,
+  Sparkles,
+  LayoutDashboard,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
+
+function getNotificationRouteAndIcon(n: NotificationDto, role: string | null) {
+  const t = (n.type || "").toUpperCase();
+  const refType = (n.referenceType || "").toUpperCase();
+
+  if (t.includes("CONTRACT") || refType === "CONTRACT") {
+    const base = role === "Landlord" ? "/landlord/contracts" : "/tenant/contracts";
+    return {
+      href: n.referenceId ? `${base}/${n.referenceId}` : base,
+      icon: FileText,
+      iconClass: "bg-indigo-50 text-indigo-600",
+    };
+  }
+  if (t.includes("VIEWING") || refType === "VIEWING") {
+    return {
+      href: role === "Landlord" ? "/landlord/viewings" : "/tenant/viewings",
+      icon: Calendar,
+      iconClass: "bg-blue-50 text-blue-600",
+    };
+  }
+  if (t.includes("MESSAGE") || refType === "CONVERSATION") {
+    return {
+      href: n.referenceId ? `/messages?conversationId=${n.referenceId}` : "/messages",
+      icon: MessageSquare,
+      iconClass: "bg-emerald-50 text-emerald-600",
+    };
+  }
+  if (t.includes("INVOICE") || t.includes("BILLING") || t.includes("PAYMENT") || refType === "INVOICE") {
+    return {
+      href: role === "Landlord" ? "/landlord/utilities" : "/tenant/dashboard?tab=bills",
+      icon: CreditCard,
+      iconClass: "bg-amber-50 text-amber-600",
+    };
+  }
+  if (t.includes("LISTING") || refType === "LISTING") {
+    return {
+      href: role === "Landlord" ? "/landlord/listings" : n.referenceId ? `/listings/${n.referenceId}` : "/listings",
+      icon: Home,
+      iconClass: "bg-orange-50 text-orange-600",
+    };
+  }
+  return {
+    href: "/tenant/notifications",
+    icon: Sparkles,
+    iconClass: "bg-purple-50 text-purple-600",
+  };
+}
 
 interface NavItem {
   label: string;
@@ -52,6 +102,7 @@ export function Navbar() {
   const [compareCount, setCompareCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [loadingNotifs, setLoadingNotifs] = useState(false);
 
   const fetchNotificationsSummary = useCallback(async () => {
     const token = getStoredToken();
@@ -71,8 +122,9 @@ export function Navbar() {
       }
     }
 
+    setLoadingNotifs(true);
     try {
-      const res = await notificationsApi.getNotifications({ page: 1, pageSize: 6 });
+      const res = await notificationsApi.getNotifications({ page: 1, pageSize: 8 });
       if (res.isSuccess && res.data) {
         setNotifications(res.data.items);
         setUnreadNotifCount(res.data.unreadCount);
@@ -82,6 +134,8 @@ export function Navbar() {
       }
     } catch {
       // Bỏ qua lỗi polling nền
+    } finally {
+      setLoadingNotifs(false);
     }
   }, [user]);
 
@@ -347,65 +401,75 @@ export function Navbar() {
                       </div>
 
                       <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
-                        {notifications.length === 0 ? (
+                        {loadingNotifs && notifications.length === 0 ? (
+                          <div className="p-6 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                            <span>Đang tải thông báo...</span>
+                          </div>
+                        ) : notifications.length === 0 ? (
                           <div className="p-6 text-center text-xs text-slate-400">
                             Bạn chưa có thông báo mới nào.
                           </div>
                         ) : (
-                          notifications.map((n) => (
-                            <button
-                              key={n.id}
-                              type="button"
-                              onClick={async () => {
-                                if (!n.isRead) {
-                                  await notificationsApi.markAsRead(n.id);
-                                  setUnreadNotifCount((prev) => Math.max(0, prev - 1));
-                                }
-                                setNotifDropdownOpen(false);
-                                const t = (n.type || "").toUpperCase();
-                                if (t.includes("VIEWING")) {
-                                  router.push(role === "Landlord" ? "/landlord/viewings" : "/tenant/viewings");
-                                } else if (t.includes("MESSAGE")) {
-                                  router.push(
-                                    n.referenceId
-                                      ? `/messages?conversationId=${n.referenceId}`
-                                      : "/messages"
-                                  );
-                                } else {
-                                  router.push("/tenant/notifications");
-                                }
-                              }}
-                              className={cn(
-                                "w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors flex items-start gap-2.5",
-                                !n.isRead ? "bg-blue-50/40" : ""
-                              )}
-                            >
-                              <span
+                          notifications.map((n) => {
+                            const meta = getNotificationRouteAndIcon(n, role);
+                            const NotifIcon = meta.icon;
+                            return (
+                              <button
+                                key={n.id}
+                                type="button"
+                                onClick={async () => {
+                                  if (!n.isRead) {
+                                    await notificationsApi.markAsRead(n.id);
+                                    setNotifications((prev) =>
+                                      prev.map((item) =>
+                                        item.id === n.id ? { ...item, isRead: true } : item
+                                      )
+                                    );
+                                    setUnreadNotifCount((prev) => Math.max(0, prev - 1));
+                                  }
+                                  setNotifDropdownOpen(false);
+                                  router.push(meta.href);
+                                }}
                                 className={cn(
-                                  "w-2 h-2 rounded-full mt-1.5 shrink-0",
-                                  !n.isRead ? "bg-blue-600" : "bg-slate-200"
+                                  "w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors flex items-start gap-2.5",
+                                  !n.isRead ? "bg-blue-50/40" : ""
                                 )}
-                              />
-                              <div className="min-w-0 flex-1">
-                                <p
+                              >
+                                <div
                                   className={cn(
-                                    "text-xs truncate",
-                                    !n.isRead
-                                      ? "font-bold text-slate-900"
-                                      : "font-medium text-slate-700"
+                                    "w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
+                                    meta.iconClass
                                   )}
                                 >
-                                  {n.title}
-                                </p>
-                                <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">
-                                  {n.content}
-                                </p>
-                                <span className="text-[10px] text-slate-400 block mt-1">
-                                  {new Date(n.createdAt).toLocaleString("vi-VN")}
-                                </span>
-                              </div>
-                            </button>
-                          ))
+                                  <NotifIcon className="w-3.5 h-3.5" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p
+                                      className={cn(
+                                        "text-xs truncate",
+                                        !n.isRead
+                                          ? "font-bold text-slate-900"
+                                          : "font-medium text-slate-700"
+                                      )}
+                                    >
+                                      {n.title}
+                                    </p>
+                                    {!n.isRead && (
+                                      <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                                    )}
+                                  </div>
+                                  <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">
+                                    {n.content}
+                                  </p>
+                                  <span className="text-[10px] text-slate-400 block mt-1">
+                                    {new Date(n.createdAt).toLocaleString("vi-VN")}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })
                         )}
                       </div>
 
@@ -527,12 +591,20 @@ export function Navbar() {
                       {role === "Tenant" && (
                         <>
                           <Link
-                            href="/tenant/dashboard"
+                            href="/tenant/contracts"
                             onClick={() => setUserDropdownOpen(false)}
                             className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
                           >
                             <FileText className="w-4 h-4 text-slate-400" />
-                            <span>Dashboard tìm phòng & Hợp đồng</span>
+                            <span>Hợp đồng thuê của tôi</span>
+                          </Link>
+                          <Link
+                            href="/tenant/dashboard"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+                          >
+                            <LayoutDashboard className="w-4 h-4 text-slate-400" />
+                            <span>Dashboard tìm phòng</span>
                           </Link>
                           <Link
                             href="/tenant/viewings"

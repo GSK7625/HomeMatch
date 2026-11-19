@@ -4,13 +4,17 @@ using HomeMatch.Modules.Billing.Application.Models;
 using HomeMatch.Modules.Billing.Domain.Constants;
 using HomeMatch.Modules.Billing.Domain.Enums;
 using HomeMatch.Shared.Common;
+using HomeMatch.Shared.Contracts.Leasing;
+using HomeMatch.Shared.Contracts.Notifications;
 
 namespace HomeMatch.Modules.Billing.Application.Commands.ProcessPaymentCallback;
 
 public class ProcessPaymentCallbackHandler(
     IInvoiceRepository invoiceRepository,
     IPaymentRepository paymentRepository,
-    IVNPayGateway vnpayGateway)
+    IVNPayGateway vnpayGateway,
+    ILeasingContractReader leasingContractReader,
+    INotificationPublisher notificationPublisher)
 {
     public async Task<Result<ProcessPaymentCallbackResult>> HandleAsync(
         ProcessPaymentCallbackCommand command,
@@ -91,10 +95,45 @@ public class ProcessPaymentCallbackHandler(
 
             // Cập nhật hóa đơn sang PAID (BR-BIL-24)
             var invoice = await invoiceRepository.GetByIdAsync(payment.InvoiceId, cancellationToken);
+            long? contractId = invoice?.ContractId;
+            bool contractActivated = false;
+
             if (invoice is not null)
             {
                 invoice.MarkAsPaid(completedAt);
                 await invoiceRepository.UpdateAsync(invoice, cancellationToken);
+
+                // Tự động chuyển hợp đồng từ SIGNED -> ACTIVE khi người dùng hoàn tất thanh toán
+                var existingContract = await leasingContractReader.GetContractByIdAsync(invoice.ContractId, cancellationToken);
+                var wasSignedOnly = existingContract is not null &&
+                                    string.Equals(existingContract.Status, "SIGNED", StringComparison.OrdinalIgnoreCase);
+
+                contractActivated = await leasingContractReader.ActivateContractOnPaymentAsync(
+                    invoice.ContractId,
+                    payment.Amount,
+                    invoice.TenantId,
+                    cancellationToken);
+
+                if (wasSignedOnly && contractActivated && existingContract is not null)
+                {
+                    await notificationPublisher.PublishAsync(
+                        invoice.TenantId,
+                        "Hợp đồng đã kích hoạt (ACTIVE)",
+                        $"Thanh toán {payment.Amount:N0}đ thành công. Hợp đồng #{existingContract.ContractCode} đã chính thức chuyển sang trạng thái ACTIVE.",
+                        "CONTRACT_ACTIVE",
+                        "CONTRACT",
+                        invoice.ContractId,
+                        cancellationToken);
+
+                    await notificationPublisher.PublishAsync(
+                        invoice.LandlordId,
+                        "Người thuê đã thanh toán & kích hoạt hợp đồng",
+                        $"Người thuê đã thanh toán {payment.Amount:N0}đ cho hợp đồng #{existingContract.ContractCode}. Hợp đồng đã tự động chuyển sang trạng thái ACTIVE.",
+                        "CONTRACT_ACTIVE",
+                        "CONTRACT",
+                        invoice.ContractId,
+                        cancellationToken);
+                }
             }
 
             await paymentRepository.UpdateAsync(payment, cancellationToken);
@@ -103,7 +142,9 @@ public class ProcessPaymentCallbackHandler(
                 IsSuccess: true,
                 IpnResponse: VNPayIpnResponse.Success(),
                 Payment: MapToDto(payment),
-                ErrorMessage: null));
+                ErrorMessage: null,
+                ContractId: contractId,
+                ContractActivated: contractActivated));
         }
         else
         {

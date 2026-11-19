@@ -73,8 +73,8 @@ export function mapListingSummaryToCard(item: ListingSummaryDto): PropertyListin
     electricityPrice: item.electricityPrice ?? 3500,
     waterPrice: item.waterPrice ?? 25000,
     serviceFee: 150000,
-    latitude: item.latitude ?? 21.0285,
-    longitude: item.longitude ?? 105.8542,
+    latitude: item.latitude ?? 0,
+    longitude: item.longitude ?? 0,
     createdAt: new Date().toISOString(),
     viewCount: 0,
     isFeatured: item.isFeatured ?? true,
@@ -115,4 +115,19 @@ export function formatAmenityName(name?: string | null): string {
   if (!trimmed) return "";
   if (trimmed.toLowerCase() === "wifi") return "Wifi";
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
+/**
+ * Loại bỏ dấu tiếng Việt để tìm kiếm không phân biệt dấu (accent-insensitive).
+ * Ví dụ: "Trần Đại Nghĩa" -> "tran dai nghia", "Đống Đa" -> "dong da".
+ */
+export function removeVietnameseTones(str?: string | null): string {
+  if (!str) return "";
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase()
+    .trim();
 }

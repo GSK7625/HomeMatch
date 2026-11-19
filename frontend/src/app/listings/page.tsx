@@ -21,7 +21,7 @@ import {
   ArrowRight,
   Navigation,
 } from "lucide-react";
-import { cn, mapListingSummaryToCard } from "@/lib/utils";
+import { cn, mapListingSummaryToCard, removeVietnameseTones } from "@/lib/utils";
 import { ListingsInteractiveMap } from "@/components/ListingsInteractiveMap";
 
 const ALL_AMENITIES = [
@@ -53,7 +53,7 @@ function ListingsContent() {
   const [wardCode, setWardCode] = useState("");
   const [occupants, setOccupants] = useState<number>(0);
 
-  const [keyword, setKeyword] = useState(searchParams.get("keyword") || "");
+  const [keyword, setKeyword] = useState(searchParams.get("keyword") || searchParams.get("q") || "");
   const [city, setCity] = useState(searchParams.get("city") || "Tất cả");
   const [district, setDistrict] = useState(searchParams.get("district") || "Tất cả");
   const [selectedTypes, setSelectedTypes] = useState<string[]>(
@@ -252,19 +252,45 @@ function ListingsContent() {
   const filteredListings = useMemo(() => {
     return allListings
       .filter((item) => {
-        // Keyword
-        if (keyword) {
-          const kw = keyword.toLowerCase();
-          const matchTitle = item.title.toLowerCase().includes(kw);
-          const matchAddr = item.address.toLowerCase().includes(kw);
-          if (!matchTitle && !matchAddr) return false;
+        // Keyword (hỗ trợ tìm kiếm theo tên đường, quận huyện, phường xã, thành phố, tiêu đề, có dấu hoặc không dấu)
+        if (keyword.trim()) {
+          const rawKw = keyword.trim().toLowerCase();
+          const normKw = removeVietnameseTones(rawKw);
+
+          const searchableParts = [
+            item.title,
+            item.description,
+            item.address,
+            item.ward,
+            item.district,
+            item.city,
+            ...(item.tags || []),
+            ...(item.amenities || []),
+          ].filter(Boolean);
+
+          const rawSearchable = searchableParts.join(" ").toLowerCase();
+          const normSearchable = removeVietnameseTones(rawSearchable);
+
+          const phraseMatch = rawSearchable.includes(rawKw) || normSearchable.includes(normKw);
+          const tokens = normKw.split(/\s+/).filter(Boolean);
+          const allTokensMatch = tokens.length > 0 && tokens.every((token) => normSearchable.includes(token));
+
+          if (!phraseMatch && !allTokensMatch) return false;
         }
 
         // City
-        if (city !== "Tất cả" && item.city !== city) return false;
+        if (city !== "Tất cả") {
+          const normCity = removeVietnameseTones(city);
+          const itemCity = removeVietnameseTones(item.city);
+          if (!itemCity.includes(normCity) && !normCity.includes(itemCity)) return false;
+        }
 
         // District
-        if (district !== "Tất cả" && item.district !== district) return false;
+        if (district !== "Tất cả") {
+          const normDist = removeVietnameseTones(district);
+          const itemDist = removeVietnameseTones(item.district);
+          if (!itemDist.includes(normDist) && !normDist.includes(itemDist)) return false;
+        }
 
         // Room Type
         if (selectedTypes.length > 0 && !selectedTypes.includes(item.roomType)) return false;

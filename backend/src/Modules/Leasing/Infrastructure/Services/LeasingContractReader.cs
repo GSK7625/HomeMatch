@@ -61,4 +61,54 @@ internal sealed class LeasingContractReader : ILeasingContractReader
             .Where(c => c.LandlordId == landlordId && c.Status == ContractStatus.Active)
             .SumAsync(c => c.DepositAmount, cancellationToken);
     }
+
+    public async Task<bool> ActivateContractOnPaymentAsync(
+        long contractId,
+        long paidAmount,
+        long actorId,
+        CancellationToken cancellationToken = default)
+    {
+        var contract = await _dbContext.Contracts
+            .FirstOrDefaultAsync(c => c.Id == contractId, cancellationToken);
+        if (contract is null)
+        {
+            return false;
+        }
+
+        if (contract.Status == ContractStatus.Active)
+        {
+            return true;
+        }
+
+        if (contract.Status != ContractStatus.Signed)
+        {
+            return false;
+        }
+
+        var wasDepositPending = contract.DepositStatus == DepositStatus.Pending;
+        var now = DateTimeOffset.UtcNow;
+        var result = contract.ActivateOnPayment(paidAmount, now);
+        if (result.IsFailure)
+        {
+            return false;
+        }
+
+        if (wasDepositPending && contract.DepositStatus == DepositStatus.Paid && contract.DepositAmount > 0)
+        {
+            var txResult = Domain.Entities.DepositTransaction.Create(
+                contract.Id,
+                DepositTransactionType.Received,
+                contract.DepositAmount,
+                "Thu tiền cọc qua thanh toán trực tuyến",
+                actorId);
+
+            if (txResult.IsSuccess)
+            {
+                _dbContext.DepositTransactions.Add(txResult.Value);
+            }
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
 }

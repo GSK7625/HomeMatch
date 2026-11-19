@@ -12,8 +12,25 @@ public class VNPayGateway(IOptions<VNPayOptions> options) : IVNPayGateway
 {
     private readonly VNPayOptions _options = options.Value;
 
+    public bool IsSandboxSimulatorMode =>
+        string.IsNullOrWhiteSpace(_options.TmnCode) ||
+        _options.TmnCode.StartsWith("your_", StringComparison.OrdinalIgnoreCase);
+
     public string CreatePaymentUrl(VNPayPaymentRequest request)
     {
+        if (IsSandboxSimulatorMode)
+        {
+            var simulatorParams = new Dictionary<string, string>
+            {
+                ["paymentCode"] = request.PaymentCode,
+                ["amount"] = request.Amount.ToString(CultureInfo.InvariantCulture),
+                ["orderInfo"] = request.OrderInfo,
+            };
+            var simQuery = string.Join("&", simulatorParams.Select(kv =>
+                $"{WebUtility.UrlEncode(kv.Key)}={WebUtility.UrlEncode(kv.Value)}"));
+            return $"/billing/sandbox-pay?{simQuery}";
+        }
+
         var rawData = new SortedDictionary<string, string>(new VnPayComparer())
         {
             ["vnp_Version"] = _options.Version,
@@ -58,6 +75,51 @@ public class VNPayGateway(IOptions<VNPayOptions> options) : IVNPayGateway
         queryString.Append($"&vnp_SecureHash={secureHash}");
 
         return $"{_options.BaseUrl}?{queryString}";
+    }
+
+    public string CreateSandboxCallbackQueryString(
+        string paymentCode,
+        long amountVnd,
+        string orderInfo,
+        bool isSuccess,
+        string bankCode = "NCB")
+    {
+        var now = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7));
+        var responseCode = isSuccess ? "00" : "24";
+        var rawData = new SortedDictionary<string, string>(new VnPayComparer())
+        {
+            ["vnp_Amount"] = (amountVnd * 100).ToString(CultureInfo.InvariantCulture),
+            ["vnp_BankCode"] = bankCode,
+            ["vnp_CardType"] = "ATM",
+            ["vnp_OrderInfo"] = orderInfo,
+            ["vnp_PayDate"] = now.ToString("yyyyMMddHHmmss"),
+            ["vnp_ResponseCode"] = responseCode,
+            ["vnp_TmnCode"] = _options.TmnCode,
+            ["vnp_TransactionNo"] = now.ToString("yyyyMMddHHmmss"),
+            ["vnp_TransactionStatus"] = responseCode,
+            ["vnp_TxnRef"] = paymentCode
+        };
+
+        var queryString = new StringBuilder();
+        var signData = new StringBuilder();
+
+        foreach (var (key, value) in rawData)
+        {
+            if (string.IsNullOrEmpty(value)) continue;
+            var encodedKey = WebUtility.UrlEncode(key);
+            var encodedValue = WebUtility.UrlEncode(value);
+            if (queryString.Length > 0)
+            {
+                queryString.Append('&');
+                signData.Append('&');
+            }
+            queryString.Append($"{encodedKey}={encodedValue}");
+            signData.Append($"{encodedKey}={encodedValue}");
+        }
+
+        var secureHash = HmacSha512(_options.HashSecret, signData.ToString());
+        queryString.Append($"&vnp_SecureHash={secureHash}");
+        return queryString.ToString();
     }
 
     public VNPayCallbackResult ProcessCallback(IEnumerable<KeyValuePair<string, string>> queryParameters)

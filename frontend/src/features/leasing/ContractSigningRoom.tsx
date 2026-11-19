@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useToast } from "@/components/Toast";
 import { leasingApi } from "@/lib/leasing-api";
+import { billingApi } from "@/lib/billing-api";
 import {
   formatDate,
   formatDateTime,
@@ -23,6 +24,7 @@ import {
   CheckCircle2,
   Clock,
   Cloud,
+  CreditCard,
   FileCheck2,
   Loader2,
   User,
@@ -40,6 +42,7 @@ export function ContractSigningRoom({ contractId, role }: ContractSigningRoomPro
   const [detail, setDetail] = useState<LeasingContractDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyDoc, setBusyDoc] = useState(false);
+  const [payingDeposit, setPayingDeposit] = useState(false);
 
   const backHref = role === "LANDLORD" ? "/landlord/contracts" : "/tenant/contracts";
 
@@ -233,7 +236,72 @@ export function ContractSigningRoom({ contractId, role }: ContractSigningRoomPro
           />
         </div>
 
-        <div className="lg:col-span-4 lg:sticky lg:top-20 print:hidden">
+        <div className="lg:col-span-4 lg:sticky lg:top-20 space-y-4 print:hidden">
+          {role === "TENANT" && detail.status === "SIGNED" && (
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-lg shadow-blue-500/20 space-y-3">
+              <div className="flex items-center gap-2 text-blue-100 text-[11px] font-bold uppercase tracking-wider">
+                <CreditCard className="w-4 h-4" />
+                <span>Bước cuối: Thanh toán kích hoạt</span>
+              </div>
+              <h3 className="text-base font-black leading-snug">
+                Thanh toán tiền cọc & Kích hoạt hợp đồng
+              </h3>
+              <p className="text-xs text-blue-100 leading-relaxed">
+                Cả hai bên đã hoàn tất ký số. Thanh toán khoản cọc{" "}
+                <strong className="text-white">
+                  {formatVnd(detail.depositAmount > 0 ? detail.depositAmount : detail.monthlyRent)}
+                </strong>{" "}
+                để hệ thống tự động chuyển hợp đồng sang trạng thái <strong>ACTIVE</strong>.
+              </p>
+              <button
+                type="button"
+                disabled={payingDeposit}
+                onClick={async () => {
+                  setPayingDeposit(true);
+                  try {
+                    const res = await billingApi.payContractDeposit(detail.id);
+                    if (res.isSuccess && res.data?.paymentUrl) {
+                      window.location.href = res.data.paymentUrl;
+                    } else {
+                      showToast(
+                        res.error?.message || "Không thể khởi tạo giao dịch thanh toán.",
+                        "error"
+                      );
+                    }
+                  } finally {
+                    setPayingDeposit(false);
+                  }
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-white text-blue-700 hover:bg-blue-50 font-black text-xs flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-60"
+              >
+                {payingDeposit ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Đang tạo cổng thanh toán...</span>
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4" />
+                    <span>Thanh toán qua VNPay ngay</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {detail.status === "ACTIVE" && (
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="text-xs">
+                <div className="font-black text-emerald-900">Hợp đồng đã kích hoạt (ACTIVE)</div>
+                <p className="text-emerald-700 mt-0.5">
+                  Hợp đồng đang có hiệu lực pháp lý. Tiền cọc:{" "}
+                  <span className="font-bold">{detail.depositStatus}</span>.
+                </p>
+              </div>
+            </div>
+          )}
+
           <OtpSignPanel detail={detail} role={role} onUpdated={loadDetail} />
         </div>
       </div>

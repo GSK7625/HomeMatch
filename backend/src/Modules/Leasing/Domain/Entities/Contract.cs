@@ -466,6 +466,31 @@ public class Contract
     }
 
     /// <summary>
+    /// Tự động kích hoạt hợp đồng sang ACTIVE khi người thuê hoàn tất thanh toán (SIGNED -> ACTIVE)
+    /// </summary>
+    public Result ActivateOnPayment(long paidAmount, DateTimeOffset now)
+    {
+        if (Status == ContractStatus.Active)
+        {
+            return Result.Success();
+        }
+
+        if (Status != ContractStatus.Signed)
+        {
+            return Result.Failure(LeasingErrors.InvalidStatusTransition(Status, ContractStatus.Active));
+        }
+
+        Status = ContractStatus.Active;
+        if (DepositStatus == Domain.Enums.DepositStatus.Pending && paidAmount >= DepositAmount && DepositAmount > 0)
+        {
+            DepositStatus = Domain.Enums.DepositStatus.Paid;
+        }
+        UpdatedAt = now;
+
+        return Result.Success();
+    }
+
+    /// <summary>
     /// Đến ngày kết thúc thuê -> chuyển sang EXPIRED_PENDING_HANDOVER, không tự ý giải phóng phòng (BR-23)
     /// </summary>
     public Result MarkExpiredPendingHandover(DateOnly today)

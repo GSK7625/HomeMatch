@@ -34,12 +34,18 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
             query = query.Where(listing => listing.Price >= filter.MinPrice.Value);
         if (filter.MaxPrice.HasValue)
             query = query.Where(listing => listing.Price <= filter.MaxPrice.Value);
-        if (filter.Keyword is not null)
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {
-            var pattern = "%" + filter.Keyword.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+            var rawKw = filter.Keyword.Trim();
+            var pattern = "%" + rawKw.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+            var normKw = VietnameseTextNormalizer.Normalize(rawKw);
+            var normPattern = "%" + normKw.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+
             query = query.Where(listing => keywordRoomIds.Contains(listing.RoomId)
                 || EF.Functions.ILike(listing.Title, pattern, "\\")
-                || EF.Functions.ILike(listing.Description, pattern, "\\"));
+                || EF.Functions.ILike(listing.Description, pattern, "\\")
+                || EF.Functions.ILike(EF.Functions.Unaccent(listing.Title), normPattern, "\\")
+                || EF.Functions.ILike(EF.Functions.Unaccent(listing.Description), normPattern, "\\"));
         }
 
         var total = await query.CountAsync(cancellationToken);
@@ -112,8 +118,8 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
     {
         if (listingIds.Count == 0) return new Dictionary<long, ListingCoordinates>();
         var points = await db.ListingLocations.AsNoTracking()
-            .Where(item => listingIds.Contains(item.ListingId))
-            .Select(item => new { item.ListingId, item.Coordinates })
+            .Where(item => listingIds.Contains(item.ListingId) && item.Coordinates != null)
+            .Select(item => new { item.ListingId, Coordinates = item.Coordinates! })
             .ToListAsync(cancellationToken);
         return points.ToDictionary(p => p.ListingId, p => new ListingCoordinates(p.Coordinates.X, p.Coordinates.Y));
     }

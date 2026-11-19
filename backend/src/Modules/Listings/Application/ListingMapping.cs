@@ -15,11 +15,22 @@ public static class ListingMapping
             new(listing.Revision, listing.ReviewedBy, listing.ReviewedAt, listing.RejectionReason, listing.PublishedAt), listing.ExpiresAt);
 
     public static ListingSummaryDto ToSummary(Listing listing) =>
+        ToSummary(listing, null);
+
+    public static ListingSummaryDto ToSummary(Listing listing, ListingCoordinates? coordinates) =>
         new(listing.Id, listing.RoomId, listing.Title, listing.Slug, listing.Price, listing.Status,
             listing.Images.FirstOrDefault(image => image.IsPrimary)?.ImageUrl ?? listing.Images.FirstOrDefault()?.ImageUrl,
-            depositAmount: listing.DepositAmount);
+            depositAmount: listing.DepositAmount,
+            latitude: coordinates?.Latitude,
+            longitude: coordinates?.Longitude);
 
     public static ListingSummaryDto ToCardSummary(Listing listing, HomeMatch.Shared.Contracts.RoomCardSummary? room) =>
+        ToCardSummary(listing, room, null);
+
+    public static ListingSummaryDto ToCardSummary(
+        Listing listing,
+        HomeMatch.Shared.Contracts.RoomCardSummary? room,
+        ListingCoordinates? coordinates) =>
         new(listing.Id, listing.RoomId, listing.Title, listing.Slug, listing.Price, listing.Status,
             listing.Images.FirstOrDefault(image => image.IsPrimary)?.ImageUrl ?? listing.Images.FirstOrDefault()?.ImageUrl,
             depositAmount: listing.DepositAmount,
@@ -30,7 +41,9 @@ public static class ListingMapping
             addressDetail: room?.AddressDetail,
             electricityPrice: room?.ElectricityPrice,
             waterPrice: room?.WaterPrice,
-            amenities: room?.Amenities);
+            amenities: room?.Amenities,
+            latitude: coordinates?.Latitude,
+            longitude: coordinates?.Longitude);
 
     public static ListingImageDto ToImageResult(ListingImage image) =>
         new(image.Id, image.ImageUrl, image.IsPrimary, image.SortOrder,

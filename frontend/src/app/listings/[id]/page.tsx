@@ -38,6 +38,7 @@ import {
   AlertTriangle,
   Sparkles,
   Info,
+  Loader2,
 } from "lucide-react";
 import { cn, formatRoomTypeLabel } from "@/lib/utils";
 
@@ -58,6 +59,8 @@ export default function ListingDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showPriceAssistant, setShowPriceAssistant] = useState(true);
   const [showModelInfo, setShowModelInfo] = useState(false);
+  const [analyzingPrice, setAnalyzingPrice] = useState(false);
+  const [analysisStep, setAnalysisStep] = useState(0);
   const [priceBenchmark, setPriceBenchmark] = useState<{
     p10: number;
     p50: number;
@@ -708,27 +711,46 @@ export default function ListingDetailPage() {
                     type="button"
                     role="switch"
                     aria-checked={showPriceAssistant}
-                    onClick={() => setShowPriceAssistant((prev) => !prev)}
+                    disabled={analyzingPrice}
+                    onClick={() => {
+                      if (showPriceAssistant) {
+                        setShowPriceAssistant(false);
+                        setAnalyzingPrice(false);
+                        return;
+                      }
+                      setShowPriceAssistant(true);
+                      setAnalyzingPrice(true);
+                      setAnalysisStep(0);
+                      setTimeout(() => setAnalysisStep(1), 400);
+                      setTimeout(() => setAnalysisStep(2), 850);
+                      setTimeout(() => setAnalyzingPrice(false), 1300);
+                    }}
                     className={cn(
-                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all",
+                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all duration-300",
                       showPriceAssistant
-                        ? "bg-indigo-600 text-white border-indigo-600"
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
                         : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
                     )}
                   >
-                    <span
-                      className={cn(
-                        "w-2 h-2 rounded-full",
-                        showPriceAssistant ? "bg-emerald-300" : "bg-slate-400"
-                      )}
-                    />
-                    <span>{showPriceAssistant ? "Đang bật" : "Đã tắt"}</span>
+                    {analyzingPrice ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <span
+                        className={cn(
+                          "w-2 h-2 rounded-full transition-colors duration-300",
+                          showPriceAssistant ? "bg-emerald-300" : "bg-slate-400"
+                        )}
+                      />
+                    )}
+                    <span>
+                      {analyzingPrice ? "Đang phân tích..." : showPriceAssistant ? "Đang bật" : "Đã tắt"}
+                    </span>
                   </button>
                 </div>
               </div>
 
               {showModelInfo && (
-                <div className="p-3 rounded-xl bg-white/95 border border-indigo-200 text-xs text-slate-600 leading-relaxed space-y-1">
+                <div className="p-3 rounded-xl bg-white/95 border border-indigo-200 text-xs text-slate-600 leading-relaxed space-y-1 animate-in fade-in duration-200">
                   <div className="font-bold text-indigo-950">Trợ lý định giá HomeMatch hoạt động thế nào?</div>
                   <p>
                     Mô hình trí tuệ nhân tạo của HomeMatch được huấn luyện từ hơn{" "}
@@ -739,9 +761,33 @@ export default function ListingDetailPage() {
                 </div>
               )}
 
-              {showPriceAssistant && (
+              {showPriceAssistant && analyzingPrice && (
+                <div className="p-4 rounded-xl bg-white/90 border border-indigo-100 space-y-3 animate-in fade-in duration-200">
+                  <div className="flex items-center gap-2.5 text-xs font-bold text-indigo-700">
+                    <Loader2 className="w-4 h-4 animate-spin text-indigo-600 shrink-0" />
+                    <span>
+                      {analysisStep === 0 && "Đang thu thập & xử lý dữ liệu phòng..."}
+                      {analysisStep === 1 && "Đang đối chiếu dữ liệu khu vực lân cận..."}
+                      {analysisStep >= 2 && "Đang tổng hợp khoảng giá đề xuất..."}
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-indigo-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-indigo-500 to-blue-600 rounded-full transition-all duration-500 ease-out"
+                      style={{ width: analysisStep === 0 ? "32%" : analysisStep === 1 ? "68%" : "95%" }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="h-14 rounded-xl bg-slate-100 animate-pulse" />
+                    <div className="h-14 rounded-xl bg-indigo-100 animate-pulse" />
+                    <div className="h-14 rounded-xl bg-slate-100 animate-pulse" />
+                  </div>
+                </div>
+              )}
+
+              {showPriceAssistant && !analyzingPrice && (
                 priceBenchmark ? (
-                  <>
+                  <div className="space-y-3 animate-in fade-in duration-300">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                       <div className="p-3 rounded-xl bg-white border border-indigo-100">
                         <span className="text-slate-400 block text-[11px]">Khoảng giá từ</span>
@@ -775,7 +821,7 @@ export default function ListingDetailPage() {
                         ))}
                       </div>
                     )}
-                  </>
+                  </div>
                 ) : (
                   <p className="text-xs text-slate-500">
                     Chưa có dữ liệu ước lượng khoảng giá cho khu vực của phòng này.

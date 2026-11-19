@@ -10,7 +10,6 @@ import { Footer } from "@/components/Footer";
 
 const dancingScript = Dancing_Script({
   subsets: ["latin", "vietnamese"],
-  weight: ["600", "700"],
   variable: "--font-signature",
   display: "swap",
 });

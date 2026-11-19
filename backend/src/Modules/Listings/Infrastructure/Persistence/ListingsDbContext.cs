@@ -54,8 +54,7 @@ public sealed class ListingsDbContext(DbContextOptions<ListingsDbContext> option
             listing.HasIndex(x => x.Slug).IsUnique().HasDatabaseName("ux_listings_slug");
             listing.HasIndex(x => x.ExpiresAt).HasFilter("status = 'PUBLISHED'")
                 .HasDatabaseName("ix_listings_published_expires_at");
-            listing.HasIndex(x => x.RoomId).IsUnique().HasFilter("status = 'PUBLISHED'")
-                .HasDatabaseName("ux_listings_published_room");
+            listing.HasIndex(x => x.RoomId).IsUnique().HasDatabaseName("ux_listings_room");
             listing.HasIndex(x => x.LandlordId).HasDatabaseName("ix_listings_landlord_id");
             listing.HasIndex(x => new { x.UpdatedAt, x.Id }).HasFilter("status = 'PENDING_APPROVAL'")
                 .HasDatabaseName("ix_listings_pending_review");

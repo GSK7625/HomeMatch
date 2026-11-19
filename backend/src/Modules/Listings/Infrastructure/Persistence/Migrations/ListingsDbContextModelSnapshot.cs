@@ -142,8 +142,7 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("RoomId")
                         .IsUnique()
-                        .HasDatabaseName("ux_listings_published_room")
-                        .HasFilter("status = 'PUBLISHED'");
+                        .HasDatabaseName("ux_listings_room");
 
                     b.HasIndex("Slug")
                         .IsUnique()

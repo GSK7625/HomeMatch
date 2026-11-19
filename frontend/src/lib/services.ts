@@ -1,3 +1,4 @@
+import { apiRequest } from "./api-client";
 import {
   PropertyListing,
   ViewingAppointment,
@@ -6,6 +7,7 @@ import {
   ChatMessage,
   ChatConversation,
   SystemReport,
+  LandlordDashboardData,
 } from "@/types";
 
 const STORAGE_KEYS = {
@@ -355,5 +357,20 @@ export const adminService = {
       item.status = status;
       setItem(STORAGE_KEYS.REPORTS, list);
     }
+  },
+};
+
+export const landlordDashboardService = {
+  getDashboard: async (buildingId = "all", period = "11/2026"): Promise<LandlordDashboardData> => {
+    const res = await apiRequest<LandlordDashboardData>(
+      `/api/v1/billing/landlord-dashboard?buildingId=${encodeURIComponent(buildingId)}&period=${encodeURIComponent(period)}`
+    );
+    if (!res.isSuccess || !res.data) {
+      throw new Error(
+        res.error?.message ||
+          "Không thể kết nối đến Backend API (http://localhost:5000). Vui lòng khởi động Backend và PostgreSQL."
+      );
+    }
+    return res.data;
   },
 };

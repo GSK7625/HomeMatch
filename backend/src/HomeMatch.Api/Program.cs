@@ -1,9 +1,12 @@
 using HomeMatch.Api.Middleware;
 using HomeMatch.Modules.Billing;
+using HomeMatch.Modules.Billing.Infrastructure.Persistence;
+using HomeMatch.Modules.Billing.Infrastructure.Persistence.Seed;
 using HomeMatch.Modules.Identity;
 using HomeMatch.Modules.Identity.Infrastructure.Persistence;
 using HomeMatch.Modules.Identity.Infrastructure.Persistence.Seed;
 using HomeMatch.Modules.Leasing;
+using HomeMatch.Modules.Leasing.Infrastructure.Persistence;
 using HomeMatch.Modules.Listings;
 using HomeMatch.Modules.Listings.Infrastructure.Persistence;
 using HomeMatch.Modules.Messaging;
@@ -129,7 +132,6 @@ using (var scope = app.Services.CreateScope())
     await PropertiesDataSeeder.SeedAsync(propertiesDb);
     await IdentityDataSeeder.SeedRolesAsync(scope.ServiceProvider);
     await IdentityDataSeeder.SeedDefaultUsersAsync(scope.ServiceProvider);
-
     var viewingsDb = scope.ServiceProvider.GetRequiredService<ViewingsDbContext>();
     await viewingsDb.Database.MigrateAsync();
 
@@ -138,6 +140,14 @@ using (var scope = app.Services.CreateScope())
 
     var notificationsDb = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
     await notificationsDb.Database.MigrateAsync();
+
+    var leasingDb = scope.ServiceProvider.GetRequiredService<LeasingDbContext>();
+    await leasingDb.Database.MigrateAsync();
+
+    var billingDb = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+    await billingDb.Database.MigrateAsync();
+
+    await BillingDataSeeder.SeedAsync(scope.ServiceProvider);
 }
 
 app.UseCors("AllowFrontend");

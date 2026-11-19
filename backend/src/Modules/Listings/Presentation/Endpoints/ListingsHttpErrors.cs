@@ -11,7 +11,7 @@ internal static class ListingsHttpErrors
             "Auth.Unauthorized" or "Auth.Required" => StatusCodes.Status401Unauthorized,
             "Auth.LandlordRequired" or "Auth.TenantRequired" or "Auth.AdminRequired" => StatusCodes.Status403Forbidden,
             "Listing.NotFound" or "Room.NotFound" or "Listing.ImageNotFound" => StatusCodes.Status404NotFound,
-            "Listing.DuplicateSlug" or "Listing.InvalidStatus" or "Listing.RoomUnavailable"
+            "Listing.RoomAlreadyListed" or "Listing.DuplicateSlug" or "Listing.InvalidStatus" or "Listing.RoomUnavailable"
                 or "Listing.RoomAlreadyPublished" or "Listing.LastImage" or "Listing.RevisionConflict" or "Listing.EditLocked" => StatusCodes.Status409Conflict,
             "Listing.ImageUploadUnavailable" => StatusCodes.Status501NotImplemented,
             _ => StatusCodes.Status400BadRequest

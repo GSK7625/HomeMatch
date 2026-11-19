@@ -1,0 +1,26 @@
+namespace HomeMatch.Modules.Billing.Application.DTOs;
+
+public sealed record InvoiceDto(
+    long Id,
+    string InvoiceCode,
+    long ContractId,
+    long LandlordId,
+    long TenantId,
+    long RoomId,
+    long PropertyId,
+    int BillingMonth,
+    int BillingYear,
+    long RentAmount,
+    long ElectricityAmount,
+    long WaterAmount,
+    long ServiceAmount,
+    long DiscountAmount,
+    long TotalAmount,
+    long PaidAmount,
+    DateOnly DueDate,
+    DateTimeOffset? PaidAt,
+    string Status,
+    string? CancelReason,
+    DateTimeOffset? CancelledAt,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);

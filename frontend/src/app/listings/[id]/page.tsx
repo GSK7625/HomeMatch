@@ -37,6 +37,7 @@ import {
   Check,
   AlertTriangle,
   Sparkles,
+  Info,
 } from "lucide-react";
 import { cn, formatRoomTypeLabel } from "@/lib/utils";
 
@@ -55,6 +56,8 @@ export default function ListingDetailPage() {
   const [isFav, setIsFav] = useState(false);
   const [showFullPhone, setShowFullPhone] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showPriceAssistant, setShowPriceAssistant] = useState(true);
+  const [showModelInfo, setShowModelInfo] = useState(false);
   const [priceBenchmark, setPriceBenchmark] = useState<{
     p10: number;
     p50: number;
@@ -659,15 +662,26 @@ export default function ListingDetailPage() {
               </div>
             </div>
 
-            {/* AI Price Benchmark Section */}
-            {priceBenchmark && (
-              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-50/90 via-blue-50/70 to-white border border-indigo-200/80 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-sm font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-indigo-600" />
-                    <span>Định giá tham khảo từ AI (LightGBM)</span>
+            {/* Định khoảng giá thuê cùng trợ lý HomeMatch */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-50/90 via-blue-50/70 to-white border border-indigo-200/80 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                  <h3 className="text-xs sm:text-sm font-bold text-indigo-950">
+                    Định khoảng giá thuê cùng trợ lý HomeMatch
                   </h3>
-                  {(() => {
+                  <button
+                    type="button"
+                    onClick={() => setShowModelInfo((prev) => !prev)}
+                    title="Tìm hiểu về trợ lý định giá HomeMatch"
+                    className="w-5 h-5 rounded-full bg-indigo-100 hover:bg-indigo-200 text-indigo-700 flex items-center justify-center transition-colors"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  {showPriceAssistant && priceBenchmark && (() => {
                     const p = listing.price;
                     if (p < priceBenchmark.p10) {
                       return (
@@ -689,43 +703,86 @@ export default function ListingDetailPage() {
                       </span>
                     );
                   })()}
-                </div>
 
-                <div className="grid grid-cols-3 gap-3 text-xs">
-                  <div className="p-3 rounded-xl bg-white border border-indigo-100">
-                    <span className="text-slate-400 block text-[11px]">Cận dưới (P10)</span>
-                    <span className="font-bold text-slate-800 text-sm">
-                      {priceBenchmark.p10.toLocaleString()}đ
-                    </span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-indigo-600 text-white">
-                    <span className="text-indigo-100 block text-[11px]">Giá kỳ vọng (P50)</span>
-                    <span className="font-black text-sm">
-                      {priceBenchmark.p50.toLocaleString()}đ
-                    </span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white border border-indigo-100">
-                    <span className="text-slate-400 block text-[11px]">Cận trên (P90)</span>
-                    <span className="font-bold text-slate-800 text-sm">
-                      {priceBenchmark.p90.toLocaleString()}đ
-                    </span>
-                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={showPriceAssistant}
+                    onClick={() => setShowPriceAssistant((prev) => !prev)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all",
+                      showPriceAssistant
+                        ? "bg-indigo-600 text-white border-indigo-600"
+                        : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "w-2 h-2 rounded-full",
+                        showPriceAssistant ? "bg-emerald-300" : "bg-slate-400"
+                      )}
+                    />
+                    <span>{showPriceAssistant ? "Đang bật" : "Đã tắt"}</span>
+                  </button>
                 </div>
-
-                {priceBenchmark.factors.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {priceBenchmark.factors.map((f, i) => (
-                      <span
-                        key={i}
-                        className="px-2.5 py-1 rounded-lg bg-white border border-indigo-100 text-[11px] font-medium text-slate-700"
-                      >
-                        {f.label} ({f.impactVnd >= 0 ? "+" : ""}{(f.impactVnd / 1000).toLocaleString()}k)
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
-            )}
+
+              {showModelInfo && (
+                <div className="p-3 rounded-xl bg-white/95 border border-indigo-200 text-xs text-slate-600 leading-relaxed space-y-1">
+                  <div className="font-bold text-indigo-950">Trợ lý định giá HomeMatch hoạt động thế nào?</div>
+                  <p>
+                    Mô hình trí tuệ nhân tạo của HomeMatch được huấn luyện từ hơn{" "}
+                    <strong>26.000 tin cho thuê thực tế</strong> tại Hà Nội và TP.HCM. Hệ thống phân tích diện tích,
+                    vị trí tọa độ, quận/phường, loại phòng, tiện ích đi kèm và giá các phòng lân cận trong bán kính
+                    gần để ước lượng khoảng giá thị trường hợp lý, giúp bạn tham khảo khách quan trước khi thuê.
+                  </p>
+                </div>
+              )}
+
+              {showPriceAssistant && (
+                priceBenchmark ? (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div className="p-3 rounded-xl bg-white border border-indigo-100">
+                        <span className="text-slate-400 block text-[11px]">Khoảng giá từ</span>
+                        <span className="font-bold text-slate-800 text-sm">
+                          {priceBenchmark.p10.toLocaleString()}đ
+                        </span>
+                      </div>
+                      <div className="p-3 rounded-xl bg-indigo-600 text-white">
+                        <span className="text-indigo-100 block text-[11px]">Mức giá phổ biến đề xuất</span>
+                        <span className="font-black text-sm">
+                          {priceBenchmark.p50.toLocaleString()}đ
+                        </span>
+                      </div>
+                      <div className="p-3 rounded-xl bg-white border border-indigo-100">
+                        <span className="text-slate-400 block text-[11px]">Đến mức giá</span>
+                        <span className="font-bold text-slate-800 text-sm">
+                          {priceBenchmark.p90.toLocaleString()}đ
+                        </span>
+                      </div>
+                    </div>
+
+                    {priceBenchmark.factors.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {priceBenchmark.factors.map((f, i) => (
+                          <span
+                            key={i}
+                            className="px-2.5 py-1 rounded-lg bg-white border border-indigo-100 text-[11px] font-medium text-slate-700"
+                          >
+                            {f.label} ({f.impactVnd >= 0 ? "+" : ""}{(f.impactVnd / 1000).toLocaleString()}k)
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    Chưa có dữ liệu ước lượng khoảng giá cho khu vực của phòng này.
+                  </p>
+                )
+              )}
+            </div>
 
             {/* Map Location Section */}
             <div className="space-y-3 pt-4 border-t border-slate-100">

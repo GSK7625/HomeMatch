@@ -48,6 +48,7 @@ export default function ListingDetailPage() {
   const id = params.id as string;
   const { user, role } = useAuth();
   const isLandlord = role === "Landlord" || user?.role === "Landlord";
+  const isAdmin = role === "Admin" || user?.role === "Admin";
   const { showToast } = useToast();
 
   const [listing, setListing] = useState<PropertyListing | null>(null);
@@ -224,7 +225,7 @@ export default function ListingDetailPage() {
                 }
               }).catch(() => null);
             }
-            if (!preview) {
+            if (!preview && !isLandlord && !isAdmin) {
               listingsApi.getListingPriceBenchmark(numericId).then((bRes) => {
                 if (isMounted && bRes.isSuccess && bRes.data) {
                   setPriceBenchmark(bRes.data);
@@ -665,7 +666,8 @@ export default function ListingDetailPage() {
               </div>
             </div>
 
-            {/* Định khoảng giá thuê cùng trợ lý HomeMatch */}
+            {/* Định khoảng giá thuê cùng trợ lý HomeMatch (chỉ hiển thị cho người thuê / khách) */}
+            {!isLandlord && !isAdmin && (
             <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-50/90 via-blue-50/70 to-white border border-indigo-200/80 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -829,6 +831,7 @@ export default function ListingDetailPage() {
                 )
               )}
             </div>
+            )}
 
             {/* Map Location Section */}
             <div className="space-y-3 pt-4 border-t border-slate-100">

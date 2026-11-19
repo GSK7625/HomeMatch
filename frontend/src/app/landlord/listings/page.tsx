@@ -25,7 +25,6 @@ import {
   DollarSign,
   Maximize2,
   MapPin,
-  Sparkles,
   RefreshCw,
   Send,
   AlertCircle,
@@ -34,8 +33,6 @@ import {
   Edit2,
   Star,
   Check,
-  Info,
-  Loader2,
 } from "lucide-react";
 import { cn, formatAmenityName } from "@/lib/utils";
 
@@ -189,18 +186,6 @@ export default function LandlordListingsPage() {
   const [price, setPrice] = useState(4500000);
   const [deposit, setDeposit] = useState(4500000);
   const [minLeaseMonths, setMinLeaseMonths] = useState(6);
-  const [enablePriceAssistant, setEnablePriceAssistant] = useState(false);
-  const [showModelInfo, setShowModelInfo] = useState(false);
-  const [estimatingAi, setEstimatingAi] = useState(false);
-  const [analysisStep, setAnalysisStep] = useState(0);
-  const [aiEstimate, setAiEstimate] = useState<{
-    p10: number;
-    p50: number;
-    p90: number;
-    factors: { label: string; impactVnd: number }[];
-    warnings: string[];
-    modelVersion: string;
-  } | null>(null);
   const [houseRules, setHouseRules] = useState(
     "Giờ giấc tự do, không gây ồn sau 23h, giữ gìn vệ sinh khu vực chung."
   );
@@ -1197,191 +1182,6 @@ export default function LandlordListingsPage() {
                 />
               </div>
             </div>
-
-            {selectedRoomId !== null && selectedRoomId > 0 && (
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-indigo-50/90 to-blue-50/90 border border-indigo-200/80 space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
-                    <span className="text-xs font-black text-indigo-950">
-                      Định khoảng giá thuê cùng trợ lý HomeMatch
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowModelInfo((prev) => !prev)}
-                      title="Tìm hiểu về trợ lý định giá HomeMatch"
-                      className="w-5 h-5 rounded-full bg-indigo-100 hover:bg-indigo-200 text-indigo-700 flex items-center justify-center transition-colors"
-                    >
-                      <Info className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={enablePriceAssistant}
-                      disabled={estimatingAi}
-                      onClick={() => {
-                        if (enablePriceAssistant) {
-                          setEnablePriceAssistant(false);
-                          return;
-                        }
-                        setEnablePriceAssistant(true);
-                        if (selectedRoomId && !aiEstimate) {
-                          setEstimatingAi(true);
-                          setAnalysisStep(0);
-                          const t1 = setTimeout(() => setAnalysisStep(1), 350);
-                          const t2 = setTimeout(() => setAnalysisStep(2), 750);
-                          listingsApi.estimateRoomPrice(selectedRoomId).then((res) => {
-                            setTimeout(() => {
-                              clearTimeout(t1);
-                              clearTimeout(t2);
-                              if (res.isSuccess && res.data) setAiEstimate(res.data);
-                              setEstimatingAi(false);
-                            }, 900);
-                          }).catch(() => {
-                            clearTimeout(t1);
-                            clearTimeout(t2);
-                            setEstimatingAi(false);
-                          });
-                        }
-                      }}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all duration-300",
-                        enablePriceAssistant
-                          ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
-                          : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
-                      )}
-                    >
-                      {estimatingAi ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <span
-                          className={cn(
-                            "w-2 h-2 rounded-full transition-colors duration-300",
-                            enablePriceAssistant ? "bg-emerald-300" : "bg-slate-400"
-                          )}
-                        />
-                      )}
-                      <span>{estimatingAi ? "Đang phân tích..." : enablePriceAssistant ? "Đang bật" : "Đã tắt"}</span>
-                    </button>
-
-                    {enablePriceAssistant && (
-                      <button
-                        type="button"
-                        disabled={estimatingAi}
-                        onClick={async () => {
-                          if (!selectedRoomId) return;
-                          setEstimatingAi(true);
-                          setAnalysisStep(0);
-                          const t1 = setTimeout(() => setAnalysisStep(1), 350);
-                          const t2 = setTimeout(() => setAnalysisStep(2), 750);
-                          try {
-                            const [res] = await Promise.all([
-                              listingsApi.estimateRoomPrice(selectedRoomId),
-                              new Promise((resolve) => setTimeout(resolve, 1100)),
-                            ]);
-                            if (res.isSuccess && res.data) {
-                              setAiEstimate(res.data);
-                            } else {
-                              showToast(res.error?.message || "Không thể ước lượng khoảng giá cho phòng này.", "error");
-                            }
-                          } finally {
-                            clearTimeout(t1);
-                            clearTimeout(t2);
-                            setEstimatingAi(false);
-                          }
-                        }}
-                        className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-xs disabled:opacity-60"
-                      >
-                        {estimatingAi ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Sparkles className="w-3.5 h-3.5" />
-                        )}
-                        <span>{estimatingAi ? "Đang xử lý..." : "Ước lượng khoảng giá"}</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {showModelInfo && (
-                  <div className="p-3 rounded-xl bg-white/95 border border-indigo-200 text-xs text-slate-600 leading-relaxed space-y-1 animate-in fade-in duration-200">
-                    <div className="font-bold text-indigo-950">Trợ lý định giá HomeMatch hoạt động thế nào?</div>
-                    <p>
-                      Mô hình trí tuệ nhân tạo của HomeMatch được huấn luyện từ hơn{" "}
-                      <strong>26.000 tin cho thuê thực tế</strong> tại Hà Nội và TP.HCM. Hệ thống phân tích diện
-                      tích, vị trí, quận/phường, loại phòng, tiện ích đi kèm và các phòng lân cận để gợi ý khoảng
-                      giá thuê cạnh tranh và sát thị trường nhất cho bạn.
-                    </p>
-                  </div>
-                )}
-
-                {enablePriceAssistant && estimatingAi && (
-                  <div className="p-3.5 rounded-xl bg-white/90 border border-indigo-100 space-y-2.5 animate-in fade-in duration-200">
-                    <div className="flex items-center gap-2 text-xs font-bold text-indigo-700">
-                      <Loader2 className="w-4 h-4 animate-spin text-indigo-600 shrink-0" />
-                      <span>
-                        {analysisStep === 0 && "Đang thu thập & xử lý dữ liệu phòng..."}
-                        {analysisStep === 1 && "Đang đối chiếu dữ liệu khu vực lân cận..."}
-                        {analysisStep >= 2 && "Đang tổng hợp khoảng giá đề xuất..."}
-                      </span>
-                    </div>
-                    <div className="w-full h-1.5 bg-indigo-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-indigo-500 to-blue-600 rounded-full transition-all duration-500 ease-out"
-                        style={{ width: analysisStep === 0 ? "32%" : analysisStep === 1 ? "68%" : "95%" }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {enablePriceAssistant && !estimatingAi && aiEstimate && (
-                  <div className="space-y-2 pt-1 border-t border-indigo-200/60 text-xs animate-in fade-in duration-300">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <span className="text-[11px] text-indigo-700 block">Khoảng giá thị trường</span>
-                        <span className="font-bold text-slate-800">
-                          {aiEstimate.p10.toLocaleString()}đ – {aiEstimate.p90.toLocaleString()}đ
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-right">
-                          <span className="text-[11px] text-indigo-700 block">Mức giá phổ biến đề xuất</span>
-                          <span className="font-black text-indigo-700 text-sm">
-                            {aiEstimate.p50.toLocaleString()} đ/tháng
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPrice(aiEstimate.p50);
-                            setDeposit(aiEstimate.p50);
-                            showToast("Đã áp dụng mức giá đề xuất từ trợ lý HomeMatch!", "success");
-                          }}
-                          className="px-2.5 py-1.5 rounded-lg bg-white border border-indigo-300 text-indigo-700 hover:bg-indigo-100 text-[11px] font-bold"
-                        >
-                          Áp dụng giá đề xuất
-                        </button>
-                      </div>
-                    </div>
-                    {aiEstimate.factors.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {aiEstimate.factors.map((f, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-0.5 rounded-md bg-white/80 border border-indigo-100 text-[10px] font-semibold text-slate-700"
-                          >
-                            {f.label} ({f.impactVnd >= 0 ? "+" : ""}{(f.impactVnd / 1000).toLocaleString()}k)
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">

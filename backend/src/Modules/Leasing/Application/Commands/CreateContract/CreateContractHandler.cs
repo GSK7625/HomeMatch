@@ -85,6 +85,13 @@ public sealed class CreateContractHandler
             return Result.Failure<ContractDto>(LeasingErrors.TenantNotFound);
         }
 
+        if (!string.Equals(tenant.Role, "Tenant", StringComparison.OrdinalIgnoreCase))
+        {
+            return Result.Failure<ContractDto>(new Error(
+                "Leasing.InvalidTenantRole",
+                "Chỉ được lập hợp đồng thuê với tài khoản có vai trò Người thuê (Tenant)."));
+        }
+
         // 3. Kiểm tra trùng lặp lịch phòng (BR-14)
         var hasOverlap = await _contractRepository.HasOverlappingOccupancyAsync(
             command.RoomId,
@@ -127,6 +134,15 @@ public sealed class CreateContractHandler
         }
 
         var contract = contractResult.Value;
+        var enrichedSnapshot = await ContractSnapshotEnricher.BuildEnrichedSnapshotAsync(
+            command.DocumentSnapshot,
+            command.LandlordId,
+            command.TenantId,
+            command.RoomId,
+            _userReader,
+            _roomReader,
+            cancellationToken);
+        contract.DocumentSnapshot = enrichedSnapshot;
         await _contractRepository.AddAsync(contract, cancellationToken);
         await _contractRepository.SaveChangesAsync(cancellationToken);
 
@@ -159,7 +175,7 @@ public sealed class CreateContractHandler
             var submitResult = contract.SubmitForSignature(
                 storageKey,
                 documentHash,
-                command.DocumentSnapshot,
+                enrichedSnapshot,
                 expiresAt,
                 command.HandoverDueAt?.ToUniversalTime());
 

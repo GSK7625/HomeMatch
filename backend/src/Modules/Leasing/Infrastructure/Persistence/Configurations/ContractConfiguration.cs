@@ -105,6 +105,14 @@ public class ContractConfiguration : IEntityTypeConfiguration<Contract>
             .HasColumnName("signed_document_hash")
             .HasMaxLength(64);
 
+        builder.Property(c => c.LandlordSignatureData)
+            .HasColumnName("landlord_signature_data")
+            .HasColumnType("text");
+
+        builder.Property(c => c.TenantSignatureData)
+            .HasColumnName("tenant_signature_data")
+            .HasColumnType("text");
+
         builder.Property(c => c.HandoverDueAt)
             .HasColumnName("handover_due_at");
 

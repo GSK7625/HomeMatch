@@ -778,3 +778,121 @@ export interface LandlordDashboardData {
   marketingAndLeads: LandlordMarketingFunnel;
   viewingsToday: LandlordViewingItem[];
 }
+
+
+// ============================================================================
+// Leasing Module DTOs (/api/v1/leasing/contracts)
+// ============================================================================
+export type LeasingContractStatus =
+  | "DRAFT"
+  | "PENDING_SIGNATURE"
+  | "SIGNATURE_EXPIRED"
+  | "REJECTED"
+  | "SIGNED"
+  | "ACTIVE"
+  | "EXPIRED_PENDING_HANDOVER"
+  | "HANDOVER_OVERDUE"
+  | "COMPLETED"
+  | "TERMINATED"
+  | "CANCELLED"
+  | string;
+
+export type LeasingDepositStatus = "PENDING" | "PAID" | "REFUNDED" | "FORFEITED" | string;
+
+export interface LeasingContractDto {
+  id: number;
+  contractCode: string;
+  roomId: number;
+  tenantId: number;
+  landlordId: number;
+  startDate: string;
+  endDate: string;
+  monthlyRent: number;
+  depositAmount: number;
+  depositStatus: LeasingDepositStatus;
+  billingDueDay: number;
+  contractFileUrl?: string | null;
+  documentSnapshot?: string | null;
+  documentVersion: number;
+  documentGeneratedAt?: string | null;
+  status: LeasingContractStatus;
+  signatureExpiresAt?: string | null;
+  landlordSignedAt?: string | null;
+  tenantSignedAt?: string | null;
+  signedDocumentHash?: string | null;
+  landlordSignatureData?: string | null;
+  tenantSignatureData?: string | null;
+  handoverDueAt?: string | null;
+  handoverConfirmedAt?: string | null;
+  handoverConfirmedBy?: number | null;
+  actualOccupancyEndDate?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LeasingDepositTransactionDto {
+  id: number;
+  contractId: number;
+  transactionType: "RECEIVED" | "REFUNDED" | "DEDUCTED" | string;
+  amount: number;
+  reason?: string | null;
+  recordedBy: number;
+  createdAt: string;
+}
+
+export interface LeasingContractDetailDto extends LeasingContractDto {
+  totalDepositReceived: number;
+  totalDepositRefunded: number;
+  totalDepositDeducted: number;
+  currentDepositBalance: number;
+  depositTransactions: LeasingDepositTransactionDto[];
+}
+
+export interface LeasingPagedContractsDto {
+  items: LeasingContractDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface LeasingContractDocumentUrlDto {
+  downloadUrl: string;
+  documentHash?: string | null;
+  objectKey: string;
+  expiresAt: string;
+}
+
+export interface LeasingRequestOtpDto {
+  maskedEmail: string;
+  expiresAt: string;
+  message: string;
+}
+
+export interface LeasingHandoverDetailsDto {
+  contractId: number;
+  contractCode: string;
+  roomId: number;
+  contractStatus: LeasingContractStatus;
+  startDate: string;
+  endDate: string;
+  handoverDueAt?: string | null;
+  isHandoverConfirmed: boolean;
+  handoverConfirmedAt?: string | null;
+  handoverConfirmedBy?: number | null;
+  actualOccupancyEndDate?: string | null;
+  isOccupancyReleased: boolean;
+}
+
+export interface CreateLeasingContractPayload {
+  roomId: number;
+  tenantId: number;
+  startDate: string;
+  endDate: string;
+  monthlyRent: number;
+  depositAmount: number;
+  billingDueDay: number;
+  contractCode?: string;
+  documentSnapshot?: string;
+  signatureExpiresAt?: string;
+  handoverDueAt?: string;
+}

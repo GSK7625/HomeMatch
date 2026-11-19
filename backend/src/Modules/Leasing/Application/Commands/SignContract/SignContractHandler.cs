@@ -76,11 +76,11 @@ public sealed class SignContractHandler
 
         if (command.ActorId == contract.LandlordId)
         {
-            signResult = contract.SignByLandlord(command.DocumentHash, now);
+            signResult = contract.SignByLandlord(command.DocumentHash, now, command.SignatureData);
         }
         else if (command.ActorId == contract.TenantId)
         {
-            signResult = contract.SignByTenant(command.DocumentHash, now);
+            signResult = contract.SignByTenant(command.DocumentHash, now, command.SignatureData);
         }
         else
         {

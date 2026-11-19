@@ -31,6 +31,8 @@ public class Contract
     public DateTimeOffset? LandlordSignedAt { get; set; }
     public DateTimeOffset? TenantSignedAt { get; set; }
     public string? SignedDocumentHash { get; set; }
+    public string? LandlordSignatureData { get; set; }
+    public string? TenantSignatureData { get; set; }
 
     // Quản lý Bàn giao phòng & Thời gian chiếm dụng thực tế
     public DateTimeOffset? HandoverDueAt { get; set; }
@@ -212,6 +214,29 @@ public class Contract
     }
 
     /// <summary>
+    /// Khôi phục hợp đồng đã hủy / bị từ chối / quá hạn ký về lại Bản nháp (DRAFT) và xóa dấu ký cũ
+    /// </summary>
+    public Result RestoreToDraft()
+    {
+        if (Status != ContractStatus.Cancelled &&
+            Status != ContractStatus.Rejected &&
+            Status != ContractStatus.SignatureExpired)
+        {
+            return Result.Failure(LeasingErrors.InvalidStatusTransition(Status, ContractStatus.Draft));
+        }
+
+        Status = ContractStatus.Draft;
+        SignatureExpiresAt = null;
+        LandlordSignedAt = null;
+        TenantSignedAt = null;
+        LandlordSignatureData = null;
+        TenantSignatureData = null;
+        UpdatedAt = DateTimeOffset.UtcNow;
+
+        return Result.Success();
+    }
+
+    /// <summary>
     /// Nộp file PDF chính thức, lưu snapshot thông tin và chuyển sang PENDING_SIGNATURE
     /// </summary>
     public Result SubmitForSignature(
@@ -281,7 +306,7 @@ public class Contract
     /// <summary>
     /// Landlord ký xác nhận qua OTP/email
     /// </summary>
-    public Result SignByLandlord(string documentHash, DateTimeOffset signedAt)
+    public Result SignByLandlord(string documentHash, DateTimeOffset signedAt, string? signatureData = null)
     {
         if (Status != ContractStatus.PendingSignature)
         {
@@ -309,6 +334,7 @@ public class Contract
         }
 
         LandlordSignedAt = signedAt.ToUniversalTime();
+        LandlordSignatureData = string.IsNullOrWhiteSpace(signatureData) ? null : signatureData.Trim();
         SignedDocumentHash = documentHash.Trim();
         UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -324,7 +350,7 @@ public class Contract
     /// <summary>
     /// Tenant ký xác nhận qua OTP/email
     /// </summary>
-    public Result SignByTenant(string documentHash, DateTimeOffset signedAt)
+    public Result SignByTenant(string documentHash, DateTimeOffset signedAt, string? signatureData = null)
     {
         if (Status != ContractStatus.PendingSignature)
         {
@@ -352,6 +378,7 @@ public class Contract
         }
 
         TenantSignedAt = signedAt.ToUniversalTime();
+        TenantSignatureData = string.IsNullOrWhiteSpace(signatureData) ? null : signatureData.Trim();
         SignedDocumentHash = documentHash.Trim();
         UpdatedAt = DateTimeOffset.UtcNow;
 

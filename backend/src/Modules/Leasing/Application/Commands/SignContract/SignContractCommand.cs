@@ -5,4 +5,5 @@ public sealed record SignContractCommand(
     long ActorId,
     string DocumentHash,
     string OtpCode,
-    string SignatureMethod = "OTP_EMAIL");
+    string SignatureMethod = "OTP_EMAIL",
+    string? SignatureData = null);

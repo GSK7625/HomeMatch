@@ -36,4 +36,24 @@ internal sealed class IdentityUserReader : IIdentityUserReader
             Role: roles.FirstOrDefault()
         );
     }
+
+    public async Task<IReadOnlyList<IdentityUserInfo>> GetTenantsAsync(CancellationToken cancellationToken = default)
+    {
+        var tenantUsers = await _userManager.GetUsersInRoleAsync("Tenant");
+        var result = new List<IdentityUserInfo>(tenantUsers.Count);
+
+        foreach (var user in tenantUsers.OrderBy(u => u.Id))
+        {
+            var profile = await _profileRepository.GetByUserIdAsync(user.Id, cancellationToken);
+            result.Add(new IdentityUserInfo(
+                Id: user.Id,
+                FullName: profile?.FullName ?? string.Empty,
+                Email: user.Email ?? string.Empty,
+                PhoneNumber: user.PhoneNumber,
+                Role: "Tenant"
+            ));
+        }
+
+        return result;
+    }
 }

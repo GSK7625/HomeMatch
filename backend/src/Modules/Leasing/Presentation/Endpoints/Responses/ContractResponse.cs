@@ -21,6 +21,8 @@ public sealed record ContractResponse(
     DateTimeOffset? LandlordSignedAt,
     DateTimeOffset? TenantSignedAt,
     string? SignedDocumentHash,
+    string? LandlordSignatureData,
+    string? TenantSignatureData,
     DateTimeOffset? HandoverDueAt,
     DateTimeOffset? HandoverConfirmedAt,
     long? HandoverConfirmedBy,

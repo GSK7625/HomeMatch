@@ -324,3 +324,22 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+
+/* Clean A4 PDF print formatting for e-contracts */
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    width: 210mm;
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

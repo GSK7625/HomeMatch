@@ -9,6 +9,7 @@ using HomeMatch.Modules.Leasing.Application.Commands.RequestSignatureOtp;
 using HomeMatch.Modules.Leasing.Application.Commands.SendContractForSignature;
 using HomeMatch.Modules.Leasing.Application.Commands.SignContract;
 using HomeMatch.Modules.Leasing.Application.Commands.TerminateContract;
+using HomeMatch.Modules.Leasing.Application.DTOs;
 using HomeMatch.Modules.Leasing.Application.Interfaces;
 using HomeMatch.Modules.Leasing.Application.Queries.GetContractById;
 using HomeMatch.Modules.Leasing.Application.Queries.GetContractDetails;
@@ -24,6 +25,8 @@ using HomeMatch.Modules.Leasing.Domain.Enums;
 using HomeMatch.Modules.Leasing.Presentation.Endpoints.Requests;
 using HomeMatch.Modules.Leasing.Presentation.Endpoints.Responses;
 using HomeMatch.Shared.Common;
+using HomeMatch.Shared.Contracts;
+using HomeMatch.Shared.Contracts.Identity;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -35,6 +38,17 @@ public static class ContractEndpoints
 {
     public static IEndpointRouteBuilder MapContractEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet("/tenants", async (
+            [FromServices] IIdentityUserReader userReader,
+            CancellationToken cancellationToken) =>
+        {
+            var tenants = await userReader.GetTenantsAsync(cancellationToken);
+            return Results.Ok(ApiResponse.Success(tenants));
+        })
+        .RequireAuthorization()
+        .WithName("GetLeasingTenants")
+        .WithSummary("Lấy danh sách tài khoản Người thuê (Tenant) để chọn khi soạn hợp đồng");
+
         var group = endpoints.MapGroup("/contracts").RequireAuthorization();
 
         // 1. Tạo hợp đồng thuê mới (Chủ nhà nhập form + gửi kèm file PDF xuất từ bản preview)
@@ -387,7 +401,8 @@ public static class ContractEndpoints
                 ActorId: userId,
                 DocumentHash: request.DocumentHash,
                 OtpCode: request.OtpCode,
-                SignatureMethod: request.SignatureMethod);
+                SignatureMethod: request.SignatureMethod,
+                SignatureData: request.SignatureData);
 
             var result = await handler.HandleAsync(command, cancellationToken);
             if (result.IsFailure)
@@ -493,6 +508,190 @@ public static class ContractEndpoints
         .Produces<ApiResponse<ContractResponse>>(StatusCodes.Status403Forbidden)
         .Produces<ApiResponse<ContractResponse>>(StatusCodes.Status404NotFound)
         .Produces<ApiResponse<ContractResponse>>(StatusCodes.Status409Conflict);
+
+        // 8.1. Xóa vĩnh viễn hợp đồng Nháp / Đã hủy / Bị từ chối / Quá hạn ký (chưa có giao dịch cọc)
+        group.MapDelete("/{id:long}", async (
+            long id,
+            [FromServices] IContractRepository contractRepository,
+            HttpContext httpContext,
+            CancellationToken cancellationToken) =>
+        {
+            if (!TryGetUserId(httpContext, out var userId))
+            {
+                return Results.Json(
+                    ApiResponse.Failure<bool>(LeasingErrors.AuthenticationRequired),
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+
+            var contract = await contractRepository.GetForUpdateAsync(id, cancellationToken);
+            if (contract is null)
+            {
+                return MapFailureResult<bool>(LeasingErrors.NotFound);
+            }
+
+            if (contract.LandlordId != userId)
+            {
+                return MapFailureResult<bool>(LeasingErrors.Forbidden);
+            }
+
+            var deletableStatuses = new[]
+            {
+                ContractStatus.Draft,
+                ContractStatus.Cancelled,
+                ContractStatus.Rejected,
+                ContractStatus.SignatureExpired
+            };
+
+            if (!deletableStatuses.Contains(contract.Status))
+            {
+                return Results.Json(
+                    ApiResponse.Failure<bool>(new Error(
+                        "Leasing.CannotDeleteContract",
+                        "Chỉ được xóa hợp đồng ở trạng thái Bản nháp, Đã hủy, Bị từ chối hoặc Quá hạn ký.")),
+                    statusCode: StatusCodes.Status409Conflict);
+            }
+
+            if (contract.DepositTransactions.Count > 0)
+            {
+                return Results.Json(
+                    ApiResponse.Failure<bool>(new Error(
+                        "Leasing.CannotDeleteWithDeposits",
+                        "Không thể xóa hợp đồng đã phát sinh giao dịch tiền cọc.")),
+                    statusCode: StatusCodes.Status409Conflict);
+            }
+
+            contractRepository.Remove(contract);
+            await contractRepository.SaveChangesAsync(cancellationToken);
+
+            return Results.Ok(ApiResponse.Success(true));
+        })
+        .WithName("DeleteContract")
+        .WithSummary("Xóa vĩnh viễn hợp đồng Nháp, Đã hủy, Bị từ chối hoặc Quá hạn ký (Chủ nhà)");
+
+        // 8.2. Chỉnh sửa thông tin bản hợp đồng nháp (chỉ cho phép khi trạng thái DRAFT)
+        group.MapPut("/{id:long}", async (
+            long id,
+            [FromBody] UpdateDraftContractRequest request,
+            [FromServices] IContractRepository contractRepository,
+            [FromServices] IIdentityUserReader userReader,
+            [FromServices] IRoomListingReader roomReader,
+            HttpContext httpContext,
+            CancellationToken cancellationToken) =>
+        {
+            if (!TryGetUserId(httpContext, out var userId))
+            {
+                return Results.Json(
+                    ApiResponse.Failure<ContractResponse>(LeasingErrors.AuthenticationRequired),
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+
+            var validationErrors = request.Validate();
+            if (validationErrors.Count > 0)
+            {
+                return Results.BadRequest(ApiResponse.Failure<ContractResponse>(
+                    Error.Validation("Leasing.ValidationFailed", "Dữ liệu cập nhật bản nháp không hợp lệ.", validationErrors)));
+            }
+
+            var contract = await contractRepository.GetForUpdateAsync(id, cancellationToken);
+            if (contract is null)
+            {
+                return MapFailureResult<ContractResponse>(LeasingErrors.NotFound);
+            }
+
+            if (contract.LandlordId != userId)
+            {
+                return MapFailureResult<ContractResponse>(LeasingErrors.Forbidden);
+            }
+
+            var hasOverlap = await contractRepository.HasOverlappingOccupancyAsync(
+                contract.RoomId,
+                request.StartDate,
+                request.EndDate,
+                excludeContractId: contract.Id,
+                cancellationToken);
+
+            if (hasOverlap)
+            {
+                return MapFailureResult<ContractResponse>(LeasingErrors.ScheduleConflict);
+            }
+
+            var updateResult = contract.UpdateDraft(
+                request.StartDate,
+                request.EndDate,
+                request.MonthlyRent,
+                request.DepositAmount,
+                request.BillingDueDay);
+
+            if (updateResult.IsFailure)
+            {
+                return MapFailureResult<ContractResponse>(updateResult.Error);
+            }
+
+            contract.DocumentSnapshot = await ContractSnapshotEnricher.BuildEnrichedSnapshotAsync(
+                request.DocumentSnapshot ?? contract.DocumentSnapshot,
+                contract.LandlordId,
+                contract.TenantId,
+                contract.RoomId,
+                userReader,
+                roomReader,
+                cancellationToken);
+
+            await contractRepository.SaveChangesAsync(cancellationToken);
+
+            return Results.Ok(ApiResponse.Success(ContractResponseMapper.ToResponse(ContractMapper.ToDto(contract))));
+        })
+        .WithName("UpdateDraftContract")
+        .WithSummary("Chỉnh sửa thông tin bản hợp đồng nháp (DRAFT)");
+
+        // 8.3. Khôi phục hợp đồng Đã hủy / Bị từ chối / Quá hạn ký về lại Bản nháp (nếu không xung đột lịch phòng)
+        group.MapPost("/{id:long}/restore", async (
+            long id,
+            [FromServices] IContractRepository contractRepository,
+            HttpContext httpContext,
+            CancellationToken cancellationToken) =>
+        {
+            if (!TryGetUserId(httpContext, out var userId))
+            {
+                return Results.Json(
+                    ApiResponse.Failure<ContractResponse>(LeasingErrors.AuthenticationRequired),
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+
+            var contract = await contractRepository.GetForUpdateAsync(id, cancellationToken);
+            if (contract is null)
+            {
+                return MapFailureResult<ContractResponse>(LeasingErrors.NotFound);
+            }
+
+            if (contract.LandlordId != userId)
+            {
+                return MapFailureResult<ContractResponse>(LeasingErrors.Forbidden);
+            }
+
+            var hasOverlap = await contractRepository.HasOverlappingOccupancyAsync(
+                contract.RoomId,
+                contract.StartDate,
+                contract.EndDate,
+                excludeContractId: contract.Id,
+                cancellationToken);
+
+            if (hasOverlap)
+            {
+                return MapFailureResult<ContractResponse>(LeasingErrors.ScheduleConflict);
+            }
+
+            var restoreResult = contract.RestoreToDraft();
+            if (restoreResult.IsFailure)
+            {
+                return MapFailureResult<ContractResponse>(restoreResult.Error);
+            }
+
+            await contractRepository.SaveChangesAsync(cancellationToken);
+
+            return Results.Ok(ApiResponse.Success(ContractResponseMapper.ToResponse(ContractMapper.ToDto(contract))));
+        })
+        .WithName("RestoreContractToDraft")
+        .WithSummary("Khôi phục hợp đồng Đã hủy / Bị từ chối / Quá hạn ký về lại Bản nháp (DRAFT)");
 
         // 9. Kích hoạt hợp đồng thuê khi đã đến ngày bắt đầu - Dành cho Chủ nhà / Hệ thống
         group.MapPost("/{id:long}/activate", async (

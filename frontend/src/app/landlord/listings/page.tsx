@@ -189,7 +189,7 @@ export default function LandlordListingsPage() {
   const [price, setPrice] = useState(4500000);
   const [deposit, setDeposit] = useState(4500000);
   const [minLeaseMonths, setMinLeaseMonths] = useState(6);
-  const [enablePriceAssistant, setEnablePriceAssistant] = useState(true);
+  const [enablePriceAssistant, setEnablePriceAssistant] = useState(false);
   const [showModelInfo, setShowModelInfo] = useState(false);
   const [estimatingAi, setEstimatingAi] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(0);

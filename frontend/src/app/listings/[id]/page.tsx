@@ -57,7 +57,7 @@ export default function ListingDetailPage() {
   const [isFav, setIsFav] = useState(false);
   const [showFullPhone, setShowFullPhone] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [showPriceAssistant, setShowPriceAssistant] = useState(true);
+  const [showPriceAssistant, setShowPriceAssistant] = useState(false);
   const [showModelInfo, setShowModelInfo] = useState(false);
   const [analyzingPrice, setAnalyzingPrice] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(0);

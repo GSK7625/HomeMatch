@@ -1,4 +1,3 @@
-using HomeMatch.Modules.Leasing.Application.Commands.ActivateContract;
 using HomeMatch.Modules.Leasing.Application.Commands.CancelContract;
 using HomeMatch.Modules.Leasing.Application.Commands.ConfirmHandover;
 using HomeMatch.Modules.Leasing.Application.Commands.CreateContract;
@@ -70,7 +69,6 @@ public static class LeasingModuleExtensions
         services.AddScoped<SignContractHandler>();
         services.AddScoped<RejectContractHandler>();
         services.AddScoped<CancelContractHandler>();
-        services.AddScoped<ActivateContractHandler>();
         services.AddScoped<ConfirmHandoverHandler>();
         services.AddScoped<TerminateContractHandler>();
         services.AddScoped<RecordDepositTransactionHandler>();

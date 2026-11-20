@@ -20,6 +20,7 @@ using HomeMatch.Modules.Properties.Infrastructure.Geocoding;
 using HomeMatch.Modules.Properties.Infrastructure.Persistence.Repositories;
 using HomeMatch.Modules.Properties.Presentation.Endpoints;
 using HomeMatch.Shared.Contracts;
+using HomeMatch.Shared.Contracts.Properties;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -111,6 +112,7 @@ public static class PropertiesModuleExtensions
         services.AddScoped<ICatalogReader, CatalogReader>();
         services.AddScoped<IPropertyOwnershipReader, PropertyOwnershipReader>();
         services.AddScoped<IRoomListingReader, RoomListingReader>();
+        services.AddScoped<IPropertyDashboardReader, PropertyDashboardReader>();
 
         return services;
     }

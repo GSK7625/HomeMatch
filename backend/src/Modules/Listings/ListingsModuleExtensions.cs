@@ -59,6 +59,7 @@ public static class ListingsModuleExtensions
         // Cross-module writers & readers
         services.AddScoped<IListingVisibilityWriter, ListingVisibilityWriter>();
         services.AddScoped<IListingContractReader, ListingContractReader>();
+        services.AddScoped<IListingDashboardReader, ListingDashboardReader>();
         services.AddScoped<ITenantListingActivityReader, TenantListingActivityReader>();
 
         // Listings Handlers

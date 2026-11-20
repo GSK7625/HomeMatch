@@ -41,6 +41,7 @@ public static class ViewingsModuleExtensions
         // Repositories & Cross-Module Contracts
         services.AddScoped<IViewingAppointmentRepository, ViewingAppointmentRepository>();
         services.AddScoped<IViewingStatsReader, ViewingStatsReader>();
+        services.AddScoped<IViewingDashboardReader, ViewingDashboardReader>();
         services.TryAddScoped<IListingContractReader, FallbackListingContractReader>();
 
         // Use Case Handlers

@@ -7,4 +7,6 @@ public sealed record UpdatePropertyCommand(
     string? ProvinceCode,
     string? WardCode,
     string? AddressDetail,
-    string? PropertyType);
+    string? PropertyType,
+    decimal? Latitude = null,
+    decimal? Longitude = null);

@@ -1,5 +1,5 @@
 using HomeMatch.Modules.Listings.Application.Interfaces;
-using HomeMatch.Modules.Listings.Application.Models;
+using HomeMatch.Modules.Listings.Application.DTOs;
 using HomeMatch.Shared.Common;
 using HomeMatch.Shared.Contracts;
 
@@ -7,7 +7,7 @@ namespace HomeMatch.Modules.Listings.Application.Features.Listings.SearchListing
 
 public sealed class SearchListingsHandler(IListingRepository listings, IRoomListingReader rooms)
 {
-    public async Task<Result<SearchListingsResult>> HandleAsync(
+    public async Task<Result<SearchListingsDto>> HandleAsync(
         SearchListingsQuery query, CancellationToken cancellationToken = default)
     {
         query = query with
@@ -20,27 +20,27 @@ public sealed class SearchListingsHandler(IListingRepository listings, IRoomList
         };
         if (query.Page < 1 || query.PageSize is < 1 or > 100
             || (long)(query.Page - 1) * query.PageSize > int.MaxValue)
-            return Result.Failure<SearchListingsResult>(ListingsErrors.InvalidPage);
+            return Result.Failure<SearchListingsDto>(ListingsErrors.InvalidPage);
         if (query.MinPrice < 0 || query.MaxPrice < 0 || query.MinPrice > query.MaxPrice
             || query.MinArea <= 0 || query.MaxArea <= 0 || query.MinArea > query.MaxArea
             || query.Occupants <= 0 || query.Keyword?.Length > 200
             || query.ProvinceCode?.Length > 20 || query.WardCode?.Length > 20
             || query.AmenityIds.Length > 50 || query.AmenityIds.Any(id => id <= 0)
             || query.RoomType is not (null or "SINGLE" or "STUDIO" or "1B1B" or "2B1B" or "DORMITORY"))
-            return Result.Failure<SearchListingsResult>(ListingsErrors.InvalidSearch);
+            return Result.Failure<SearchListingsDto>(ListingsErrors.InvalidSearch);
 
         var matches = await rooms.SearchAvailableRoomsAsync(new(
             query.ProvinceCode, query.WardCode, query.RoomType, query.Occupants,
             query.MinArea, query.MaxArea, query.AmenityIds, query.Keyword), cancellationToken);
         if (matches.Count == 0)
-            return Result.Success(new SearchListingsResult([], query.Page, query.PageSize, 0));
+            return Result.Success(new SearchListingsDto([], query.Page, query.PageSize, 0));
 
         // shortcut: pass matching room IDs in memory; revisit when searches match very large room inventories.
         var roomIds = matches.Select(room => room.RoomId).ToArray();
         var keywordRoomIds = matches.Where(room => room.MatchesKeyword).Select(room => room.RoomId).ToArray();
         var (items, total) = await listings.SearchPublicAsync(query, roomIds, keywordRoomIds, cancellationToken);
         if (items.Count == 0)
-            return Result.Success(new SearchListingsResult([], query.Page, query.PageSize, total));
+            return Result.Success(new SearchListingsDto([], query.Page, query.PageSize, total));
 
         var pagedRoomIds = items.Select(x => x.RoomId).Distinct().ToArray();
         var roomCards = await rooms.GetRoomCardSummariesAsync(pagedRoomIds, cancellationToken);
@@ -51,7 +51,7 @@ public sealed class SearchListingsHandler(IListingRepository listings, IRoomList
             return ListingMapping.ToCardSummary(listing, roomCard);
         }).ToArray();
 
-        return Result.Success(new SearchListingsResult(summaries, query.Page, query.PageSize, total));
+        return Result.Success(new SearchListingsDto(summaries, query.Page, query.PageSize, total));
     }
 
     private static string? Trim(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

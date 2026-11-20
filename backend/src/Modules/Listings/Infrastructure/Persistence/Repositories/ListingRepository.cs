@@ -1,6 +1,6 @@
 using HomeMatch.Modules.Listings.Application;
 using HomeMatch.Modules.Listings.Application.Interfaces;
-using HomeMatch.Modules.Listings.Application.Models;
+using HomeMatch.Modules.Listings.Application.DTOs;
 using HomeMatch.Modules.Listings.Application.Features.Listings.SearchListings;
 using HomeMatch.Modules.Listings.Domain.Entities;
 using HomeMatch.Shared.Common;
@@ -53,6 +53,16 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
     public Task<Listing?> GetByIdAsync(long listingId, CancellationToken cancellationToken) =>
         db.Listings.Include(item => item.Images).FirstOrDefaultAsync(item => item.Id == listingId, cancellationToken);
 
+    public async Task<IReadOnlyList<Listing>> GetPublicByRoomIdsAsync(
+        IReadOnlyCollection<long> roomIds, CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return await db.Listings.AsNoTracking().Include(item => item.Images)
+            .Where(item => roomIds.Contains(item.RoomId) && item.Status == "PUBLISHED"
+                && (item.ExpiresAt == null || item.ExpiresAt > now))
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<Listing?> GetOwnedAsync(long landlordId, long listingId, CancellationToken cancellationToken) =>
         db.Listings.Include(item => item.Images).FirstOrDefaultAsync(
             item => item.Id == listingId && item.LandlordId == landlordId, cancellationToken);
@@ -85,6 +95,9 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
 
     public Task<bool> HasOtherPublishedAsync(long roomId, long listingId, CancellationToken cancellationToken) =>
         db.Listings.AnyAsync(item => item.RoomId == roomId && item.Id != listingId && item.Status == "PUBLISHED", cancellationToken);
+
+    public Task<bool> RoomHasListingAsync(long roomId, CancellationToken cancellationToken) =>
+        db.Listings.AnyAsync(item => item.RoomId == roomId, cancellationToken);
 
     public async Task<ListingCoordinates?> GetCoordinatesAsync(long listingId, CancellationToken cancellationToken)
     {
@@ -132,6 +145,11 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
             { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "ux_listings_slug" })
         {
             return Result.Failure(ListingsErrors.DuplicateSlug);
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException
+            { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "ux_listings_room" })
+        {
+            return Result.Failure(ListingsErrors.RoomAlreadyListed);
         }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException
             { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "ux_listings_published_room" })

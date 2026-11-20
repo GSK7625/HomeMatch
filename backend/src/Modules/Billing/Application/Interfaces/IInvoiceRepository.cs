@@ -10,6 +10,7 @@ public interface IInvoiceRepository
     Task<Invoice?> GetByCodeAsync(string invoiceCode, CancellationToken cancellationToken = default);
     Task<bool> HasActiveInvoiceForPeriodAsync(long contractId, int billingMonth, int billingYear, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<Invoice> Items, int TotalCount)> GetPagedAsync(InvoiceFilter filter, int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Invoice>> GetForDashboardAsync(long? landlordId, long? propertyId, int? billingMonth, int? billingYear, CancellationToken cancellationToken = default);
     Task AddAsync(Invoice invoice, CancellationToken cancellationToken = default);
     Task UpdateAsync(Invoice invoice, CancellationToken cancellationToken = default);
 }

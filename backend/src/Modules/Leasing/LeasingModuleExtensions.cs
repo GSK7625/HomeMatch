@@ -31,6 +31,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -61,6 +62,9 @@ public static class LeasingModuleExtensions
         // Storage & Cloudflare R2
         services.Configure<R2Settings>(configuration.GetSection(R2Settings.SectionName));
         services.AddSingleton<IContractDocumentStorage, R2DocumentStorageService>();
+
+        // Cache (Rate Limiting & OTP Cooldown/Lockout)
+        services.AddMemoryCache();
 
         // Use Case Handlers (Commands)
         services.AddScoped<CreateContractHandler>();

@@ -117,6 +117,7 @@ public static class ContractEndpoints
                 ApiResponse.Success(ContractResponseMapper.ToResponse(result.Value)));
         })
         .DisableAntiforgery()
+        .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Landlord", "Admin"))
         .WithName("CreateContract")
         .WithSummary("Tạo hợp đồng thuê mới (Chủ nhà nhập form + gửi kèm file PDF xuất từ bản preview)")
         .Produces<ApiResponse<ContractResponse>>(StatusCodes.Status201Created)

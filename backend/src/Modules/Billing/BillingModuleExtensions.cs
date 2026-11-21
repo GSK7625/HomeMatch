@@ -101,9 +101,12 @@ public static class BillingModuleExtensions
             var data = await dashboardService.GetDashboardAsync(buildingId, period, cancellationToken);
             return Results.Ok(ApiResponse<LandlordDashboardDto>.Success(data));
         })
+        .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Landlord", "Admin"))
         .WithName("GetLandlordDashboard")
         .WithSummary("Lấy dữ liệu tổng quan Dashboard và Báo cáo tài chính cho Chủ nhà")
-        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status200OK);
+        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status200OK)
+        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status401Unauthorized)
+        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status403Forbidden);
 
         // Alias route: /api/v1/landlord/dashboard for direct semantic access
         endpoints.MapGet("/api/v1/landlord/dashboard", async (
@@ -115,10 +118,13 @@ public static class BillingModuleExtensions
             var data = await dashboardService.GetDashboardAsync(buildingId, period, cancellationToken);
             return Results.Ok(ApiResponse<LandlordDashboardDto>.Success(data));
         })
+        .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Landlord", "Admin"))
         .WithTags("Landlord")
         .WithName("GetLandlordDashboardDirect")
         .WithSummary("Lấy dữ liệu tổng quan Dashboard Chủ nhà")
-        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status200OK);
+        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status200OK)
+        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status401Unauthorized)
+        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status403Forbidden);
 
         return endpoints;
     }

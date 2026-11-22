@@ -176,8 +176,8 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
     {
         if (listingIds.Count == 0) return new Dictionary<long, ListingCoordinates>();
         var points = await db.ListingLocations.AsNoTracking()
-            .Where(item => listingIds.Contains(item.ListingId))
-            .Select(item => new { item.ListingId, item.Coordinates })
+            .Where(item => listingIds.Contains(item.ListingId) && item.Coordinates != null)
+            .Select(item => new { item.ListingId, Coordinates = item.Coordinates! })
             .ToListAsync(cancellationToken);
         return points.ToDictionary(p => p.ListingId, p => new ListingCoordinates(p.Coordinates.X, p.Coordinates.Y));
     }

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using HomeMatch.Modules.Billing.Application.Commands.CancelInvoice;
 using HomeMatch.Modules.Billing.Application.Commands.CreateInvoice;
 using HomeMatch.Modules.Billing.Application.Commands.CreatePayment;
@@ -12,6 +13,7 @@ using HomeMatch.Modules.Billing.Application.Queries.GetInvoices;
 using HomeMatch.Modules.Billing.Application.Queries.GetMonthlyCashflow;
 using HomeMatch.Modules.Billing.Application.Queries.GetPaymentById;
 using HomeMatch.Modules.Billing.Application.Queries.GetPropertyFinancialReport;
+using HomeMatch.Modules.Billing.Domain.Constants;
 using HomeMatch.Modules.Billing.Infrastructure.BackgroundJobs;
 using HomeMatch.Modules.Billing.Infrastructure.Persistence;
 using HomeMatch.Modules.Billing.Infrastructure.Repositories;
@@ -92,40 +94,53 @@ public static class BillingModuleExtensions
         group.MapDebtEndpoints();
         group.MapBillingReportEndpoints();
 
-        group.MapGet("/landlord-dashboard", async (
-            string? buildingId,
-            string? period,
-            ILandlordDashboardService dashboardService,
-            CancellationToken cancellationToken) =>
-        {
-            var data = await dashboardService.GetDashboardAsync(buildingId, period, cancellationToken);
-            return Results.Ok(ApiResponse<LandlordDashboardDto>.Success(data));
-        })
-        .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Landlord", "Admin"))
-        .WithName("GetLandlordDashboard")
-        .WithSummary("Lấy dữ liệu tổng quan Dashboard và Báo cáo tài chính cho Chủ nhà")
-        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status200OK)
-        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status401Unauthorized)
-        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status403Forbidden);
+        group.MapGet("/landlord-dashboard", HandleGetLandlordDashboardAsync)
+            .RequireAuthorization()
+            .WithName("GetLandlordDashboard")
+            .WithSummary("Lấy dữ liệu tổng quan Dashboard và Báo cáo tài chính cho Chủ nhà")
+            .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status200OK)
+            .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status401Unauthorized)
+            .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status403Forbidden);
 
         // Alias route: /api/v1/landlord/dashboard for direct semantic access
-        endpoints.MapGet("/api/v1/landlord/dashboard", async (
-            string? buildingId,
-            string? period,
-            ILandlordDashboardService dashboardService,
-            CancellationToken cancellationToken) =>
-        {
-            var data = await dashboardService.GetDashboardAsync(buildingId, period, cancellationToken);
-            return Results.Ok(ApiResponse<LandlordDashboardDto>.Success(data));
-        })
-        .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Landlord", "Admin"))
-        .WithTags("Landlord")
-        .WithName("GetLandlordDashboardDirect")
-        .WithSummary("Lấy dữ liệu tổng quan Dashboard Chủ nhà")
-        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status200OK)
-        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status401Unauthorized)
-        .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status403Forbidden);
+        endpoints.MapGet("/api/v1/landlord/dashboard", HandleGetLandlordDashboardAsync)
+            .RequireAuthorization()
+            .WithTags("Landlord")
+            .WithName("GetLandlordDashboardDirect")
+            .WithSummary("Lấy dữ liệu tổng quan Dashboard Chủ nhà")
+            .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status200OK)
+            .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status401Unauthorized)
+            .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status403Forbidden);
 
         return endpoints;
+    }
+
+    private static async Task<IResult> HandleGetLandlordDashboardAsync(
+        string? buildingId,
+        string? period,
+        ClaimsPrincipal user,
+        ILandlordDashboardService dashboardService,
+        CancellationToken cancellationToken)
+    {
+        var userId = RequestActor.UserId(user);
+        if (!userId.HasValue)
+        {
+            return Results.Json(
+                ApiResponse.Failure<LandlordDashboardDto>(BillingErrors.AuthenticationRequired),
+                statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        var isAdmin = user.IsInRole("Admin") || user.IsInRole("ADMIN");
+        var isLandlord = user.IsInRole("Landlord") || user.IsInRole("LANDLORD");
+        if (!isAdmin && !isLandlord)
+        {
+            return Results.Json(
+                ApiResponse.Failure<LandlordDashboardDto>(BillingErrors.Forbidden),
+                statusCode: StatusCodes.Status403Forbidden);
+        }
+
+        long? landlordScope = isAdmin ? null : userId.Value;
+        var data = await dashboardService.GetDashboardAsync(landlordScope, buildingId, period, cancellationToken);
+        return Results.Ok(ApiResponse<LandlordDashboardDto>.Success(data));
     }
 }

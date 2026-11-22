@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { listingService, viewingService } from "@/lib/services";
-import { parseListingNumericId, viewingsApi, listingsApi, adminListingsApi, propertiesApi, getStoredToken } from "@/lib/api-client";
+import { compareSelection } from "@/lib/compare-selection";
+import { parseListingNumericId, viewingsApi, listingsApi, adminListingsApi, getStoredToken } from "@/lib/api-client";
 import { PropertyListing, PublicListingDetailDto } from "@/types";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useToast } from "@/components/Toast";
@@ -15,15 +15,10 @@ import {
   Calendar,
   Heart,
   Scale,
-  Maximize2,
-  DollarSign,
   Zap,
   Droplet,
   ShieldCheck,
-  Phone,
   MessageSquare,
-  User,
-  Clock,
   CheckCircle2,
   ArrowLeft,
   Share2,
@@ -34,10 +29,9 @@ import {
   Building2,
   Calculator,
   Flame,
-  Check,
   AlertTriangle,
 } from "lucide-react";
-import { cn, formatRoomTypeLabel } from "@/lib/utils";
+import { cn, mapPublicDetailToCard } from "@/lib/utils";
 
 export default function ListingDetailPage() {
   const params = useParams();
@@ -52,7 +46,6 @@ export default function ListingDetailPage() {
   const [isPreview, setIsPreview] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isFav, setIsFav] = useState(false);
-  const [showFullPhone, setShowFullPhone] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Booking Modal
@@ -112,103 +105,10 @@ export default function ListingDetailPage() {
           }
 
           if (isMounted && d) {
-            // In preview mode (d comes from getMyListingById or admin review, without property/room objects)
-            if (preview && d.roomId && (!d.property || !d.room)) {
-              try {
-                const propsRes = await propertiesApi.getMyProperties();
-                if (propsRes.isSuccess && propsRes.data) {
-                  for (const p of propsRes.data) {
-                    const roomsRes = await propertiesApi.getRooms(p.id);
-                    if (roomsRes.isSuccess && roomsRes.data) {
-                      const matchedRoom = roomsRes.data.find((r) => r.id === d.roomId);
-                      if (matchedRoom) {
-                        d.property = {
-                          id: p.id,
-                          name: p.name,
-                          propertyType: p.propertyType,
-                          addressDetail: p.addressDetail,
-                          wardName: p.wardCode,
-                          provinceName: p.provinceCode,
-                        };
-                        d.room = {
-                          id: matchedRoom.id,
-                          roomNumber: matchedRoom.roomNumber,
-                          floor: matchedRoom.floor,
-                          areaSqm: matchedRoom.areaSqm,
-                          roomType: matchedRoom.roomType,
-                          maxOccupants: matchedRoom.maxOccupants,
-                          amenities: matchedRoom.amenityIds?.map((id: number) => ({ id, code: String(id), name: `Tiện ích #${id}` })) || [],
-                        };
-                        break;
-                      }
-                    }
-                  }
-                }
-              } catch {
-                // Ignore enrichment error
-              }
-            }
-
-            const mapped: PropertyListing = {
-              id: String(d.id),
-              title: d.title,
-              description: d.description || "",
-              address: d.property
-                ? [d.property.addressDetail, d.property.wardName, d.property.provinceName]
-                    .map((p) => p?.trim())
-                    .filter((p, idx, arr): p is string => Boolean(p) && arr.findIndex((x) => x?.toLowerCase() === p?.toLowerCase()) === idx)
-                    .join(", ")
-                : "Hà Nội, Việt Nam",
-              ward: d.property?.wardName || "Phường / Xã",
-              district: d.property?.wardName || "",
-              city: d.property?.provinceName || "Hà Nội",
-              price: d.price,
-              deposit: d.depositAmount,
-              area: Number(d.room?.areaSqm || 25),
-              roomType: formatRoomTypeLabel(d.room?.roomType),
-              electricityPrice:
-                d.tariffs?.find((t: any) => t.tariffType === "ELECTRICITY")?.unitPrice || 3500,
-              waterPrice: d.tariffs?.find((t: any) => t.tariffType === "WATER")?.unitPrice || 25000,
-              serviceFee: d.tariffs?.find((t: any) => t.tariffType === "SERVICE")?.unitPrice || 150000,
-              amenities:
-                d.room?.amenities && d.room.amenities.length > 0
-                  ? d.room.amenities.map((a: any) => a.name)
-                  : ["Điều hòa", "Nóng lạnh", "Máy giặt"],
-              images:
-                d.images && d.images.length > 0
-                  ? d.images.map((img: any) => img.imageUrl)
-                  : [
-                      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
-                    ],
-              status:
-                (d.status || "").toUpperCase() === "PUBLISHED"
-                  ? "Còn trống"
-                  : (d.status || "").toUpperCase() === "HIDDEN"
-                  ? "Tạm ngừng"
-                  : "Đã thuê",
-              landlordId: String(d.landlordId),
-              landlordName: "Chủ Nhà",
-              landlordPhone: "0902000002",
-              latitude: d.latitude || 21.034,
-              longitude: d.longitude || 105.793,
-              createdAt: new Date().toISOString(),
-              viewCount: Number(d.viewCount) || 1,
-              isFeatured: d.isFeatured,
-            };
+            const mapped = mapPublicDetailToCard(d as PublicListingDetailDto);
             setRawDetail(d);
             setIsPreview(preview);
             setListing(mapped);
-            setIsFav(listingService.isFavorite(id));
-            if (getStoredToken()) {
-              listingsApi.getSavedListings().then((sRes) => {
-                if (isMounted && sRes.isSuccess && Array.isArray(sRes.data)) {
-                  const savedIds = sRes.data.map((s) => String(s.listingId));
-                  listingService.syncFavorites(savedIds);
-                  const savedOnServer = sRes.data.some((s) => s.listingId === d.id);
-                  setIsFav(savedOnServer);
-                }
-              }).catch(() => null);
-            }
             if (isMounted) setLoading(false);
             return;
           }
@@ -228,6 +128,26 @@ export default function ListingDetailPage() {
       isMounted = false;
     };
   }, [id]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!listing) return;
+    if (role === "Tenant" && getStoredToken()) {
+      const numericId = parseListingNumericId(listing.id);
+      listingsApi.getSavedListings().then((sRes) => {
+        if (isMounted && sRes.isSuccess && Array.isArray(sRes.data)) {
+          const savedIds = sRes.data.map((s) => String(s.listingId));
+          window.dispatchEvent(new CustomEvent("homematch:favorites-updated", { detail: { ids: savedIds } }));
+          setIsFav(sRes.data.some((s) => s.listingId === numericId));
+        }
+      }).catch(() => null);
+    } else {
+      setIsFav(false);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [listing?.id, role]);
 
   if (loading) {
     return (
@@ -282,55 +202,57 @@ export default function ListingDetailPage() {
 
   const handleToggleFav = async () => {
     if (!listing) return;
+    const token = getStoredToken();
+    if (!token || !user) {
+      showToast("Vui lòng đăng nhập tài khoản Người thuê để lưu tin yêu thích.", "info");
+      return;
+    }
+    if (role !== "Tenant") {
+      showToast("Chỉ tài khoản Người thuê mới có thể lưu tin yêu thích.", "error");
+      return;
+    }
+
+    const numericId = parseListingNumericId(listing.id);
+    if (numericId <= 0) {
+      showToast("Tin đăng không hợp lệ.", "error");
+      return;
+    }
+
     const previousState = isFav;
     const nextState = !previousState;
-    const numericId = parseListingNumericId(listing.id);
-    const token = getStoredToken();
 
     // Optimistic update
     setIsFav(nextState);
-    listingService.setFavorite(listing.id, nextState);
 
-    if (numericId > 0 && token) {
-      try {
-        const res = await listingsApi.toggleSaveListing(numericId);
-        if (res.isSuccess && typeof res.data === "boolean") {
-          const serverState = res.data;
-          setIsFav(serverState);
-          listingService.setFavorite(listing.id, serverState);
-          showToast(
-            serverState ? "Đã thêm vào phòng yêu thích!" : "Đã xóa khỏi phòng yêu thích",
-            serverState ? "success" : "info"
-          );
-        } else {
-          // Revert on server error / forbidden role
-          setIsFav(previousState);
-          listingService.setFavorite(listing.id, previousState);
-          const errorMsg = res.error?.message || "Không thể đồng bộ trạng thái yêu thích với máy chủ";
-          showToast(errorMsg, "error");
-        }
-      } catch (err) {
-        console.warn("Could not sync favorite to backend", err);
+    try {
+      const res = await listingsApi.toggleSaveListing(numericId);
+      if (res.isSuccess && typeof res.data === "boolean") {
+        const serverState = res.data;
+        setIsFav(serverState);
+        window.dispatchEvent(
+          new CustomEvent("homematch:favorites-updated", {
+            detail: { id: listing.id, isFavorite: serverState },
+          })
+        );
+        showToast(
+          serverState ? "Đã thêm vào phòng yêu thích!" : "Đã xóa khỏi phòng yêu thích",
+          serverState ? "success" : "info"
+        );
+      } else {
         setIsFav(previousState);
-        listingService.setFavorite(listing.id, previousState);
-        showToast("Lỗi kết nối máy chủ khi lưu tin", "error");
+        const errorMsg = res.error?.message || "Không thể đồng bộ trạng thái yêu thích với máy chủ";
+        showToast(errorMsg, "error");
       }
-    } else {
-      showToast(
-        nextState ? "Đã thêm vào phòng yêu thích!" : "Đã xóa khỏi phòng yêu thích",
-        nextState ? "success" : "info"
-      );
+    } catch (err) {
+      console.warn("Could not sync favorite to backend", err);
+      setIsFav(previousState);
+      showToast("Lỗi kết nối máy chủ khi lưu tin", "error");
     }
   };
 
   const handleAddToCompare = () => {
-    const res = listingService.addToCompare(listing.id);
+    const res = compareSelection.add(rawDetail?.roomId ?? listing.roomId ?? "");
     showToast(res.message, res.success ? "success" : "error");
-  };
-
-  const handlePhoneClick = () => {
-    setShowFullPhone(true);
-    showToast(`Số điện thoại chủ nhà: ${listing.landlordPhone}`, "info");
   };
 
   const handleShare = () => {
@@ -377,12 +299,18 @@ export default function ListingDetailPage() {
     }
   };
 
-  // First month total cost calculation widget
+  // First month total cost calculation widget (only from tariffs returned by backend)
   const estElecUsage = 100; // 100 kWh
   const estWaterUsage = 6; // 6 m3
-  const estElecCost = estElecUsage * listing.electricityPrice;
-  const estWaterCost = estWaterUsage * listing.waterPrice;
-  const firstMonthTotal = listing.price + listing.deposit + estElecCost + estWaterCost + listing.serviceFee;
+  const estElecCost = listing.electricityPrice != null ? estElecUsage * listing.electricityPrice : 0;
+  const estWaterCost = listing.waterPrice != null ? estWaterUsage * listing.waterPrice : 0;
+  const estServiceFee = listing.serviceFee ?? 0;
+  const firstMonthTotal = listing.price + listing.deposit + estElecCost + estWaterCost + estServiceFee;
+  const hasValidCoordinates =
+    typeof listing.latitude === "number" &&
+    typeof listing.longitude === "number" &&
+    listing.latitude !== 0 &&
+    listing.longitude !== 0;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 w-full flex-1 space-y-6 sm:space-y-8 pb-24 lg:pb-8">
@@ -458,11 +386,18 @@ export default function ListingDetailPage() {
           {/* Gallery */}
           <div className="space-y-3">
             <div className="aspect-[16/10] rounded-3xl overflow-hidden bg-slate-100 relative shadow-md">
-              <img
-                src={listing.images[activeImageIndex] || listing.images[0]}
-                alt={listing.title}
-                className="w-full h-full object-cover"
-              />
+              {listing.images.length > 0 ? (
+                <img
+                  src={listing.images[activeImageIndex] || listing.images[0]}
+                  alt={listing.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2">
+                  <Building2 className="w-12 h-12 opacity-40" />
+                  <span className="text-xs font-medium">Chưa có hình ảnh cho tin đăng này</span>
+                </div>
+              )}
               <div className="absolute top-4 left-4 flex gap-2">
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-900/85 text-white backdrop-blur-md">
                   {listing.roomType}
@@ -545,15 +480,21 @@ export default function ListingDetailPage() {
               </div>
               <div>
                 <span className="block text-[11px] font-bold text-slate-400 uppercase">Diện tích sử dụng</span>
-                <span className="text-xl sm:text-2xl font-black text-slate-800">{listing.area}</span>
+                <span className="text-xl sm:text-2xl font-black text-slate-800">
+                  {listing.area != null ? listing.area : "--"}
+                </span>
                 <span className="text-[10px] text-slate-500 block">m² sàn</span>
               </div>
               <div>
                 <span className="block text-[11px] font-bold text-slate-400 uppercase">Tiền đặt cọc</span>
                 <span className="text-xl sm:text-2xl font-black text-slate-800">
-                  {(listing.deposit / 1000000).toFixed(1)} tr
+                  {listing.deposit > 0
+                    ? `${(listing.deposit / 1000000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tr`
+                    : "0 đ"}
                 </span>
-                <span className="text-[10px] text-slate-500 block">01 tháng tiền phòng</span>
+                <span className="text-[10px] text-slate-500 block">
+                  {listing.deposit > 0 ? "Theo tin đăng" : "Không yêu cầu cọc"}
+                </span>
               </div>
             </div>
 
@@ -599,7 +540,7 @@ export default function ListingDetailPage() {
                     <span className="font-bold text-slate-800 block mt-0.5">
                       {rawDetail.room
                         ? `Tối đa ${rawDetail.room.maxOccupants} người`
-                        : "2 - 4 người"}
+                        : "Chưa cập nhật"}
                     </span>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70">
@@ -607,7 +548,7 @@ export default function ListingDetailPage() {
                       Hợp đồng tối thiểu
                     </span>
                     <span className="font-bold text-blue-600 block mt-0.5">
-                      {rawDetail.minLeaseMonths || 6} tháng
+                      {rawDetail.minLeaseMonths > 0 ? `${rawDetail.minLeaseMonths} tháng` : "Linh hoạt"}
                     </span>
                   </div>
                 </div>
@@ -630,46 +571,52 @@ export default function ListingDetailPage() {
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
                 Tiện ích & Dịch vụ đi kèm
               </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                {listing.amenities.map((item) => (
-                  <div
-                    key={item}
-                    className="flex items-center gap-2 p-3 rounded-xl bg-blue-50/60 border border-blue-100/70 text-xs text-slate-700 font-medium"
-                  >
-                    <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
+              {listing.amenities.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {listing.amenities.map((item) => (
+                    <div
+                      key={item}
+                      className="flex items-center gap-2 p-3 rounded-xl bg-blue-50/60 border border-blue-100/70 text-xs text-slate-700 font-medium"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">Chưa có thông tin tiện ích.</p>
+              )}
             </div>
 
             {/* Map Location Section */}
-            <div className="space-y-3 pt-4 border-t border-slate-100">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-blue-600" />
-                  <span>Vị trí phòng trọ trên bản đồ & Chỉ đường</span>
-                </h3>
-                <span className="text-xs text-slate-500 font-medium">
-                  {rawDetail?.property?.addressDetail || listing.address}
-                </span>
+            {hasValidCoordinates && (
+              <div className="space-y-3 pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-blue-600" />
+                    <span>Vị trí phòng trọ trên bản đồ & Chỉ đường</span>
+                  </h3>
+                  <span className="text-xs text-slate-500 font-medium">
+                    {rawDetail?.property?.addressDetail || listing.address}
+                  </span>
+                </div>
+                <MapLocationViewer
+                  latitude={listing.latitude}
+                  longitude={listing.longitude}
+                  title={rawDetail?.property?.name || listing.title}
+                  address={
+                    rawDetail?.property
+                      ? [rawDetail.property.addressDetail, rawDetail.property.wardName, rawDetail.property.provinceName]
+                          .map((p) => p?.trim())
+                          .filter((p, idx, arr): p is string => Boolean(p) && arr.findIndex((x) => x?.toLowerCase() === p?.toLowerCase()) === idx)
+                          .join(", ")
+                      : listing.address
+                  }
+                  height={320}
+                  heightClassName="h-[280px] sm:h-[340px]"
+                />
               </div>
-              <MapLocationViewer
-                latitude={rawDetail?.latitude ?? (listing.latitude || null)}
-                longitude={rawDetail?.longitude ?? (listing.longitude || null)}
-                title={rawDetail?.property?.name || listing.title}
-                address={
-                  rawDetail?.property
-                    ? [rawDetail.property.addressDetail, rawDetail.property.wardName, rawDetail.property.provinceName]
-                        .map((p) => p?.trim())
-                        .filter((p, idx, arr): p is string => Boolean(p) && arr.findIndex((x) => x?.toLowerCase() === p?.toLowerCase()) === idx)
-                        .join(", ")
-                    : listing.address
-                }
-                height={320}
-                heightClassName="h-[280px] sm:h-[340px]"
-              />
-            </div>
+            )}
 
             {/* Nearby POIs (Section 3.2: Tiện ích tra cứu liên quan) */}
             {listing.nearbyPOIs && listing.nearbyPOIs.length > 0 && (
@@ -713,7 +660,9 @@ export default function ListingDetailPage() {
                   <div>
                     <span className="text-[10px] font-bold text-amber-900 uppercase block">Giá điện</span>
                     <span className="text-xs font-black text-amber-950">
-                      {listing.electricityPrice.toLocaleString()} đ/kWh
+                      {listing.electricityPrice != null
+                        ? `${listing.electricityPrice.toLocaleString()} đ/kWh`
+                        : "Chưa cập nhật"}
                     </span>
                   </div>
                 </div>
@@ -725,7 +674,9 @@ export default function ListingDetailPage() {
                   <div>
                     <span className="text-[10px] font-bold text-sky-900 uppercase block">Giá nước</span>
                     <span className="text-xs font-black text-sky-950">
-                      {listing.waterPrice.toLocaleString()} đ/m³
+                      {listing.waterPrice != null
+                        ? `${listing.waterPrice.toLocaleString()} đ/m³`
+                        : "Chưa cập nhật"}
                     </span>
                   </div>
                 </div>
@@ -737,7 +688,9 @@ export default function ListingDetailPage() {
                   <div>
                     <span className="text-[10px] font-bold text-slate-700 uppercase block">Phí dịch vụ</span>
                     <span className="text-xs font-black text-slate-900">
-                      {listing.serviceFee.toLocaleString()} đ/tháng
+                      {listing.serviceFee != null
+                        ? `${listing.serviceFee.toLocaleString()} đ/tháng`
+                        : "Chưa cập nhật"}
                     </span>
                   </div>
                 </div>
@@ -810,51 +763,13 @@ export default function ListingDetailPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-2">
-                <Link
-                  href={`/messages?listingId=${parseListingNumericId(listing.id)}`}
-                  className="py-2.5 px-3 rounded-xl font-bold text-xs text-slate-800 bg-slate-100 hover:bg-slate-200 transition-all flex items-center justify-center gap-1.5"
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Chat chủ trọ</span>
-                </Link>
-
-                <button
-                  type="button"
-                  onClick={handlePhoneClick}
-                  className="py-2.5 px-3 rounded-xl font-bold text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all flex items-center justify-center gap-1.5"
-                >
-                  <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>{showFullPhone ? listing.landlordPhone : "Hiện số ĐT"}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Landlord Trust Profile */}
-            <div className="pt-4 border-t border-slate-100 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-lg shadow-sm">
-                  {listing.landlordName.charAt(0)}
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm">{listing.landlordName}</h4>
-                  <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-semibold">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Chủ nhà đã xác minh giấy tờ</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 rounded-xl space-y-1.5 text-xs text-slate-600">
-                <div className="flex justify-between">
-                  <span>Tỷ lệ phản hồi:</span>
-                  <span className="font-bold text-slate-900">98% (trong 15 phút)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Số tin đang quản lý:</span>
-                  <span className="font-bold text-slate-900">3 bất động sản</span>
-                </div>
-              </div>
+              <Link
+                href={`/messages?listingId=${parseListingNumericId(listing.id)}`}
+                className="w-full py-2.5 px-3 rounded-xl font-bold text-xs text-slate-800 bg-slate-100 hover:bg-slate-200 transition-all flex items-center justify-center gap-1.5"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+                <span>Chat với chủ trọ</span>
+              </Link>
             </div>
 
             {/* First Month Budget Estimator Widget */}
@@ -870,30 +785,36 @@ export default function ListingDetailPage() {
                   <span className="font-semibold text-slate-900">{listing.price.toLocaleString()} đ</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>Tiền cọc giữ chỗ (1 tháng):</span>
+                  <span>Tiền cọc giữ chỗ:</span>
                   <span className="font-semibold text-slate-900">{listing.deposit.toLocaleString()} đ</span>
                 </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>Dự kiến điện (100 kWh):</span>
-                  <span className="font-semibold text-slate-900">{estElecCost.toLocaleString()} đ</span>
-                </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>Dự kiến nước (6 m³):</span>
-                  <span className="font-semibold text-slate-900">{estWaterCost.toLocaleString()} đ</span>
-                </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>Phí dịch vụ:</span>
-                  <span className="font-semibold text-slate-900">{listing.serviceFee.toLocaleString()} đ</span>
-                </div>
+                {listing.electricityPrice != null && (
+                  <div className="flex justify-between text-slate-600">
+                    <span>Dự kiến điện ({estElecUsage} kWh):</span>
+                    <span className="font-semibold text-slate-900">{estElecCost.toLocaleString()} đ</span>
+                  </div>
+                )}
+                {listing.waterPrice != null && (
+                  <div className="flex justify-between text-slate-600">
+                    <span>Dự kiến nước ({estWaterUsage} m³):</span>
+                    <span className="font-semibold text-slate-900">{estWaterCost.toLocaleString()} đ</span>
+                  </div>
+                )}
+                {listing.serviceFee != null && (
+                  <div className="flex justify-between text-slate-600">
+                    <span>Phí dịch vụ:</span>
+                    <span className="font-semibold text-slate-900">{estServiceFee.toLocaleString()} đ</span>
+                  </div>
+                )}
 
                 <div className="pt-2 border-t border-blue-200/80 flex justify-between font-black text-sm text-blue-900">
-                  <span>Tổng chuẩn bị ban đầu:</span>
+                  <span>Tổng ước tính ban đầu:</span>
                   <span className="text-blue-700">{firstMonthTotal.toLocaleString()} VNĐ</span>
                 </div>
               </div>
 
               <p className="text-[10px] text-slate-400 italic text-center">
-                * Tiền cọc được hoàn lại 100% khi kết thúc hợp đồng theo điều khoản.
+                * Tính theo các biểu phí đã công bố từ hệ thống cho tin đăng này.
               </p>
             </div>
           </div>

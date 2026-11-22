@@ -190,4 +190,44 @@ public class IdentityAccountService : IIdentityAccountService
 
         return new OperationResult(true, Array.Empty<string>());
     }
+
+    public async Task<OperationResult> UpdatePhoneNumberAsync(long userId, string? phoneNumber, CancellationToken cancellationToken = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return new OperationResult(false, new[] { "Không tìm thấy người dùng." });
+        }
+
+        user.PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim();
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            return new OperationResult(false, result.Errors.Select(e => e.Description));
+        }
+
+        return new OperationResult(true, Array.Empty<string>());
+    }
+
+    public async Task<OperationResult> ChangePasswordAsync(long userId, string currentPassword, string newPassword, CancellationToken cancellationToken = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return new OperationResult(false, new[] { "Không tìm thấy người dùng." });
+        }
+
+        var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+        if (!result.Succeeded)
+        {
+            return new OperationResult(false, result.Errors.Select(e => e.Code));
+        }
+
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+        await _userManager.UpdateAsync(user);
+
+        return new OperationResult(true, Array.Empty<string>());
+    }
 }

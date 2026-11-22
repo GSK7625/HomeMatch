@@ -38,10 +38,31 @@ export interface CurrentUserProfile {
   role: UserRole;
   phoneNumber?: string | null;
   avatarUrl?: string;
+  dateOfBirth?: string | null;
+  gender?: "MALE" | "FEMALE" | "OTHER" | string | null;
+  notifyPush?: boolean;
   emailConfirmed?: boolean;
   emailVerified?: boolean;
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface UpdateProfilePayload {
+  fullName: string;
+  phoneNumber?: string | null;
+  dateOfBirth?: string | null;
+  gender?: "MALE" | "FEMALE" | "OTHER" | null;
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}
+
+export interface NotificationSettings {
+  notifyPush: boolean;
+  updatedAt: string;
 }
 
 export interface AuthTokens {
@@ -75,6 +96,7 @@ export interface TenantReview {
 
 export interface PropertyListing {
   id: string;
+  roomId?: number;
   title: string;
   description: string;
   address: string;
@@ -83,14 +105,14 @@ export interface PropertyListing {
   city: string;
   price: number; // VND/month
   deposit: number; // VND
-  area: number; // m2
+  area: number | null; // m2
   roomType: "Phòng trọ" | "Chung cư mini" | "Căn hộ dịch vụ" | "Nhà nguyên căn" | "Ở ghép" | "Studio";
   status: RoomStatus;
   images: string[];
   amenities: string[];
   landlordId: string;
-  landlordName: string;
-  landlordPhone: string;
+  landlordName?: string | null;
+  landlordPhone?: string | null;
   landlordAvatar?: string;
   isVerifiedLandlord?: boolean;
   rating?: number;
@@ -99,11 +121,11 @@ export interface PropertyListing {
   tags?: string[];
   nearbyPOIs?: NearbyPOI[];
   reviews?: TenantReview[];
-  electricityPrice: number; // VND/kWh
-  waterPrice: number; // VND/m3
-  serviceFee: number; // VND/month
-  latitude: number;
-  longitude: number;
+  electricityPrice?: number | null; // VND/kWh
+  waterPrice?: number | null; // VND/m3
+  serviceFee?: number | null; // VND/month
+  latitude?: number | null;
+  longitude?: number | null;
   createdAt: string;
   viewCount: number;
   isFeatured?: boolean;

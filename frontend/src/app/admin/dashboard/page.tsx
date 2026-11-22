@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/AuthContext";
 import { adminListingsApi, listingsApi, getStoredToken } from "@/lib/api-client";
-import { PropertyListing, SystemReport, ListingSummaryDto, ListingDetailDto } from "@/types";
+import { PropertyListing, ListingSummaryDto, ListingDetailDto } from "@/types";
 import { useToast } from "@/components/Toast";
 import { Modal } from "@/components/Modal";
 import {
@@ -13,32 +13,16 @@ import {
   FileText,
   AlertTriangle,
   XCircle,
-  Lock,
-  Unlock,
   Eye,
-  Building,
-  DollarSign,
   RefreshCw,
-  Send,
-  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface DemoAccount {
-  id: string;
-  name: string;
-  email: string;
-  role: "Tenant" | "Landlord";
-  status: "Hoạt động" | "Bị khóa";
-  joinedDate: string;
-}
 
 export default function AdminDashboardPage() {
   const { user, role } = useAuth();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<"listings" | "users" | "reports">("listings");
   const [listings, setListings] = useState<PropertyListing[]>([]);
-  const [reports, setReports] = useState<SystemReport[]>([]);
 
   // Real backend listings
   const [backendListings, setBackendListings] = useState<ListingSummaryDto[]>([]);
@@ -71,29 +55,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // System user accounts list
-  const [accounts, setAccounts] = useState<DemoAccount[]>([
-    {
-      id: "usr-01",
-      name: "Trần Bình An (Người Thuê)",
-      email: "tenant@homematch.vn",
-      role: "Tenant",
-      status: "Hoạt động",
-      joinedDate: "2026-10-01",
-    },
-    {
-      id: "usr-02",
-      name: "Nguyễn Văn Hoàng (Chủ Trọ)",
-      email: "landlord@homematch.vn",
-      role: "Landlord",
-      status: "Hoạt động",
-      joinedDate: "2026-09-15",
-    },
-  ]);
-
   const loadData = useCallback(async () => {
-    setReports([]);
-
     // Load backend pending listings and public listings
     const token = getStoredToken();
     setLoadingPending(true);
@@ -228,31 +190,6 @@ export default function AdminDashboardPage() {
 
 
 
-  const handleToggleLockUser = (id: string) => {
-    setAccounts((prev) =>
-      prev.map((acc) => {
-        if (acc.id === id) {
-          const newStatus = acc.status === "Hoạt động" ? "Bị khóa" : "Hoạt động";
-          showToast(
-            newStatus === "Bị khóa"
-              ? `Đã khóa tài khoản ${acc.name}.`
-              : `Đã mở khóa tài khoản ${acc.name}!`,
-            newStatus === "Bị khóa" ? "error" : "success"
-          );
-          return { ...acc, status: newStatus };
-        }
-        return acc;
-      })
-    );
-  };
-
-  const handleResolveReport = (id: string, resolution: "Đã xử lý" | "Đã bác bỏ") => {
-    setReports((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: resolution } : r))
-    );
-    showToast(`Đã ghi nhận kết quả xử lý báo cáo: ${resolution}`, "success");
-  };
-
   if (!user || role !== "Admin") {
     return (
       <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
@@ -331,7 +268,7 @@ export default function AdminDashboardPage() {
           )}
         >
           <Users className="w-4 h-4" />
-          <span>Quản Lý Tài Khoản ({accounts.length})</span>
+          <span>Quản Lý Tài Khoản</span>
         </button>
 
         <button
@@ -344,7 +281,7 @@ export default function AdminDashboardPage() {
           )}
         >
           <AlertTriangle className="w-4 h-4" />
-          <span>Báo Cáo Vi Phạm ({reports.length})</span>
+          <span>Báo Cáo Vi Phạm</span>
         </button>
       </div>
 
@@ -621,243 +558,31 @@ export default function AdminDashboardPage() {
 
       {/* Tab 2: Users Management */}
       {activeTab === "users" && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-          {/* Desktop Table */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse min-w-[700px]">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500 uppercase tracking-wider">
-                  <th className="p-4">Họ và tên</th>
-                  <th className="p-4">Email đăng nhập</th>
-                  <th className="p-4">Vai trò (Role)</th>
-                  <th className="p-4">Ngày tham gia</th>
-                  <th className="p-4">Trạng thái</th>
-                  <th className="p-4 text-right">Hành động</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {accounts.map((acc) => (
-                  <tr key={acc.id} className="hover:bg-slate-50/60">
-                    <td className="p-4 font-bold text-slate-900">{acc.name}</td>
-                    <td className="p-4 font-medium text-slate-600">{acc.email}</td>
-                    <td className="p-4">
-                      <span
-                        className={cn(
-                          "px-2.5 py-1 rounded-full text-xs font-bold",
-                          acc.role === "Landlord"
-                            ? "bg-purple-50 text-purple-700 border border-purple-200"
-                            : "bg-blue-50 text-blue-700 border border-blue-200"
-                        )}
-                      >
-                        {acc.role === "Landlord" ? "Chủ nhà" : "Khách thuê"}
-                      </span>
-                    </td>
-                    <td className="p-4 text-slate-500">{acc.joinedDate}</td>
-                    <td className="p-4 whitespace-nowrap">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap border shadow-2xs",
-                          acc.status === "Hoạt động"
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200/90"
-                            : "bg-rose-50 text-rose-700 border-rose-200/90"
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "w-1.5 h-1.5 rounded-full shrink-0",
-                            acc.status === "Hoạt động" ? "bg-emerald-500" : "bg-rose-500"
-                          )}
-                        />
-                        <span>{acc.status}</span>
-                      </span>
-                    </td>
-                    <td className="p-4 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => handleToggleLockUser(acc.id)}
-                        className={cn(
-                          "px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors whitespace-nowrap shrink-0",
-                          acc.status === "Hoạt động"
-                            ? "border-rose-200 text-rose-600 hover:bg-rose-50"
-                            : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                        )}
-                      >
-                        {acc.status === "Hoạt động" ? "Khóa tài khoản" : "Mở khóa"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto">
+            <Users className="w-6 h-6" />
           </div>
-
-          {/* Mobile Cards View */}
-          <div className="block md:hidden divide-y divide-slate-100">
-            {accounts.map((acc) => (
-              <div key={acc.id} className="p-4 space-y-2.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-xs">{acc.name}</h4>
-                    <p className="text-[11px] text-slate-500 font-medium">{acc.email}</p>
-                  </div>
-                  <span
-                    className={cn(
-                      "px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0",
-                      acc.role === "Landlord"
-                        ? "bg-purple-50 text-purple-700 border border-purple-200"
-                        : "bg-blue-50 text-blue-700 border border-blue-200"
-                    )}
-                  >
-                    {acc.role === "Landlord" ? "Chủ nhà" : "Khách thuê"}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-[11px] pt-1">
-                  <span className="text-slate-400">Tham gia: {acc.joinedDate}</span>
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap border shadow-2xs",
-                      acc.status === "Hoạt động"
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200/90"
-                        : "bg-rose-50 text-rose-700 border-rose-200/90"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "w-1.5 h-1.5 rounded-full shrink-0",
-                        acc.status === "Hoạt động" ? "bg-emerald-500" : "bg-rose-500"
-                      )}
-                    />
-                    <span>{acc.status}</span>
-                  </span>
-                </div>
-
-                <div className="pt-2 border-t border-slate-100">
-                  <button
-                    onClick={() => handleToggleLockUser(acc.id)}
-                    className={cn(
-                      "w-full py-2 rounded-xl text-xs font-bold border transition-colors text-center shadow-2xs",
-                      acc.status === "Hoạt động"
-                        ? "border-rose-200 text-rose-600 hover:bg-rose-50"
-                        : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                    )}
-                  >
-                    {acc.status === "Hoạt động" ? "Khóa tài khoản" : "Mở khóa"}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <h3 className="text-sm font-bold text-slate-900">
+            Quản Lý Tài Khoản Đang Chờ API Backend
+          </h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            Dữ liệu tài khoản người dùng và thao tác khóa/mở khóa sẽ được kết nối trực tiếp với Backend Identity Admin API sau khi hoàn tất.
+          </p>
         </div>
       )}
 
       {/* Tab 3: Reports */}
       {activeTab === "reports" && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-          {/* Desktop Table */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse min-w-[800px]">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500 uppercase tracking-wider">
-                  <th className="p-4">Đối tượng bị báo cáo</th>
-                  <th className="p-4">Người khiếu nại</th>
-                  <th className="p-4">Lý do báo cáo</th>
-                  <th className="p-4">Thời gian</th>
-                  <th className="p-4">Trạng thái xử lý</th>
-                  <th className="p-4 text-right">Phán quyết</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {reports.map((rep) => (
-                  <tr key={rep.id} className="hover:bg-slate-50/60">
-                    <td className="p-4 font-bold text-slate-900">{rep.targetTitle}</td>
-                    <td className="p-4 text-slate-600">{rep.reporterName}</td>
-                    <td className="p-4 text-rose-600 font-semibold">{rep.reason}</td>
-                    <td className="p-4 text-slate-500">{rep.createdAt}</td>
-                    <td className="p-4">
-                      <span
-                        className={cn(
-                          "px-2.5 py-1 rounded-full text-xs font-bold border",
-                          rep.status === "Chờ xử lý"
-                            ? "bg-amber-50 text-amber-700 border-amber-200"
-                            : "bg-slate-100 text-slate-700 border-slate-200"
-                        )}
-                      >
-                        {rep.status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">
-                      {rep.status === "Chờ xử lý" && (
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleResolveReport(rep.id, "Đã xử lý")}
-                            className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs whitespace-nowrap shrink-0 shadow-2xs"
-                          >
-                            Xác nhận vi phạm
-                          </button>
-                          <button
-                            onClick={() => handleResolveReport(rep.id, "Đã bác bỏ")}
-                            className="px-3 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs whitespace-nowrap shrink-0"
-                          >
-                            Bác bỏ
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-6 h-6" />
           </div>
-
-          {/* Mobile Cards View */}
-          <div className="block md:hidden divide-y divide-slate-100">
-            {reports.map((rep) => (
-              <div key={rep.id} className="p-4 space-y-2.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-xs">{rep.targetTitle}</h4>
-                    <p className="text-[11px] text-slate-500">Người báo: {rep.reporterName}</p>
-                  </div>
-                  <span
-                    className={cn(
-                      "px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0",
-                      rep.status === "Chờ xử lý"
-                        ? "bg-amber-50 text-amber-700 border-amber-200"
-                        : "bg-slate-100 text-slate-700 border-slate-200"
-                    )}
-                  >
-                    {rep.status}
-                  </span>
-                </div>
-
-                <div className="bg-rose-50/60 p-2.5 rounded-xl border border-rose-100 text-[11px] text-rose-700">
-                  <span className="font-bold block">Lý do:</span>
-                  <span>{rep.reason}</span>
-                </div>
-
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Thời gian: {rep.createdAt}</span>
-                </div>
-
-                {rep.status === "Chờ xử lý" && (
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-                    <button
-                      onClick={() => handleResolveReport(rep.id, "Đã xử lý")}
-                      className="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-colors shadow-2xs text-center"
-                    >
-                      Xác nhận vi phạm
-                    </button>
-                    <button
-                      onClick={() => handleResolveReport(rep.id, "Đã bác bỏ")}
-                      className="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs transition-colors text-center"
-                    >
-                      Bác bỏ
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <h3 className="text-sm font-bold text-slate-900">
+            Quản Lý Báo Cáo Vi Phạm Đang Chờ API Backend
+          </h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            Danh sách khiếu nại và thao tác xử lý vi phạm sẽ được đồng bộ từ Backend Moderation API khi sẵn sàng.
+          </p>
         </div>
       )}
 

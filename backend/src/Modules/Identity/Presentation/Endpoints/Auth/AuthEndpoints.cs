@@ -137,7 +137,8 @@ public static class AuthEndpoints
                 request.Email,
                 request.Password,
                 deviceInfo,
-                ipAddress);
+                ipAddress,
+                request.RememberMe);
 
             var result = await handler.HandleAsync(command, cancellationToken);
             if (result.IsFailure)
@@ -156,8 +157,12 @@ public static class AuthEndpoints
                 return Results.BadRequest(ApiResponse.Failure<IssuedAccessTokenResponse>(result.Error));
             }
 
-            // Đặt Refresh Token vào Cookie HttpOnly (SameSite=Lax)
-            CookieAuthHelper.SetRefreshTokenCookie(httpContext, result.Value.RefreshToken, result.Value.SessionExpiresAt);
+            // Đặt Refresh Token vào Cookie HttpOnly (SameSite=Lax); session cookie nếu RememberMe = false
+            CookieAuthHelper.SetRefreshTokenCookie(
+                httpContext,
+                result.Value.RefreshToken,
+                result.Value.SessionExpiresAt,
+                result.Value.RememberMe);
 
             var response = new IssuedAccessTokenResponse(
                 AccessToken: result.Value.AccessToken,
@@ -206,8 +211,12 @@ public static class AuthEndpoints
                 return Results.Json(ApiResponse.Failure<IssuedAccessTokenResponse>(result.Error), statusCode: StatusCodes.Status401Unauthorized);
             }
 
-            // Cập nhật Refresh Cookie mới (Token Rotation)
-            CookieAuthHelper.SetRefreshTokenCookie(httpContext, result.Value.RefreshToken, result.Value.SessionExpiresAt);
+            // Cập nhật Refresh Cookie mới (Token Rotation), giữ trạng thái persistent/session
+            CookieAuthHelper.SetRefreshTokenCookie(
+                httpContext,
+                result.Value.RefreshToken,
+                result.Value.SessionExpiresAt,
+                result.Value.RememberMe);
 
             var response = new IssuedAccessTokenResponse(
                 AccessToken: result.Value.AccessToken,

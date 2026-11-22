@@ -18,7 +18,10 @@ using HomeMatch.Modules.Identity.Application.Features.Auth.RefreshToken;
 using HomeMatch.Modules.Identity.Application.Features.Auth.Register;
 using HomeMatch.Modules.Identity.Application.Features.Auth.ResendConfirmation;
 using HomeMatch.Modules.Identity.Application.Features.Auth.ResetPassword;
+using HomeMatch.Modules.Identity.Application.Features.Profile.ChangePassword;
 using HomeMatch.Modules.Identity.Application.Features.Profile.GetCurrentUser;
+using HomeMatch.Modules.Identity.Application.Features.Profile.NotificationSettings;
+using HomeMatch.Modules.Identity.Application.Features.Profile.UpdateProfile;
 using HomeMatch.Modules.Identity.Application.Features.TenantOverview.GetTenantDashboard;
 using HomeMatch.Modules.Identity.Application.Features.TenantOverview.GetViewedListings;
 using HomeMatch.Modules.Identity.Application.Interfaces;
@@ -73,7 +76,12 @@ public static class IdentityModuleExtensions
         .AddDefaultTokenProviders();
 
         // 3. Configure JWT Authentication & Authorization
-        var jwtSecret = configuration["Jwt:Secret"] ?? "super_secret_jwt_key_with_at_least_32_characters_long_123!";
+        var jwtSecret = configuration["Jwt:Secret"];
+        if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32)
+        {
+            throw new InvalidOperationException(
+                "Cấu hình 'Jwt:Secret' phải được thiết lập qua biến môi trường và có tối thiểu 32 ký tự.");
+        }
         var jwtIssuer = configuration["Jwt:Issuer"] ?? "HomeMatch";
         var jwtAudience = configuration["Jwt:Audience"] ?? "HomeMatchApp";
 
@@ -159,6 +167,7 @@ public static class IdentityModuleExtensions
         });
         services.AddScoped<IIdentityAccountService, IdentityAccountService>();
         services.AddScoped<IIdentityUserReader, IdentityUserReader>();
+        services.AddScoped<IUserNotificationPreferenceReader, UserNotificationPreferenceReader>();
         services.AddScoped<IIdentityOtpService, IdentityOtpService>();
         services.TryAddScoped<ITenantListingActivityReader, FallbackTenantListingActivityReader>();
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
@@ -186,6 +195,12 @@ public static class IdentityModuleExtensions
         // Mục 3.4: Tenant Overview & Dashboard Handlers
         services.AddScoped<GetTenantDashboardHandler>();
         services.AddScoped<GetViewedListingsHandler>();
+
+        // Mục 3.10: Account Settings Handlers
+        services.AddScoped<UpdateProfileHandler>();
+        services.AddScoped<ChangePasswordHandler>();
+        services.AddScoped<GetNotificationSettingsHandler>();
+        services.AddScoped<UpdateNotificationSettingsHandler>();
 
         return services;
     }

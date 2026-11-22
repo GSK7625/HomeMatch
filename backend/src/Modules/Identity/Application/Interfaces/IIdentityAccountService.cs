@@ -41,4 +41,6 @@ public interface IIdentityAccountService
     Task<int> IncrementSecurityVersionAsync(long userId, CancellationToken cancellationToken = default);
     Task<string> GeneratePasswordResetTokenAsync(long userId, CancellationToken cancellationToken = default);
     Task<OperationResult> ResetPasswordAsync(long userId, string token, string newPassword, CancellationToken cancellationToken = default);
+    Task<OperationResult> UpdatePhoneNumberAsync(long userId, string? phoneNumber, CancellationToken cancellationToken = default);
+    Task<OperationResult> ChangePasswordAsync(long userId, string currentPassword, string newPassword, CancellationToken cancellationToken = default);
 }

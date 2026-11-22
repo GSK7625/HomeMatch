@@ -8,6 +8,9 @@ public record CurrentUserProfileResponse(
     string FullName,
     string? PhoneNumber,
     string? AvatarUrl,
+    DateOnly? DateOfBirth,
+    string? Gender,
+    bool NotifyPush,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt
 );

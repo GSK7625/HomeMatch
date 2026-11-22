@@ -80,17 +80,18 @@ public class LoginHandler
             fullName,
             credResult.SecurityVersion);
 
-        // 7. Sinh Refresh Token (phiên 24 giờ)
+        // 7. Sinh Refresh Token (30 ngày nếu RememberMe, ngược lại phiên 24 giờ)
         var rawRefreshToken = TokenHasher.GenerateSecureToken();
         var tokenHash = TokenHasher.HashToken(rawRefreshToken);
         var now = DateTimeOffset.UtcNow;
-        var sessionExpiresAt = now.AddHours(24);
+        var tokenType = command.RememberMe ? "REMEMBER_ME" : "REFRESH";
+        var sessionExpiresAt = command.RememberMe ? now.AddDays(30) : now.AddHours(24);
 
         var refreshTokenEntity = new Domain.Entities.RefreshToken
         {
             UserId = credResult.UserId,
             TokenHash = tokenHash,
-            TokenType = "REFRESH",
+            TokenType = tokenType,
             DeviceInfo = command.DeviceInfo,
             IpAddress = command.IpAddress,
             CreatedAt = now,
@@ -108,6 +109,7 @@ public class LoginHandler
             RefreshToken: rawRefreshToken,
             ExpiresIn: _jwtTokenService.AccessTokenExpirationSeconds,
             ExpiresAt: now.AddSeconds(_jwtTokenService.AccessTokenExpirationSeconds),
-            SessionExpiresAt: sessionExpiresAt));
+            SessionExpiresAt: sessionExpiresAt,
+            RememberMe: command.RememberMe));
     }
 }

@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/AuthContext";
-import { listingService } from "@/lib/services";
 import { propertiesApi, catalogsApi, getStoredToken } from "@/lib/api-client";
 import {
   PropertyDto,
@@ -58,92 +57,6 @@ const ROOM_TYPES = [
   { value: "1B1B", label: "1 Phòng ngủ + 1 Khách" },
   { value: "2B1B", label: "2 Phòng ngủ" },
   { value: "DORMITORY", label: "Ký túc xá / Ở ghép" },
-];
-
-const FALLBACK_PROVINCES: ProvinceDto[] = [
-  { code: "01", name: "Hà Nội", fullName: "Thành phố Hà Nội" },
-  { code: "79", name: "Hồ Chí Minh", fullName: "Thành phố Hồ Chí Minh" },
-  { code: "48", name: "Đà Nẵng", fullName: "Thành phố Đà Nẵng" },
-  { code: "31", name: "Hải Phòng", fullName: "Thành phố Hải Phòng" },
-  { code: "92", name: "Cần Thơ", fullName: "Thành phố Cần Thơ" },
-  { code: "74", name: "Bình Dương", fullName: "Tỉnh Bình Dương" },
-  { code: "75", name: "Đồng Nai", fullName: "Tỉnh Đồng Nai" },
-  { code: "77", name: "Bà Rịa - Vũng Tàu", fullName: "Tỉnh Bà Rịa - Vũng Tàu" },
-  { code: "56", name: "Khánh Hòa", fullName: "Tỉnh Khánh Hòa" },
-  { code: "49", name: "Quảng Nam", fullName: "Tỉnh Quảng Nam" },
-  { code: "46", name: "Thừa Thiên Huế", fullName: "Tỉnh Thừa Thiên Huế" },
-  { code: "30", name: "Hải Dương", fullName: "Tỉnh Hải Dương" },
-  { code: "27", name: "Bắc Ninh", fullName: "Tỉnh Bắc Ninh" },
-];
-
-const FALLBACK_WARDS_HN: WardDto[] = [
-  // Các phường mới sáp nhập theo Nghị quyết của Quốc hội
-  { code: "00181", name: "Văn Miếu - Quốc Tử Giám", fullName: "Phường Văn Miếu - Quốc Tử Giám (Đống Đa)", provinceCode: "01" },
-  { code: "00226", name: "Phương Liên - Trung Tự", fullName: "Phường Phương Liên - Trung Tự (Đống Đa)", provinceCode: "01" },
-  { code: "00202", name: "Khâm Thiên", fullName: "Phường Khâm Thiên (Đống Đa)", provinceCode: "01" },
-  { code: "00187", name: "Láng Thượng", fullName: "Phường Láng Thượng (Đống Đa)", provinceCode: "01" },
-  { code: "00199", name: "Láng Hạ", fullName: "Phường Láng Hạ (Đống Đa)", provinceCode: "01" },
-  { code: "00190", name: "Ô Chợ Dừa", fullName: "Phường Ô Chợ Dừa (Đống Đa)", provinceCode: "01" },
-  // Cầu Giấy
-  { code: "00167", name: "Dịch Vọng Hậu", fullName: "Phường Dịch Vọng Hậu (Cầu Giấy)", provinceCode: "01" },
-  { code: "00169", name: "Quan Hoa", fullName: "Phường Quan Hoa (Cầu Giấy)", provinceCode: "01" },
-  { code: "00166", name: "Dịch Vọng", fullName: "Phường Dịch Vọng (Cầu Giấy)", provinceCode: "01" },
-  { code: "00172", name: "Yên Hoà", fullName: "Phường Yên Hoà (Cầu Giấy)", provinceCode: "01" },
-  { code: "00175", name: "Trung Hoà", fullName: "Phường Trung Hoà (Cầu Giấy)", provinceCode: "01" },
-  { code: "00163", name: "Mai Dịch", fullName: "Phường Mai Dịch (Cầu Giấy)", provinceCode: "01" },
-  { code: "00157", name: "Nghĩa Đô", fullName: "Phường Nghĩa Đô (Cầu Giấy)", provinceCode: "01" },
-  { code: "00160", name: "Nghĩa Tân", fullName: "Phường Nghĩa Tân (Cầu Giấy)", provinceCode: "01" },
-  // Nam Từ Liêm & Bắc Từ Liêm
-  { code: "00625", name: "Mỹ Đình 1", fullName: "Phường Mỹ Đình 1 (Nam Từ Liêm)", provinceCode: "01" },
-  { code: "00626", name: "Mỹ Đình 2", fullName: "Phường Mỹ Đình 2 (Nam Từ Liêm)", provinceCode: "01" },
-  { code: "00631", name: "Mễ Trì", fullName: "Phường Mễ Trì (Nam Từ Liêm)", provinceCode: "01" },
-  { code: "00632", name: "Phú Đô", fullName: "Phường Phú Đô (Nam Từ Liêm)", provinceCode: "01" },
-  { code: "00637", name: "Trung Văn", fullName: "Phường Trung Văn (Nam Từ Liêm)", provinceCode: "01" },
-  { code: "00616", name: "Cổ Nhuế 1", fullName: "Phường Cổ Nhuế 1 (Bắc Từ Liêm)", provinceCode: "01" },
-  { code: "00617", name: "Cổ Nhuế 2", fullName: "Phường Cổ Nhuế 2 (Bắc Từ Liêm)", provinceCode: "01" },
-  { code: "00619", name: "Phú Diễn", fullName: "Phường Phú Diễn (Bắc Từ Liêm)", provinceCode: "01" },
-  { code: "00610", name: "Xuân Đỉnh", fullName: "Phường Xuân Đỉnh (Bắc Từ Liêm)", provinceCode: "01" },
-  // Thanh Xuân & Hai Bà Trưng
-  { code: "00343", name: "Nhân Chính", fullName: "Phường Nhân Chính (Thanh Xuân)", provinceCode: "01" },
-  { code: "00355", name: "Thanh Xuân Trung", fullName: "Phường Thanh Xuân Trung (Thanh Xuân)", provinceCode: "01" },
-  { code: "00346", name: "Thượng Đình", fullName: "Phường Thượng Đình (Thanh Xuân)", provinceCode: "01" },
-  { code: "00277", name: "Bách Khoa", fullName: "Phường Bách Khoa (Hai Bà Trưng)", provinceCode: "01" },
-  { code: "00280", name: "Đồng Tâm", fullName: "Phường Đồng Tâm (Hai Bà Trưng)", provinceCode: "01" },
-  { code: "00244", name: "Bạch Đằng", fullName: "Phường Bạch Đằng (Hai Bà Trưng)", provinceCode: "01" },
-  { code: "00271", name: "Thanh Nhàn", fullName: "Phường Thanh Nhàn (Hai Bà Trưng)", provinceCode: "01" },
-  { code: "00283", name: "Vĩnh Tuy", fullName: "Phường Vĩnh Tuy (Hai Bà Trưng)", provinceCode: "01" },
-  // Ba Đình, Hoàn Kiếm, Tây Hồ
-  { code: "00004", name: "Trúc Bạch", fullName: "Phường Trúc Bạch (Ba Đình)", provinceCode: "01" },
-  { code: "00007", name: "Cống Vị", fullName: "Phường Cống Vị (Ba Đình)", provinceCode: "01" },
-  { code: "00028", name: "Kim Mã", fullName: "Phường Kim Mã (Ba Đình)", provinceCode: "01" },
-  { code: "00031", name: "Giảng Võ", fullName: "Phường Giảng Võ (Ba Đình)", provinceCode: "01" },
-  { code: "00073", name: "Cửa Nam", fullName: "Phường Cửa Nam (Hoàn Kiếm)", provinceCode: "01" },
-  { code: "00079", name: "Tràng Tiền", fullName: "Phường Tràng Tiền (Hoàn Kiếm)", provinceCode: "01" },
-  { code: "00100", name: "Quảng An", fullName: "Phường Quảng An (Tây Hồ)", provinceCode: "01" },
-  // Hà Đông & Hoàng Mai
-  { code: "09541", name: "Mộ Lao", fullName: "Phường Mộ Lao (Hà Đông)", provinceCode: "01" },
-  { code: "09544", name: "Vạn Phúc", fullName: "Phường Vạn Phúc (Hà Đông)", provinceCode: "01" },
-  { code: "09542", name: "Văn Quán", fullName: "Phường Văn Quán (Hà Đông)", provinceCode: "01" },
-  { code: "00337", name: "Hoàng Liệt", fullName: "Phường Hoàng Liệt (Hoàng Mai)", provinceCode: "01" },
-  { code: "00307", name: "Định Công", fullName: "Phường Định Công (Hoàng Mai)", provinceCode: "01" },
-];
-
-const FALLBACK_WARDS_HCM: WardDto[] = [
-  // Quận 1, 3 & TP. Thủ Đức mới
-  { code: "26734", name: "Bến Nghé", fullName: "Phường Bến Nghé (Quận 1)", provinceCode: "79" },
-  { code: "26737", name: "Bến Thành", fullName: "Phường Bến Thành (Quận 1)", provinceCode: "79" },
-  { code: "26740", name: "Nguyễn Thái Bình", fullName: "Phường Nguyễn Thái Bình (Quận 1)", provinceCode: "79" },
-  { code: "26830", name: "Thảo Điền", fullName: "Phường Thảo Điền (TP. Thủ Đức)", provinceCode: "79" },
-  { code: "26833", name: "An Phú", fullName: "Phường An Phú (TP. Thủ Đức)", provinceCode: "79" },
-  { code: "26836", name: "Hiệp Phú", fullName: "Phường Hiệp Phú (TP. Thủ Đức)", provinceCode: "79" },
-  { code: "26839", name: "Tăng Nhơn Phú A", fullName: "Phường Tăng Nhơn Phú A (TP. Thủ Đức)", provinceCode: "79" },
-  // Bình Thạnh, Gò Vấp, Tân Bình
-  { code: "27145", name: "Phường 25", fullName: "Phường 25 (Bình Thạnh)", provinceCode: "79" },
-  { code: "27148", name: "Phường 26", fullName: "Phường 26 (Bình Thạnh)", provinceCode: "79" },
-  { code: "27139", name: "Phường 19", fullName: "Phường 19 (Bình Thạnh)", provinceCode: "79" },
-  { code: "27202", name: "Phường 01", fullName: "Phường 01 (Gò Vấp)", provinceCode: "79" },
-  { code: "27205", name: "Phường 03", fullName: "Phường 03 (Gò Vấp)", provinceCode: "79" },
-  { code: "27118", name: "Phường 02", fullName: "Phường 02 (Tân Bình)", provinceCode: "79" },
 ];
 
 export default function LandlordPropertiesPage() {
@@ -269,18 +182,8 @@ export default function LandlordPropertiesPage() {
       setLoadingWards(false);
     }
 
-    // Fallback if backend returned empty or network lagged
-    const fallbackList =
-      provinceCode === "01"
-        ? FALLBACK_WARDS_HN
-        : provinceCode === "79"
-        ? FALLBACK_WARDS_HCM
-        : [];
-    setWards(fallbackList);
-    setNewPropWard((prev) => {
-      const exists = fallbackList.some((w) => w.code === prev);
-      return exists ? prev : fallbackList.length > 0 ? fallbackList[0].code : "";
-    });
+    setWards([]);
+    setNewPropWard("");
   }, []);
 
   useEffect(() => {
@@ -311,13 +214,7 @@ export default function LandlordPropertiesPage() {
       setLoadingEditWards(false);
     }
 
-    const fallbackList =
-      provinceCode === "01"
-        ? FALLBACK_WARDS_HN
-        : provinceCode === "79"
-        ? FALLBACK_WARDS_HCM
-        : [];
-    setEditPropWards(fallbackList);
+    setEditPropWards([]);
   }, []);
 
   useEffect(() => {
@@ -662,23 +559,9 @@ export default function LandlordPropertiesPage() {
 
   const selectedProperty = properties.find((p) => p.id === selectedPropertyId);
 
-  const availableProvinces = provinces.length > 0 ? provinces : FALLBACK_PROVINCES;
-  const availableWards =
-    wards.length > 0
-      ? wards
-      : newPropProvince === "01"
-      ? FALLBACK_WARDS_HN
-      : newPropProvince === "79"
-      ? FALLBACK_WARDS_HCM
-      : [];
-  const availableEditWards =
-    editPropWards.length > 0
-      ? editPropWards
-      : editPropProvince === "01"
-      ? FALLBACK_WARDS_HN
-      : editPropProvince === "79"
-      ? FALLBACK_WARDS_HCM
-      : [];
+  const availableProvinces = provinces;
+  const availableWards = wards;
+  const availableEditWards = editPropWards;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-6">

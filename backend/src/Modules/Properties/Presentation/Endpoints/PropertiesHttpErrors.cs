@@ -10,8 +10,9 @@ internal static class PropertiesHttpErrors
         {
             "Auth.Unauthorized" => StatusCodes.Status401Unauthorized,
             "Auth.LandlordRequired" => StatusCodes.Status403Forbidden,
-            "Property.NotFound" or "Room.NotFound" or "Tariff.NotFound" => StatusCodes.Status404NotFound,
-            "Room.DuplicateNumber" or "Tariff.DuplicateDate" or "Tariff.AlreadyEffective" => StatusCodes.Status409Conflict,
+            "Auth.AdminRequired" => StatusCodes.Status403Forbidden,
+            "Property.NotFound" or "Room.NotFound" or "Tariff.NotFound" or "Catalog.NotFound" => StatusCodes.Status404NotFound,
+            "Room.DuplicateNumber" or "Tariff.DuplicateDate" or "Tariff.AlreadyEffective" or "Catalog.Duplicate" => StatusCodes.Status409Conflict,
             _ => StatusCodes.Status400BadRequest
         });
 

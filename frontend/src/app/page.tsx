@@ -27,7 +27,7 @@ import {
   Clock,
   ChevronDown,
 } from "lucide-react";
-import { cn, mapListingSummaryToCard } from "@/lib/utils";
+import { cn, mapListingSummaryToCard, matchesLocationFilter } from "@/lib/utils";
 
 const QUICK_LOCATIONS = [
   { label: "Cầu Giấy, HN", city: "Hà Nội", district: "Cầu Giấy" },
@@ -56,6 +56,7 @@ export default function HomePage() {
   const [district, setDistrict] = useState("Tất cả");
   const [priceRange, setPriceRange] = useState("all");
   const [keyword, setKeyword] = useState("");
+  const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
 
   // Commercial Landlord Calculator State
   const [calcRooms, setCalcRooms] = useState(6);
@@ -101,12 +102,13 @@ export default function HomePage() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
-    if (keyword) params.set("q", keyword);
+    if (keyword.trim()) params.set("keyword", keyword.trim());
     if (city !== "Tất cả") params.set("city", city);
     if (district !== "Tất cả") params.set("district", district);
     if (priceRange !== "all") params.set("price", priceRange);
     if (activeCategoryTab !== "all") params.set("roomType", activeCategoryTab);
-    router.push(`/listings?${params.toString()}`);
+    const qs = params.toString();
+    router.push(qs ? `/listings?${qs}` : "/listings");
   };
 
   const handleQuickLocation = (locCity: string, locDistrict: string) => {
@@ -114,6 +116,24 @@ export default function HomePage() {
   };
 
   const displayListings = listings.slice(0, 6);
+
+  const quickKeywordMatches = keyword.trim()
+    ? listings
+        .filter((item) => {
+          const kw = keyword.trim().toLowerCase();
+          const matchText =
+            item.title.toLowerCase().includes(kw) ||
+            item.address.toLowerCase().includes(kw) ||
+            item.district.toLowerCase().includes(kw) ||
+            item.city.toLowerCase().includes(kw) ||
+            item.roomType.toLowerCase().includes(kw);
+          if (!matchText) return false;
+          if (city !== "Tất cả" && !matchesLocationFilter(item.city, city)) return false;
+          if (activeCategoryTab !== "all" && item.roomType !== activeCategoryTab) return false;
+          return true;
+        })
+        .slice(0, 5)
+    : [];
 
   // Computed landlord projected income
   const monthlyRevenue = calcRooms * calcRent * 0.95; // 95% occupancy rate
@@ -194,7 +214,7 @@ export default function HomePage() {
                 className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-row lg:items-end gap-3"
               >
                 {/* Keyword */}
-                <div className="sm:col-span-2 lg:flex-1 min-w-0">
+                <div className="sm:col-span-2 lg:flex-1 min-w-0 relative">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                     Từ khóa tìm kiếm
                   </label>
@@ -204,10 +224,55 @@ export default function HomePage() {
                       type="text"
                       placeholder="Gần ĐH Bách Khoa, Cầu Giấy..."
                       value={keyword}
-                      onChange={(e) => setKeyword(e.target.value)}
+                      onFocus={() => setSearchDropdownOpen(true)}
+                      onBlur={() => setTimeout(() => setSearchDropdownOpen(false), 180)}
+                      onChange={(e) => {
+                        setKeyword(e.target.value);
+                        setSearchDropdownOpen(true);
+                      }}
                       className="w-full h-10 pl-9 pr-3 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all placeholder:font-normal placeholder:text-slate-400"
                     />
                   </div>
+
+                  {searchDropdownOpen && keyword.trim().length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl border border-slate-200 shadow-2xl z-30 overflow-hidden">
+                      {quickKeywordMatches.length > 0 ? (
+                        <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
+                          {quickKeywordMatches.map((item) => (
+                            <Link
+                              key={item.id}
+                              href={`/listings/${item.id}`}
+                              className="flex items-center justify-between gap-3 px-3.5 py-2.5 hover:bg-blue-50/60 transition-colors"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-slate-900 truncate">
+                                  {item.title}
+                                </p>
+                                <p className="text-[11px] text-slate-500 truncate">
+                                  {item.address} • {item.roomType}
+                                </p>
+                              </div>
+                              <span className="text-xs font-black text-blue-600 shrink-0">
+                                {(item.price / 1000000).toFixed(1)} tr
+                              </span>
+                            </Link>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="px-3.5 py-3 text-xs text-slate-500">
+                          Nhấn &ldquo;Tìm phòng&rdquo; để tìm kiếm trên toàn hệ thống cho từ khóa{" "}
+                          <span className="font-bold text-slate-800">&ldquo;{keyword.trim()}&rdquo;</span>
+                        </div>
+                      )}
+                      <button
+                        type="submit"
+                        className="w-full px-3.5 py-2 bg-slate-50 hover:bg-blue-50 text-xs font-bold text-blue-600 border-t border-slate-100 flex items-center justify-center gap-1.5"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        <span>Xem tất cả kết quả cho &ldquo;{keyword.trim()}&rdquo;</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* City */}

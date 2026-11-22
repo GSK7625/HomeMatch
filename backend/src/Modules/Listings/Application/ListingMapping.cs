@@ -19,7 +19,10 @@ public static class ListingMapping
             listing.Images.FirstOrDefault(image => image.IsPrimary)?.ImageUrl ?? listing.Images.FirstOrDefault()?.ImageUrl,
             depositAmount: listing.DepositAmount);
 
-    public static ListingSummaryResult ToCardSummary(Listing listing, HomeMatch.Shared.Contracts.RoomCardSummary? room) =>
+    public static ListingSummaryResult ToCardSummary(
+        Listing listing,
+        HomeMatch.Shared.Contracts.RoomCardSummary? room,
+        ListingCoordinates? coordinates = null) =>
         new(listing.Id, listing.RoomId, listing.Title, listing.Slug, listing.Price, listing.Status,
             listing.Images.FirstOrDefault(image => image.IsPrimary)?.ImageUrl ?? listing.Images.FirstOrDefault()?.ImageUrl,
             depositAmount: listing.DepositAmount,
@@ -30,7 +33,9 @@ public static class ListingMapping
             addressDetail: room?.AddressDetail,
             electricityPrice: room?.ElectricityPrice,
             waterPrice: room?.WaterPrice,
-            amenities: room?.Amenities);
+            amenities: room?.Amenities,
+            latitude: coordinates?.Latitude ?? room?.Latitude,
+            longitude: coordinates?.Longitude ?? room?.Longitude);
 
     public static ListingImageResult ToImageResult(ListingImage image) =>
         new(image.Id, image.ImageUrl, image.IsPrimary, image.SortOrder,

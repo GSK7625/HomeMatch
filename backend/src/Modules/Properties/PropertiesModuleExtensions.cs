@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Sockets;
+using HomeMatch.Modules.Properties.Application.Features.AdminCatalogs;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetAmenities;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetProvinces;
+using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetRoomTypes;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetWards;
 using HomeMatch.Modules.Properties.Application.Features.Properties.CreateProperty;
 using HomeMatch.Modules.Properties.Application.Features.Properties.GetMyProperties;
@@ -20,6 +22,7 @@ using HomeMatch.Modules.Properties.Infrastructure.Geocoding;
 using HomeMatch.Modules.Properties.Infrastructure.Persistence.Repositories;
 using HomeMatch.Modules.Properties.Presentation.Endpoints;
 using HomeMatch.Shared.Contracts;
+using HomeMatch.Shared.Contracts.Admin;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -94,9 +97,17 @@ public static class PropertiesModuleExtensions
         services.AddScoped<IPropertyRepository, PropertyRepository>();
         services.AddScoped<IRoomRepository, RoomRepository>();
         services.AddScoped<ITariffRepository, TariffRepository>();
+        services.AddScoped<IAdminCatalogRepository, AdminCatalogRepository>();
         services.AddScoped<GetAmenitiesHandler>();
+        services.AddScoped<GetRoomTypesHandler>();
         services.AddScoped<GetProvincesHandler>();
         services.AddScoped<GetWardsHandler>();
+        services.AddScoped<GetAdminAmenitiesHandler>();
+        services.AddScoped<CreateAmenityHandler>();
+        services.AddScoped<UpdateAmenityHandler>();
+        services.AddScoped<GetAdminRoomTypesHandler>();
+        services.AddScoped<CreateRoomTypeHandler>();
+        services.AddScoped<UpdateRoomTypeHandler>();
         services.AddScoped<CreatePropertyHandler>();
         services.AddScoped<GetMyPropertiesHandler>();
         services.AddScoped<GetPropertyByIdHandler>();
@@ -111,6 +122,7 @@ public static class PropertiesModuleExtensions
         services.AddScoped<ICatalogReader, CatalogReader>();
         services.AddScoped<IPropertyOwnershipReader, PropertyOwnershipReader>();
         services.AddScoped<IRoomListingReader, RoomListingReader>();
+        services.AddScoped<IAdminPropertyStatsReader, AdminPropertyStatsReader>();
 
         return services;
     }
@@ -124,6 +136,7 @@ public static class PropertiesModuleExtensions
         propertiesGroup.MapTariffEndpoints();
 
         endpoints.MapCatalogEndpoints();
+        endpoints.MapAdminCatalogEndpoints();
 
         return endpoints;
     }

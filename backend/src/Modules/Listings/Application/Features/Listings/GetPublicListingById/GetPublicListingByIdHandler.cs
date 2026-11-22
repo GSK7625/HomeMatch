@@ -19,6 +19,19 @@ public sealed class GetPublicListingByIdHandler(IListingRepository listings, IRo
             return Result.Failure<PublicListingDetailResult>(ListingsErrors.ListingNotFound);
 
         var coordinates = await listings.GetCoordinatesAsync(query.ListingId, cancellationToken);
+
+        if (query.ViewerUserId != listing.LandlordId)
+        {
+            var viewIncremented = await listings.RecordViewAsync(
+                listing.Id,
+                query.ViewerUserId,
+                query.IpAddress,
+                DateTimeOffset.UtcNow,
+                cancellationToken);
+            if (viewIncremented)
+                listing.ViewCount += 1;
+        }
+
         return Result.Success(new PublicListingDetailResult(ListingMapping.ToResult(listing, coordinates), room));
     }
 }

@@ -71,6 +71,70 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
         return (items, total);
     }
 
+    public async Task<(IReadOnlyList<Listing> Items, int TotalCount)> GetAdminListingsAsync(
+        string? status,
+        string? keyword,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var query = db.Listings.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            var normalizedStatus = status.Trim().ToUpperInvariant();
+            query = query.Where(item => item.Status == normalizedStatus);
+        }
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var trimmed = keyword.Trim();
+            var pattern = "%" + trimmed.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+            if (long.TryParse(trimmed, out var idMatch))
+            {
+                query = query.Where(item =>
+                    item.Id == idMatch
+                    || item.RoomId == idMatch
+                    || item.LandlordId == idMatch
+                    || EF.Functions.ILike(item.Title, pattern, "\\"));
+            }
+            else
+            {
+                query = query.Where(item =>
+                    EF.Functions.ILike(item.Title, pattern, "\\")
+                    || EF.Functions.ILike(item.Description, pattern, "\\"));
+            }
+        }
+
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query.Include(item => item.Images)
+            .OrderByDescending(item => item.Status == "PENDING_APPROVAL")
+            .ThenByDescending(item => item.UpdatedAt)
+            .ThenByDescending(item => item.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToArrayAsync(cancellationToken);
+        return (items, total);
+    }
+
+    public async Task<AdminListingStatsSnapshot> GetAdminStatsAsync(DateTimeOffset? fromUtc, CancellationToken cancellationToken)
+    {
+        var rows = await db.Listings.AsNoTracking()
+            .Select(l => new { l.Status, l.ViewCount, l.CreatedAt })
+            .ToListAsync(cancellationToken);
+
+        return new AdminListingStatsSnapshot(
+            TotalListings: rows.Count,
+            PublishedListings: rows.Count(l => l.Status == "PUBLISHED"),
+            PendingApprovalListings: rows.Count(l => l.Status == "PENDING_APPROVAL"),
+            HiddenListings: rows.Count(l => l.Status == "HIDDEN"),
+            RejectedListings: rows.Count(l => l.Status == "REJECTED"),
+            DraftListings: rows.Count(l => l.Status == "DRAFT"),
+            ExpiredListings: rows.Count(l => l.Status == "EXPIRED"),
+            TotalViews: rows.Sum(l => l.ViewCount),
+            NewListingsInPeriod: fromUtc.HasValue ? rows.Count(l => l.CreatedAt >= fromUtc.Value) : rows.Count);
+    }
+
     public async Task<IReadOnlyList<Listing>> GetPublicCandidatesAsync(int offset, int limit, CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
@@ -113,6 +177,58 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
             db.ListingLocations.Add(new ListingLocation { Listing = listing, Coordinates = point });
         else
             location.Coordinates = point;
+    }
+
+    public async Task<bool> RecordViewAsync(
+        long listingId,
+        long? userId,
+        string? ipAddress,
+        DateTimeOffset viewedAt,
+        CancellationToken cancellationToken)
+    {
+        var normalizedIp = string.IsNullOrWhiteSpace(ipAddress) ? null : ipAddress.Trim();
+        if (normalizedIp is { Length: > 45 })
+            normalizedIp = normalizedIp[..45];
+
+        ListingView? recentView = null;
+        if (userId.HasValue || normalizedIp is not null)
+        {
+            var dedupCutoff = viewedAt.AddSeconds(-60);
+            var recentQuery = db.ListingViews
+                .Where(view => view.ListingId == listingId && view.ViewedAt >= dedupCutoff);
+            recentQuery = userId.HasValue
+                ? recentQuery.Where(view => view.UserId == userId.Value)
+                : recentQuery.Where(view => view.UserId == null && view.IpAddress == normalizedIp);
+
+            recentView = await recentQuery
+                .OrderByDescending(view => view.ViewedAt)
+                .ThenByDescending(view => view.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        if (recentView is not null)
+        {
+            recentView.ViewedAt = viewedAt;
+            if (normalizedIp is not null)
+                recentView.IpAddress = normalizedIp;
+            await db.SaveChangesAsync(cancellationToken);
+            return false;
+        }
+
+        db.ListingViews.Add(new ListingView
+        {
+            ListingId = listingId,
+            UserId = userId,
+            IpAddress = normalizedIp,
+            ViewedAt = viewedAt
+        });
+        await db.SaveChangesAsync(cancellationToken);
+
+        await db.Listings
+            .Where(listing => listing.Id == listingId)
+            .ExecuteUpdateAsync(update => update.SetProperty(listing => listing.ViewCount, listing => listing.ViewCount + 1), cancellationToken);
+
+        return true;
     }
 
     public void Add(Listing listing) => db.Listings.Add(listing);

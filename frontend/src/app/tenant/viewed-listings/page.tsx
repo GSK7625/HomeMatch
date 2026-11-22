@@ -107,10 +107,6 @@ export default function TenantViewedListingsPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
         <div>
-          <div className="flex items-center gap-2 text-blue-600 text-xs font-bold uppercase tracking-wider mb-1">
-            <Eye className="w-4 h-4" />
-            <span>Mục 3.4.2 • Xem danh sách phòng đã xem</span>
-          </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Lịch Sử Phòng Đã Xem ({totalCount})
           </h1>

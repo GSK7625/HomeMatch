@@ -9,6 +9,8 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using HomeMatch.Modules.Identity.Application.Features.Admin.GetAdminUsers;
+using HomeMatch.Modules.Identity.Application.Features.Admin.SetUserLockStatus;
 using HomeMatch.Modules.Identity.Application.Features.Auth.ConfirmEmail;
 using HomeMatch.Modules.Identity.Application.Features.Auth.ForgotPassword;
 using HomeMatch.Modules.Identity.Application.Features.Auth.Login;
@@ -26,8 +28,10 @@ using HomeMatch.Modules.Identity.Infrastructure.Identity;
 using HomeMatch.Modules.Identity.Infrastructure.Persistence;
 using HomeMatch.Modules.Identity.Infrastructure.Persistence.Repositories;
 using HomeMatch.Modules.Identity.Infrastructure.Services;
+using HomeMatch.Modules.Identity.Presentation.Endpoints.Admin;
 using HomeMatch.Modules.Identity.Presentation.Endpoints.Auth;
 using HomeMatch.Modules.Identity.Presentation.Endpoints.Profile;
+using HomeMatch.Shared.Contracts.Admin;
 using HomeMatch.Modules.Identity.Presentation.Security;
 using HomeMatch.Shared.Contracts.Identity;
 using HomeMatch.Shared.Contracts.Listings;
@@ -187,6 +191,13 @@ public static class IdentityModuleExtensions
         services.AddScoped<GetTenantDashboardHandler>();
         services.AddScoped<GetViewedListingsHandler>();
 
+        // Mục 3.11: Admin User Management & Stats
+        services.AddScoped<AdminUserService>();
+        services.AddScoped<IAdminUserService>(sp => sp.GetRequiredService<AdminUserService>());
+        services.AddScoped<IAdminIdentityStatsReader>(sp => sp.GetRequiredService<AdminUserService>());
+        services.AddScoped<GetAdminUsersHandler>();
+        services.AddScoped<SetUserLockStatusHandler>();
+
         return services;
     }
 
@@ -201,6 +212,9 @@ public static class IdentityModuleExtensions
         // Map Profile Endpoints (UC-A11: /me) & Tenant Overview (Mục 3.4.1 & 3.4.2)
         group.MapProfileEndpoints();
         group.MapTenantOverviewEndpoints();
+
+        // Map Admin User Management Endpoints (/api/v1/admin/users)
+        endpoints.MapAdminUsersEndpoints();
 
         return endpoints;
     }

@@ -31,7 +31,8 @@ internal static class ListingResponseMapper
     public static ListingSummaryResponse ToResponse(ListingSummaryResult result) =>
         new(result.Id, result.RoomId, result.Title, result.Slug, result.Price, result.Status, result.CoverImageUrl,
             result.DepositAmount, result.AreaSqm, result.RoomType,
-            result.DistrictName, result.ProvinceName, result.AddressDetail, result.ElectricityPrice, result.WaterPrice, result.Amenities);
+            result.DistrictName, result.ProvinceName, result.AddressDetail, result.ElectricityPrice, result.WaterPrice,
+            result.Amenities, result.Latitude, result.Longitude);
     public static IReadOnlyList<ListingSummaryResponse> ToResponse(IReadOnlyList<ListingSummaryResult> results) =>
         results.Select(ToResponse).ToArray();
     public static IReadOnlyList<SavedListingResponse> ToResponse(IReadOnlyList<SavedListingResult> results) =>

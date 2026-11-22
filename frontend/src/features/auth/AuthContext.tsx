@@ -8,6 +8,7 @@ import {
   setStoredToken,
   getStoredUser,
   setStoredUser,
+  setRememberedEmail,
   RegistrationBody,
 } from "@/lib/api-client";
 
@@ -23,12 +24,11 @@ interface AuthContextType {
   token: string | null;
   role: UserRole | "Guest";
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<AuthResult>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<AuthResult>;
   register: (body: RegistrationBody) => Promise<{ success: boolean; message?: string }>;
   resendConfirmationEmail: (email: string) => Promise<{ success: boolean; message?: string }>;
   logout: (allDevices?: boolean) => Promise<void>;
   refreshProfile: () => Promise<void>;
-  switchDemoRole?: (role: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -102,7 +102,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               currentPath.startsWith("/tenant") ||
               currentPath.startsWith("/landlord") ||
               currentPath.startsWith("/admin") ||
-              currentPath.startsWith("/messages");
+              currentPath.startsWith("/messages") ||
+              currentPath.startsWith("/settings");
             if (isProtectedRoute) {
               window.location.href = `/auth/login?reason=expired&redirect=${encodeURIComponent(currentPath)}`;
             }
@@ -123,14 +124,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const login = async (email: string, password: string): Promise<AuthResult> => {
+  const login = async (email: string, password: string, rememberMe = true): Promise<AuthResult> => {
     setIsLoading(true);
     try {
-      const res = await authApi.login({ email, password });
+      const res = await authApi.login({ email, password, rememberMe });
       if (res.isSuccess && res.data) {
         const accessToken = res.data.accessToken;
         setToken(accessToken);
-        setStoredToken(accessToken);
+        setStoredToken(accessToken, rememberMe);
+        setRememberedEmail(rememberMe ? email : null);
 
         // Fetch user profile from backend /api/v1/identity/me
         const profileRes = await authApi.getMe();
@@ -138,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (profileRes.isSuccess && profileRes.data) {
           userProfile = normalizeProfile(profileRes.data);
           setUser(userProfile);
-          setStoredUser(userProfile);
+          setStoredUser(userProfile, rememberMe);
         } else {
           // Fallback profile if /me endpoint has slight latency
           userProfile = {
@@ -152,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             createdAt: new Date().toISOString(),
           };
           setUser(userProfile);
-          setStoredUser(userProfile);
+          setStoredUser(userProfile, rememberMe);
         }
         return { success: true, user: userProfile };
       } else {
@@ -232,8 +234,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const switchDemoRole = () => {};
-
   const role = user ? user.role : "Guest";
 
   return (
@@ -248,7 +248,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         resendConfirmationEmail,
         logout,
         refreshProfile,
-        switchDemoRole,
       }}
     >
       {children}

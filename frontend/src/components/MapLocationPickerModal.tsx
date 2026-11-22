@@ -7,10 +7,8 @@ import { Modal } from "@/components/Modal";
 import {
   MapPin,
   Navigation,
-  Search,
   Check,
   Info,
-  Compass,
 } from "lucide-react";
 
 interface MapLocationPickerModalProps {
@@ -39,57 +37,8 @@ const createCustomPinIcon = (leaflet: typeof L) => {
   });
 };
 
-// Default fallback coordinate (Hanoi centre)
+// Default center coordinate (Hanoi centre)
 const DEFAULT_CENTER: [number, number] = [21.0285, 105.8542];
-
-// Predefined center coordinates for major Vietnamese administrative regions
-const VIETNAM_FALLBACK_COORDINATES: Array<{
-  keywords: string[];
-  lat: number;
-  lng: number;
-  name: string;
-}> = [
-  // Hà Nội
-  { keywords: ["bach dang", "bạch đằng"], lat: 21.0188, lng: 105.8631, name: "Phường Bạch Đằng, Hà Nội" },
-  { keywords: ["dich vong", "dịch vọng"], lat: 21.0333, lng: 105.7928, name: "Cầu Giấy, Hà Nội" },
-  { keywords: ["cau giay", "cầu giấy"], lat: 21.0362, lng: 105.7906, name: "Quận Cầu Giấy, Hà Nội" },
-  { keywords: ["dong da", "đống đa"], lat: 21.0181, lng: 105.8299, name: "Quận Đống Đa, Hà Nội" },
-  { keywords: ["ba dinh", "ba đình"], lat: 21.0341, lng: 105.8244, name: "Quận Ba Đình, Hà Nội" },
-  { keywords: ["hoan kiem", "hoàn kiếm"], lat: 21.0285, lng: 105.8542, name: "Quận Hoàn Kiếm, Hà Nội" },
-  { keywords: ["hai ba trung", "hai bà trưng"], lat: 21.0069, lng: 105.8524, name: "Quận Hai Bà Trưng, Hà Nội" },
-  { keywords: ["thanh xuan", "thanh xuân"], lat: 20.9937, lng: 105.8115, name: "Quận Thanh Xuân, Hà Nội" },
-  { keywords: ["tay ho", "tây hồ"], lat: 21.0717, lng: 105.8239, name: "Quận Tây Hồ, Hà Nội" },
-  { keywords: ["hoang mai", "hoàng mai"], lat: 20.9765, lng: 105.8584, name: "Quận Hoàng Mai, Hà Nội" },
-  { keywords: ["long bien", "long biên"], lat: 21.0422, lng: 105.8924, name: "Quận Long Biên, Hà Nội" },
-  { keywords: ["nam tu liem", "nam từ liêm"], lat: 21.0135, lng: 105.7645, name: "Quận Nam Từ Liêm, Hà Nội" },
-  { keywords: ["bac tu liem", "bắc từ liêm"], lat: 21.0631, lng: 105.7588, name: "Quận Bắc Từ Liêm, Hà Nội" },
-  { keywords: ["ha dong", "hà đông"], lat: 20.9723, lng: 105.7766, name: "Quận Hà Đông, Hà Nội" },
-  { keywords: ["ha noi", "hà nội"], lat: 21.0285, lng: 105.8542, name: "Thành phố Hà Nội" },
-
-  // TP Hồ Chí Minh
-  { keywords: ["quan 1", "quận 1", "district 1"], lat: 10.7758, lng: 106.7004, name: "Quận 1, TP.HCM" },
-  { keywords: ["quan 3", "quận 3", "district 3"], lat: 10.7844, lng: 106.6845, name: "Quận 3, TP.HCM" },
-  { keywords: ["quan 5", "quận 5", "district 5"], lat: 10.7554, lng: 106.6669, name: "Quận 5, TP.HCM" },
-  { keywords: ["quan 7", "quận 7", "district 7"], lat: 10.7340, lng: 106.7218, name: "Quận 7, TP.HCM" },
-  { keywords: ["quan 10", "quận 10", "district 10"], lat: 10.7716, lng: 106.6675, name: "Quận 10, TP.HCM" },
-  { keywords: ["binh thanh", "bình thạnh"], lat: 10.8106, lng: 106.7091, name: "Bình Thạnh, TP.HCM" },
-  { keywords: ["go vap", "gò vấp"], lat: 10.8387, lng: 106.6653, name: "Gò Vấp, TP.HCM" },
-  { keywords: ["tan binh", "tân bình"], lat: 10.8015, lng: 106.6526, name: "Tân Bình, TP.HCM" },
-  { keywords: ["thu duc", "thủ đức"], lat: 10.8504, lng: 106.7533, name: "TP. Thủ Đức" },
-  { keywords: ["ho chi minh", "hồ chí minh", "sai gon", "sài gòn"], lat: 10.8231, lng: 106.6297, name: "TP. Hồ Chí Minh" },
-
-  // Đà Nẵng
-  { keywords: ["hai chau", "hải châu"], lat: 16.0592, lng: 108.2208, name: "Hải Châu, Đà Nẵng" },
-  { keywords: ["thanh khe", "thanh khê"], lat: 16.0617, lng: 108.1902, name: "Thanh Khê, Đà Nẵng" },
-  { keywords: ["son tra", "sơn trà"], lat: 16.0848, lng: 108.2435, name: "Sơn Trà, Đà Nẵng" },
-  { keywords: ["da nang", "đà nẵng"], lat: 16.0544, lng: 108.2022, name: "Đà Nẵng" },
-
-  // Các tỉnh thành phố khác
-  { keywords: ["hai phong", "hải phòng"], lat: 20.8449, lng: 106.6881, name: "Hải Phòng" },
-  { keywords: ["can tho", "cần thơ"], lat: 10.0452, lng: 105.7469, name: "Cần Thơ" },
-  { keywords: ["binh duong", "bình dương"], lat: 10.9805, lng: 106.6519, name: "Bình Dương" },
-  { keywords: ["dong nai", "đồng nai", "bien hoa", "biên hòa"], lat: 10.9574, lng: 106.8427, name: "Biên Hòa, Đồng Nai" },
-];
 
 export const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
   isOpen,
@@ -105,8 +54,6 @@ export const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
 
   const [lat, setLat] = useState<number>(() => initialLatitude ?? DEFAULT_CENTER[0]);
   const [lng, setLng] = useState<number>(() => initialLongitude ?? DEFAULT_CENTER[1]);
-  const [searchQuery, setSearchQuery] = useState(addressContext || "");
-  const [isSearching, setIsSearching] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
@@ -121,9 +68,6 @@ export const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
     setLng(startLng);
     setErrorMessage(null);
     setInfoMessage(null);
-    if (addressContext) {
-      setSearchQuery(addressContext);
-    }
 
     let isCancelled = false;
     let resizeObserver: ResizeObserver | null = null;
@@ -252,98 +196,6 @@ export const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
     );
   };
 
-  // Search location using internal Next.js geocoding proxy API with progressive fallback
-  const handleSearchAddress = async (queryToSearch: string) => {
-    const q = queryToSearch.trim();
-    if (!q) return;
-
-    setIsSearching(true);
-    setErrorMessage(null);
-    setInfoMessage(null);
-
-    // Helper to call internal proxy route
-    const fetchGeocode = async (text: string) => {
-      try {
-        const res = await fetch(`/api/geocode?q=${encodeURIComponent(text)}`);
-        if (!res.ok) return null;
-        const data = await res.json();
-        return Array.isArray(data) && data.length > 0 ? data : null;
-      } catch {
-        return null;
-      }
-    };
-
-    // Helper to find local fallback coordinates
-    const findLocalFallback = (text: string) => {
-      const lower = text.toLowerCase();
-      return VIETNAM_FALLBACK_COORDINATES.find((item) =>
-        item.keywords.some((kw) => lower.includes(kw))
-      );
-    };
-
-    try {
-      // 1. Try full search query first
-      let results = await fetchGeocode(q);
-
-      // 2. If no result and address has multiple segments (e.g. "Số 18 Ngõ 68 Cầu Giấy, Phường Bạch Đằng, Hà Nội"),
-      // progressively strip the specific detail to search the ward / district
-      if (!results && q.includes(",")) {
-        const parts = q.split(",").map((s) => s.trim()).filter(Boolean);
-        if (parts.length > 1) {
-          const broaderQuery = parts.slice(1).join(", ");
-          results = await fetchGeocode(broaderQuery);
-        }
-      }
-
-      if (results && results.length > 0) {
-        const found = results[0];
-        const foundLat = Number(parseFloat(found.lat).toFixed(6));
-        const foundLng = Number(parseFloat(found.lon).toFixed(6));
-        setLat(foundLat);
-        setLng(foundLng);
-
-        if (mapInstanceRef.current && markerRef.current) {
-          mapInstanceRef.current.setView([foundLat, foundLng], 16);
-          markerRef.current.setLatLng([foundLat, foundLng]);
-        }
-        setInfoMessage("Đã định vị thành công. Bạn có thể kéo thả ghim để tinh chỉnh vị trí.");
-        return;
-      }
-
-      // 3. Fallback to predefined local coordinate dictionary
-      const fallback = findLocalFallback(q);
-      if (fallback) {
-        setLat(fallback.lat);
-        setLng(fallback.lng);
-
-        if (mapInstanceRef.current && markerRef.current) {
-          mapInstanceRef.current.setView([fallback.lat, fallback.lng], 14);
-          markerRef.current.setLatLng([fallback.lat, fallback.lng]);
-        }
-        setInfoMessage(`Đã định vị đến khu vực ${fallback.name}. Bạn có thể kéo thả ghim đến đúng số nhà cụ thể.`);
-      } else {
-        setErrorMessage(`Không tìm thấy vị trí tự động cho "${q}". Bạn có thể click trực tiếp trên bản đồ để ghim.`);
-      }
-    } catch {
-      // 4. Offline / network error fallback
-      const fallback = findLocalFallback(q);
-      if (fallback) {
-        setLat(fallback.lat);
-        setLng(fallback.lng);
-
-        if (mapInstanceRef.current && markerRef.current) {
-          mapInstanceRef.current.setView([fallback.lat, fallback.lng], 14);
-          markerRef.current.setLatLng([fallback.lat, fallback.lng]);
-        }
-        setInfoMessage(`Đã định vị đến khu vực ${fallback.name}. Bạn có thể kéo thả ghim đến đúng số nhà cụ thể.`);
-      } else {
-        setErrorMessage("Dịch vụ tìm kiếm tạm thời gián đoạn. Vui lòng click trực tiếp trên bản đồ để ghim.");
-      }
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
   const handleConfirm = () => {
     onConfirm({ latitude: lat, longitude: lng });
     onClose();
@@ -359,33 +211,11 @@ export const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
       maxWidth="lg"
     >
       <div className="space-y-3.5">
-        {/* Quick Toolbar: Search & GPS Button */}
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleSearchAddress(searchQuery);
-                }
-              }}
-              placeholder="Nhập địa chỉ, tên đường hoặc địa danh để tìm..."
-              className="w-full pl-8 pr-20 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            />
-            <button
-              type="button"
-              onClick={() => handleSearchAddress(searchQuery)}
-              disabled={isSearching || !searchQuery.trim()}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-50 transition-colors"
-            >
-              {isSearching ? "Đang tìm..." : "Tìm"}
-            </button>
-          </div>
-
+        {/* Quick Toolbar: GPS Button */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs text-slate-600">
+            Click trực tiếp trên bản đồ hoặc kéo thả ghim để chọn tọa độ chính xác.
+          </span>
           <button
             type="button"
             onClick={handleGetCurrentLocation}
@@ -398,21 +228,8 @@ export const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
         </div>
 
         {addressContext && (
-          <div className="flex items-center justify-between text-[11px] bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 text-slate-600">
-            <span className="truncate mr-2">
-              <strong>Địa chỉ đăng ký:</strong> {addressContext}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery(addressContext);
-                handleSearchAddress(addressContext);
-              }}
-              className="text-blue-600 hover:underline font-bold shrink-0 inline-flex items-center gap-1"
-            >
-              <Compass className="w-3 h-3" />
-              <span>Định vị theo địa chỉ</span>
-            </button>
+          <div className="text-[11px] bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 text-slate-600 truncate">
+            <strong>Địa chỉ đăng ký:</strong> {addressContext}
           </div>
         )}
 

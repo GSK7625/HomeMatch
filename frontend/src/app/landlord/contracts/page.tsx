@@ -50,7 +50,6 @@ export default function LandlordContractsPage() {
   const [loading, setLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState("ALL");
-  const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [restoringId, setRestoringId] = useState<number | null>(null);
@@ -115,8 +114,12 @@ export default function LandlordContractsPage() {
   const loadContracts = useCallback(async () => {
     setLoading(true);
     try {
+      const statusParam =
+        activeTab !== "ALL" && activeTab !== "EXPIRING" && activeTab !== "HANDOVER"
+          ? activeTab
+          : undefined;
       const [listRes, expiringRes] = await Promise.all([
-        leasingApi.getContracts({ roleView: "LANDLORD", page: 1, pageSize: 100 }),
+        leasingApi.getContracts({ status: statusParam, roleView: "LANDLORD", page: 1, pageSize: 50 }),
         leasingApi.getExpiringContracts(30),
       ]);
 
@@ -132,7 +135,7 @@ export default function LandlordContractsPage() {
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [activeTab, showToast]);
 
   useEffect(() => {
     if (!user || user.role === "Tenant") return;
@@ -140,48 +143,11 @@ export default function LandlordContractsPage() {
     loadRooms();
   }, [user, loadContracts, loadRooms]);
 
-  const expiringIds = useMemo(() => new Set(expiring.map((c) => c.id)), [expiring]);
-
-  const kpi = useMemo(() => {
-    const active = contracts.filter((c) => c.status === "ACTIVE");
-    const pendingSign = contracts.filter((c) => c.status === "PENDING_SIGNATURE");
-    const handover = contracts.filter((c) => isHandoverStatus(c.status));
-    const totalRent = active.reduce((sum, c) => sum + c.monthlyRent, 0);
-    return {
-      activeCount: active.length,
-      totalRent,
-      pendingSignCount: pendingSign.length,
-      expiringCount: expiring.length,
-      handoverCount: handover.length,
-    };
-  }, [contracts, expiring]);
-
-  const filteredContracts = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return contracts.filter((c) => {
-      if (activeTab === "EXPIRING" && !expiringIds.has(c.id)) return false;
-      else if (activeTab === "HANDOVER" && !isHandoverStatus(c.status)) return false;
-      else if (
-        activeTab !== "ALL" &&
-        activeTab !== "EXPIRING" &&
-        activeTab !== "HANDOVER" &&
-        c.status !== activeTab
-      ) {
-        return false;
-      }
-
-      if (!q) return true;
-      const snap = parseContractSnapshot(c.documentSnapshot);
-      const roomText = (roomMap.get(c.roomId) || snap.roomName || `room #${c.roomId}`).toLowerCase();
-      const tenantText = (snap.tenant?.fullName || `khach #${c.tenantId}`).toLowerCase();
-      return (
-        c.contractCode.toLowerCase().includes(q) ||
-        roomText.includes(q) ||
-        tenantText.includes(q) ||
-        String(c.tenantId).includes(q)
-      );
-    });
-  }, [contracts, activeTab, search, expiringIds, roomMap]);
+  const displayedContracts = useMemo(() => {
+    if (activeTab === "EXPIRING") return expiring;
+    if (activeTab === "HANDOVER") return contracts.filter((c) => isHandoverStatus(c.status));
+    return contracts;
+  }, [contracts, expiring, activeTab]);
 
   if (!user || user.role === "Tenant") {
     return (
@@ -223,13 +189,6 @@ export default function LandlordContractsPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <Link
-            href="/landlord/contracts/demo"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/70 hover:bg-blue-100/70 text-blue-700 text-xs font-bold transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Xem bản mẫu HĐ điện tử</span>
-          </Link>
           <button
             onClick={loadContracts}
             disabled={loading}
@@ -246,42 +205,6 @@ export default function LandlordContractsPage() {
             <span>Soạn hợp đồng mới</span>
           </button>
         </div>
-      </div>
-
-      {/* 4 KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          title="Đang hiệu lực"
-          value={String(kpi.activeCount)}
-          sub={`Doanh thu thuê: ${formatVnd(kpi.totalRent)}/tháng`}
-          icon={FileCheck2}
-          tone="emerald"
-          onClick={() => setActiveTab("ACTIVE")}
-        />
-        <KpiCard
-          title="Chờ ký điện tử OTP"
-          value={String(kpi.pendingSignCount)}
-          sub="Cần xác thực 2 bên qua email"
-          icon={KeyRound}
-          tone="amber"
-          onClick={() => setActiveTab("PENDING_SIGNATURE")}
-        />
-        <KpiCard
-          title="Sắp hết hạn (≤ 30 ngày)"
-          value={String(kpi.expiringCount)}
-          sub="Cần gia hạn hoặc chuẩn bị bàn giao"
-          icon={AlertTriangle}
-          tone="orange"
-          onClick={() => setActiveTab("EXPIRING")}
-        />
-        <KpiCard
-          title="Chờ bàn giao phòng"
-          value={String(kpi.handoverCount)}
-          sub="Hết hạn hoặc chấm dứt trước hạn"
-          icon={Clock}
-          tone="rose"
-          onClick={() => setActiveTab("HANDOVER")}
-        />
       </div>
 
       {/* Expiring Banner */}
@@ -302,35 +225,22 @@ export default function LandlordContractsPage() {
         </div>
       )}
 
-      {/* Filter Tabs & Search */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-          {STATUS_FILTER_TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              className={cn(
-                "px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border",
-                activeTab === t.key
-                  ? "bg-slate-900 text-white border-slate-900 shadow-xs"
-                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative w-full lg:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Tìm mã HĐ, phòng, khách thuê..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-          />
-        </div>
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+        {STATUS_FILTER_TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setActiveTab(t.key)}
+            className={cn(
+              "px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border",
+              activeTab === t.key
+                ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {/* Contracts Table */}
@@ -341,22 +251,22 @@ export default function LandlordContractsPage() {
               <div key={i} className="h-14 rounded-xl bg-slate-100 animate-pulse" />
             ))}
           </div>
-        ) : filteredContracts.length === 0 ? (
+        ) : displayedContracts.length === 0 ? (
           <div className="py-16 px-6 text-center space-y-3">
             <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
               <FileText className="w-7 h-7" />
             </div>
             <h3 className="text-sm font-bold text-slate-900">
-              {contracts.length === 0
+              {activeTab === "ALL"
                 ? "Chưa có hợp đồng cho thuê nào"
-                : "Không tìm thấy hợp đồng phù hợp bộ lọc"}
+                : "Không có hợp đồng ở trạng thái này"}
             </h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              {contracts.length === 0
-                ? "Tạo hợp đồng điện tử đầu tiên hoặc xem trước giao diện phòng ký hợp đồng mẫu."
-                : "Thử đổi tab trạng thái hoặc xóa từ khóa tìm kiếm."}
+              {activeTab === "ALL"
+                ? "Tạo hợp đồng điện tử đầu tiên để bắt đầu quản lý ký kết và tiền cọc."
+                : "Thử đổi tab trạng thái khác."}
             </p>
-            {contracts.length === 0 && (
+            {activeTab === "ALL" && (
               <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
                 <button
                   onClick={() => setIsCreateOpen(true)}
@@ -365,13 +275,6 @@ export default function LandlordContractsPage() {
                   <Plus className="w-4 h-4" />
                   <span>Soạn hợp đồng đầu tiên</span>
                 </button>
-                <Link
-                  href="/landlord/contracts/demo"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold"
-                >
-                  <Sparkles className="w-4 h-4 text-blue-600" />
-                  <span>Xem mẫu HĐ điện tử A4</span>
-                </Link>
               </div>
             )}
           </div>
@@ -390,7 +293,7 @@ export default function LandlordContractsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredContracts.map((ctr) => {
+                {displayedContracts.map((ctr) => {
                   const statusMeta = getStatusMeta(ctr.status);
                   const depositMeta = getDepositMeta(ctr.depositStatus);
                   const daysLeft = getDaysRemaining(ctr.endDate);

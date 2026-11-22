@@ -44,31 +44,6 @@ interface OtpSignPanelProps {
   onUpdated: () => Promise<void> | void;
 }
 
-async function computeContractSha256(detail: LeasingContractDetailDto): Promise<string> {
-  const payload = [
-    detail.contractCode,
-    `v${detail.documentVersion}`,
-    detail.roomId,
-    detail.landlordId,
-    detail.tenantId,
-    detail.startDate,
-    detail.endDate,
-    detail.monthlyRent,
-    detail.depositAmount,
-    detail.billingDueDay,
-    detail.documentSnapshot || "",
-  ].join("|");
-
-  if (typeof window !== "undefined" && window.crypto?.subtle) {
-    const data = new TextEncoder().encode(payload);
-    const digest = await window.crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(digest))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  }
-  return `SNAPSHOT-V${detail.documentVersion}-${detail.contractCode}`;
-}
-
 export function OtpSignPanel({ detail, role, onUpdated }: OtpSignPanelProps) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -179,7 +154,7 @@ export function OtpSignPanel({ detail, role, onUpdated }: OtpSignPanelProps) {
       return;
     }
     run("sign", async () => {
-      const hash = detail.signedDocumentHash || (await computeContractSha256(detail));
+      const hash = detail.signedDocumentHash || "";
       const res = await leasingApi.signContract(detail.id, hash, otp, signatureData);
       if (res.isSuccess) {
         showToast("Ký hợp đồng điện tử & lưu chữ ký thành công!", "success");

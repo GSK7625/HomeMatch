@@ -78,6 +78,7 @@ let isRedirectingToLogin = false;
 
 export const TOKEN_STORAGE_KEY = "homematch_access_token";
 export const USER_STORAGE_KEY = "homematch_current_user";
+export const REMEMBER_EMAIL_STORAGE_KEY = "homematch_remembered_email";
 
 /**
  * Kiểm tra xem JWT access token đã hết hạn (hoặc sắp hết hạn trong vòng 10 giây) hay chưa.
@@ -144,9 +145,15 @@ export async function refreshAccessTokenSilently(): Promise<string | null> {
   return refreshingPromise;
 }
 
+function resolveAuthStorage(rememberMe?: boolean): Storage {
+  if (rememberMe === true) return localStorage;
+  if (rememberMe === false) return sessionStorage;
+  return sessionStorage.getItem(TOKEN_STORAGE_KEY) !== null ? sessionStorage : localStorage;
+}
+
 export function getStoredToken(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_STORAGE_KEY);
+  return sessionStorage.getItem(TOKEN_STORAGE_KEY) || localStorage.getItem(TOKEN_STORAGE_KEY);
 }
 
 /**
@@ -170,19 +177,23 @@ export async function getValidAccessToken(): Promise<string | null> {
   return token;
 }
 
-export function setStoredToken(token: string | null) {
+export function setStoredToken(token: string | null, rememberMe?: boolean) {
   if (typeof window === "undefined") return;
   if (token) {
     isRedirectingToLogin = false;
-    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    const target = resolveAuthStorage(rememberMe);
+    const other = target === localStorage ? sessionStorage : localStorage;
+    other.removeItem(TOKEN_STORAGE_KEY);
+    target.setItem(TOKEN_STORAGE_KEY, token);
   } else {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
   }
 }
 
 export function getStoredUser(): CurrentUserProfile | null {
   if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem(USER_STORAGE_KEY);
+  const raw = sessionStorage.getItem(USER_STORAGE_KEY) || localStorage.getItem(USER_STORAGE_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw);
@@ -191,12 +202,30 @@ export function getStoredUser(): CurrentUserProfile | null {
   }
 }
 
-export function setStoredUser(user: CurrentUserProfile | null) {
+export function setStoredUser(user: CurrentUserProfile | null, rememberMe?: boolean) {
   if (typeof window === "undefined") return;
   if (user) {
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    const target = resolveAuthStorage(rememberMe);
+    const other = target === localStorage ? sessionStorage : localStorage;
+    other.removeItem(USER_STORAGE_KEY);
+    target.setItem(USER_STORAGE_KEY, JSON.stringify(user));
   } else {
     localStorage.removeItem(USER_STORAGE_KEY);
+    sessionStorage.removeItem(USER_STORAGE_KEY);
+  }
+}
+
+export function getRememberedEmail(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem(REMEMBER_EMAIL_STORAGE_KEY) || "";
+}
+
+export function setRememberedEmail(email: string | null) {
+  if (typeof window === "undefined") return;
+  if (email) {
+    localStorage.setItem(REMEMBER_EMAIL_STORAGE_KEY, email);
+  } else {
+    localStorage.removeItem(REMEMBER_EMAIL_STORAGE_KEY);
   }
 }
 
@@ -386,6 +415,7 @@ export interface RegistrationBody {
 export interface LoginBody {
   email: string;
   password: string;
+  rememberMe?: boolean;
 }
 
 export interface IssuedAccessToken {
@@ -418,6 +448,7 @@ export const authApi = {
     const body = JSON.stringify({
       email: payload.email.trim(),
       password: payload.password,
+      rememberMe: payload.rememberMe ?? true,
     });
     return apiRequest<IssuedAccessToken>("/api/v1/identity/auth/login", {
       method: "POST",
@@ -475,6 +506,56 @@ export const authApi = {
     return apiRequest<CurrentUserProfile>("/api/v1/identity/me", {
       method: "GET",
     });
+  },
+
+  updateProfile: async (payload: {
+    fullName: string;
+    phoneNumber?: string | null;
+    dateOfBirth?: string | null;
+    gender?: string | null;
+  }) => {
+    const body = JSON.stringify({
+      fullName: payload.fullName.trim(),
+      phoneNumber: payload.phoneNumber?.trim() || null,
+      dateOfBirth: payload.dateOfBirth || null,
+      gender: payload.gender || null,
+    });
+    return apiRequest<CurrentUserProfile>("/api/v1/identity/me", {
+      method: "PUT",
+      body,
+    });
+  },
+
+  changePassword: async (payload: {
+    currentPassword: string;
+    newPassword: string;
+    confirmNewPassword: string;
+  }) => {
+    const body = JSON.stringify(payload);
+    return apiRequest<{ message: string }>("/api/v1/identity/change-password", {
+      method: "POST",
+      body,
+    });
+  },
+
+  getNotificationSettings: async () => {
+    return apiRequest<{ notifyPush: boolean; updatedAt: string }>(
+      "/api/v1/identity/me/notification-settings",
+      {
+        method: "GET",
+      }
+    );
+  },
+
+  updateNotificationSettings: async (notifyPush: boolean) => {
+    const body = JSON.stringify({ notifyPush });
+    return apiRequest<{ notifyPush: boolean; updatedAt: string }>(
+      "/api/v1/identity/me/notification-settings",
+      {
+        method: "PUT",
+        body,
+      }
+    );
   },
 
   forgotPassword: async (email: string) => {
@@ -832,6 +913,15 @@ export const listingsApi = {
     });
   },
 
+  compareRooms: async (roomIds: number[]) => {
+    const search = new URLSearchParams();
+    roomIds.forEach((id) => search.append("roomIds", String(id)));
+    return apiRequest<PublicListingDetailDto[]>(
+      `/api/v1/listings/compare${search.toString() ? `?${search.toString()}` : ""}`,
+      { method: "GET" }
+    );
+  },
+
   getMyListings: async () => {
     return apiRequest<ListingSummaryDto[]>("/api/v1/listings/mine", {
       method: "GET",
@@ -931,5 +1021,16 @@ export const adminListingsApi = {
       method: "POST",
       body: JSON.stringify({ reason }),
     });
+  },
+};
+
+// ============================================================================
+// Billing / Landlord Dashboard API (/api/v1/billing)
+// ============================================================================
+export const landlordDashboardApi = {
+  getDashboard: async (buildingId = "all", period = "11/2026") => {
+    return apiRequest<import("@/types").LandlordDashboardData>(
+      `/api/v1/billing/landlord-dashboard?buildingId=${encodeURIComponent(buildingId)}&period=${encodeURIComponent(period)}`
+    );
   },
 };

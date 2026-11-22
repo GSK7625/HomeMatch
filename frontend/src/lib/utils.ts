@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { ListingSummaryDto, PropertyListing } from "@/types";
+import { ListingSummaryDto, PropertyListing, PublicListingDetailDto } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -35,49 +35,101 @@ export function formatRoomTypeLabel(
   return "Phòng trọ";
 }
 
+function mapListingStatus(status?: string | null): PropertyListing["status"] {
+  const norm = (status || "").toUpperCase();
+  if (norm === "PUBLISHED" || norm === "AVAILABLE" || norm === "CÒN TRỐNG") {
+    return "Còn trống";
+  }
+  if (norm === "RENTED" || norm === "ĐÃ THUÊ") {
+    return "Đã thuê";
+  }
+  return "Tạm ngừng";
+}
+
+function joinUniqueAddressParts(parts: Array<string | null | undefined>): string {
+  return parts
+    .map((p) => p?.trim())
+    .filter(
+      (p, idx, arr): p is string =>
+        Boolean(p) && arr.findIndex((x) => x?.toLowerCase() === p?.toLowerCase()) === idx
+    )
+    .join(", ");
+}
+
 export function mapListingSummaryToCard(item: ListingSummaryDto): PropertyListing {
   return {
     id: String(item.id),
+    roomId: item.roomId,
     title: item.title,
-    description: item.title,
-    address: item.addressDetail || item.districtName || item.provinceName || "Việt Nam",
-    ward: item.addressDetail || "",
-    district: item.districtName || item.addressDetail || "Trung tâm",
-    city: item.provinceName || "Việt Nam",
+    description: "",
+    address:
+      joinUniqueAddressParts([item.addressDetail, item.districtName, item.provinceName]) ||
+      "Chưa cập nhật địa chỉ",
+    ward: "",
+    district: item.districtName || "",
+    city: item.provinceName || "",
     price: item.price,
-    deposit: item.depositAmount && item.depositAmount > 0 ? item.depositAmount : item.price,
-    area: item.areaSqm ? Number(item.areaSqm) : 25,
+    deposit: item.depositAmount ?? 0,
+    area: item.areaSqm != null ? Number(item.areaSqm) : null,
     roomType: formatRoomTypeLabel(item.roomType),
-    status: (() => {
-      const norm = (item.status || "").toUpperCase();
-      if (norm === "PUBLISHED" || norm === "AVAILABLE" || norm === "CÒN TRỐNG") {
-        return "Còn trống";
-      }
-      if (norm === "RENTED" || norm === "ĐÃ THUÊ") {
-        return "Đã thuê";
-      }
-      return "Tạm ngừng";
-    })(),
-    images: item.coverImageUrl
-      ? [item.coverImageUrl]
-      : ["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80"],
-    amenities:
-      item.amenities && item.amenities.length > 0
-        ? item.amenities
-        : ["Wifi", "Điều hòa", "Nóng lạnh"],
+    status: mapListingStatus(item.status),
+    images: item.coverImageUrl ? [item.coverImageUrl] : [],
+    amenities: item.amenities ?? [],
     tags: item.amenities && item.amenities.length > 0 ? item.amenities.slice(0, 3) : undefined,
-    landlordId: "ll-1",
-    landlordName: "Chủ nhà xác thực",
-    landlordPhone: "0901234567",
-    isVerifiedLandlord: true,
-    electricityPrice: item.electricityPrice ?? 3500,
-    waterPrice: item.waterPrice ?? 25000,
-    serviceFee: 150000,
-    latitude: item.latitude ?? 21.0285,
-    longitude: item.longitude ?? 105.8542,
-    createdAt: new Date().toISOString(),
+    landlordId: "",
+    landlordName: null,
+    landlordPhone: null,
+    isVerifiedLandlord: false,
+    electricityPrice: item.electricityPrice ?? null,
+    waterPrice: item.waterPrice ?? null,
+    serviceFee: null,
+    latitude: item.latitude ?? null,
+    longitude: item.longitude ?? null,
+    createdAt: "",
     viewCount: 0,
-    isFeatured: item.isFeatured ?? true,
+    isFeatured: item.isFeatured ?? false,
+  };
+}
+
+export function mapPublicDetailToCard(d: PublicListingDetailDto): PropertyListing {
+  const electricity = d.tariffs?.find((t) => t.tariffType === "ELECTRICITY")?.unitPrice ?? null;
+  const water = d.tariffs?.find((t) => t.tariffType === "WATER")?.unitPrice ?? null;
+  const service = d.tariffs?.find((t) => t.tariffType === "SERVICE")?.unitPrice ?? null;
+
+  return {
+    id: String(d.id),
+    roomId: d.roomId,
+    title: d.title,
+    description: d.description || "",
+    address:
+      joinUniqueAddressParts([
+        d.property?.addressDetail,
+        d.property?.wardName,
+        d.property?.districtName,
+        d.property?.provinceName,
+      ]) || "Chưa cập nhật địa chỉ",
+    ward: d.property?.wardName || "",
+    district: d.property?.districtName || d.property?.wardName || "",
+    city: d.property?.provinceName || "",
+    price: d.price,
+    deposit: d.depositAmount ?? 0,
+    area: d.room?.areaSqm != null ? Number(d.room.areaSqm) : null,
+    roomType: formatRoomTypeLabel(d.room?.roomType),
+    status: mapListingStatus(d.status),
+    images: d.images ? d.images.map((img) => img.imageUrl) : [],
+    amenities: d.room?.amenities ? d.room.amenities.map((a) => a.name) : [],
+    landlordId: String(d.landlordId),
+    landlordName: null,
+    landlordPhone: null,
+    isVerifiedLandlord: false,
+    electricityPrice: electricity,
+    waterPrice: water,
+    serviceFee: service,
+    latitude: d.latitude ?? null,
+    longitude: d.longitude ?? null,
+    createdAt: "",
+    viewCount: Number(d.viewCount ?? 0),
+    isFeatured: d.isFeatured ?? false,
   };
 }
 

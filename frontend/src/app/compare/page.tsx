@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { listingService } from "@/lib/services";
+import { compareSelection } from "@/lib/compare-selection";
 import { listingsApi } from "@/lib/api-client";
 import { PropertyListing } from "@/types";
 import { useToast } from "@/components/Toast";
@@ -13,98 +13,68 @@ import {
   CheckCircle2,
   XCircle,
   ArrowRight,
-  Maximize2,
-  Zap,
-  Droplet,
-  ShieldCheck,
   Calendar,
+  Building2,
+  Loader2,
 } from "lucide-react";
-import { cn, formatRoomTypeLabel } from "@/lib/utils";
-
-const COMPARISON_AMENITIES = [
-  "Điều hòa",
-  "Nóng lạnh",
-  "Máy giặt riêng",
-  "Tủ lạnh",
-  "Ban công",
-  "Thang máy",
-  "Giờ tự do",
-  "Chỗ để xe",
-  "Bảo vệ 24/7",
-  "Khóa vân tay",
-  "Vệ sinh riêng",
-];
+import { mapPublicDetailToCard } from "@/lib/utils";
 
 export default function ComparePage() {
   const { showToast } = useToast();
   const [comparedListings, setComparedListings] = useState<PropertyListing[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
-    const ids = listingService.getCompareList();
+    const ids = compareSelection
+      .getIds()
+      .map((id) => parseInt(id, 10))
+      .filter((id) => !isNaN(id) && id > 0)
+      .slice(0, 3);
+
     if (ids.length === 0) {
       setComparedListings([]);
+      setLoading(false);
       return;
     }
-    const promises = ids.map(async (id) => {
-      const numericId = parseInt(id, 10);
-      if (!isNaN(numericId) && numericId > 0) {
-        try {
-          const res = await listingsApi.getPublicListingById(numericId);
-          if (res.isSuccess && res.data) {
-            const d = res.data;
-            const mapped: PropertyListing = {
-              id: String(d.id),
-              title: d.title,
-              description: d.description,
-              address: `${d.property.addressDetail}, ${d.property.wardName}, ${d.property.districtName || d.property.provinceName}`,
-              ward: d.property.wardName || "",
-              district: d.property.districtName || "",
-              city: d.property.provinceName || "Hà Nội",
-              price: d.price,
-              deposit: d.depositAmount,
-              area: Number(d.room.areaSqm),
-              roomType: formatRoomTypeLabel(d.room.roomType),
-              electricityPrice: 3800,
-              waterPrice: 28000,
-              serviceFee: 150000,
-              amenities: d.room.amenities.map((a) => a.name),
-              images: d.images.map((i) => i.imageUrl),
-              status:
-                (d.status || "").toUpperCase() === "PUBLISHED" ||
-                (d.status || "").toUpperCase() === "AVAILABLE"
-                  ? ("Còn trống" as const)
-                  : ("Tạm ngừng" as const),
-              landlordId: "landlord-1",
-              landlordName: "Chủ Nhà HomeMatch",
-              landlordPhone: "0902000002",
-              latitude: 21.034,
-              longitude: 105.793,
-              createdAt: new Date().toISOString(),
-              viewCount: d.viewCount || 0,
-              isFeatured: d.isFeatured,
-            };
-            return mapped;
-          }
-        } catch {}
+
+    setLoading(true);
+    try {
+      const res = await listingsApi.compareRooms(ids);
+      if (res.isSuccess && Array.isArray(res.data)) {
+        const mapped = res.data.map(mapPublicDetailToCard);
+        setComparedListings(mapped);
+      } else {
+        setComparedListings([]);
+        if (res.error?.message) {
+          showToast(res.error.message, "error");
+        }
       }
-      return null;
-    });
-    const results = (await Promise.all(promises)).filter(Boolean) as PropertyListing[];
-    setComparedListings(results);
+    } catch {
+      setComparedListings([]);
+      showToast("Không thể tải dữ liệu so sánh từ máy chủ.", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const handleRemove = (id: string) => {
-    listingService.removeFromCompare(id);
+  const allAmenities = React.useMemo(() => {
+    return Array.from(
+      new Set(comparedListings.flatMap((item) => item.amenities))
+    ).sort((a, b) => a.localeCompare(b, "vi"));
+  }, [comparedListings]);
+
+  const handleRemove = (roomId: number | string) => {
+    compareSelection.remove(roomId);
     loadData();
     showToast("Đã bỏ phòng khỏi danh sách so sánh.", "info");
   };
 
   const handleClearAll = () => {
-    listingService.clearCompare();
+    compareSelection.clear();
     setComparedListings([]);
     showToast("Đã xóa toàn bộ danh sách so sánh.", "info");
   };
@@ -137,7 +107,12 @@ export default function ComparePage() {
         )}
       </div>
 
-      {comparedListings.length === 0 ? (
+      {loading ? (
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-16 text-center space-y-3">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
+          <p className="text-xs font-medium text-slate-500">Đang tải dữ liệu so sánh từ máy chủ...</p>
+        </div>
+      ) : comparedListings.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200/80 p-16 text-center space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
             <Scale className="w-8 h-8" />
@@ -176,7 +151,7 @@ export default function ComparePage() {
                   <th key={room.id} className="p-4 w-72 align-top">
                     <div className="relative space-y-3">
                       <button
-                        onClick={() => handleRemove(room.id)}
+                        onClick={() => handleRemove(room.roomId ?? room.id)}
                         className="absolute -top-1 -right-1 p-1 rounded-full bg-slate-200 hover:bg-rose-100 hover:text-rose-600 transition-colors"
                         title="Bỏ phòng này"
                       >
@@ -184,11 +159,18 @@ export default function ComparePage() {
                       </button>
 
                       <div className="aspect-[16/10] rounded-xl overflow-hidden bg-slate-100">
-                        <img
-                          src={room.images[0]}
-                          alt={room.title}
-                          className="w-full h-full object-cover"
-                        />
+                        {room.images[0] ? (
+                          <img
+                            src={room.images[0]}
+                            alt={room.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-1">
+                            <Building2 className="w-6 h-6 opacity-50" />
+                            <span className="text-[11px]">Chưa có ảnh</span>
+                          </div>
+                        )}
                       </div>
 
                       <Link href={`/listings/${room.id}`}>
@@ -226,7 +208,9 @@ export default function ComparePage() {
                 <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Tiền đặt cọc</td>
                 {comparedListings.map((r) => (
                   <td key={r.id} className="p-4 font-semibold text-slate-800">
-                    {(r.deposit / 1000000).toFixed(1)} triệu đ
+                    {r.deposit > 0
+                      ? `${(r.deposit / 1000000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} triệu đ`
+                      : "Không yêu cầu cọc"}
                   </td>
                 ))}
               </tr>
@@ -236,7 +220,7 @@ export default function ComparePage() {
                 <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Diện tích sử dụng</td>
                 {comparedListings.map((r) => (
                   <td key={r.id} className="p-4 font-bold text-slate-800">
-                    {r.area} m²
+                    {r.area != null ? `${r.area} m²` : "Chưa cập nhật"}
                   </td>
                 ))}
               </tr>
@@ -255,10 +239,10 @@ export default function ComparePage() {
 
               {/* Row: Vị trí */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Khu vực / Quận huyện</td>
+                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Khu vực / Địa chỉ</td>
                 {comparedListings.map((r) => (
                   <td key={r.id} className="p-4 font-medium text-slate-700">
-                    {r.district}, {r.city}
+                    {[r.district, r.city].filter(Boolean).join(", ") || r.address}
                   </td>
                 ))}
               </tr>
@@ -268,7 +252,7 @@ export default function ComparePage() {
                 <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Giá điện (đ/kWh)</td>
                 {comparedListings.map((r) => (
                   <td key={r.id} className="p-4 font-semibold text-amber-700">
-                    {r.electricityPrice.toLocaleString()} đ
+                    {r.electricityPrice != null ? `${r.electricityPrice.toLocaleString()} đ` : "Chưa cập nhật"}
                   </td>
                 ))}
               </tr>
@@ -278,7 +262,7 @@ export default function ComparePage() {
                 <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Giá nước (đ/m³)</td>
                 {comparedListings.map((r) => (
                   <td key={r.id} className="p-4 font-semibold text-sky-700">
-                    {r.waterPrice.toLocaleString()} đ
+                    {r.waterPrice != null ? `${r.waterPrice.toLocaleString()} đ` : "Chưa cập nhật"}
                   </td>
                 ))}
               </tr>
@@ -288,7 +272,7 @@ export default function ComparePage() {
                 <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Phí dịch vụ / tháng</td>
                 {comparedListings.map((r) => (
                   <td key={r.id} className="p-4 font-semibold text-slate-800">
-                    {r.serviceFee.toLocaleString()} đ
+                    {r.serviceFee != null ? `${r.serviceFee.toLocaleString()} đ` : "Chưa cập nhật"}
                   </td>
                 ))}
               </tr>
@@ -300,29 +284,37 @@ export default function ComparePage() {
                 </td>
               </tr>
 
-              {COMPARISON_AMENITIES.map((amenity) => (
-                <tr key={amenity} className="hover:bg-slate-50/50">
-                  <td className="p-3.5 font-medium text-slate-600 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">{amenity}</td>
-                  {comparedListings.map((r) => {
-                    const hasAmenity = r.amenities.includes(amenity);
-                    return (
-                      <td key={r.id} className="p-3.5">
-                        {hasAmenity ? (
-                          <div className="flex items-center gap-1.5 text-emerald-600 font-bold">
-                            <CheckCircle2 className="w-4 h-4" />
-                            <span>Có</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5 text-slate-300 font-normal">
-                            <XCircle className="w-4 h-4" />
-                            <span>Không</span>
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
+              {allAmenities.length === 0 ? (
+                <tr>
+                  <td colSpan={comparedListings.length + 1} className="p-4 text-center text-slate-400">
+                    Các phòng đang so sánh chưa có thông tin tiện ích.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                allAmenities.map((amenity) => (
+                  <tr key={amenity} className="hover:bg-slate-50/50">
+                    <td className="p-3.5 font-medium text-slate-600 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">{amenity}</td>
+                    {comparedListings.map((r) => {
+                      const hasAmenity = r.amenities.includes(amenity);
+                      return (
+                        <td key={r.id} className="p-3.5">
+                          {hasAmenity ? (
+                            <div className="flex items-center gap-1.5 text-emerald-600 font-bold">
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>Có</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 text-slate-300 font-normal">
+                              <XCircle className="w-4 h-4" />
+                              <span>Không</span>
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -82,20 +82,6 @@ export function CreateContractModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    try {
-      const saved = localStorage.getItem(`homematch_landlord_info_${user?.id || "default"}`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.cccd) setLandlordCccd(parsed.cccd);
-        if (parsed.bank) setLandlordBank(parsed.bank);
-      }
-    } catch {
-      // ignore storage errors
-    }
-  }, [isOpen, user?.id]);
-
-  useEffect(() => {
-    if (!isOpen) return;
     setErrorMsg(null);
     const first = availableRooms[0] ?? roomOptions[0];
     if (first && !roomId) {
@@ -181,16 +167,6 @@ export function CreateContractModal({
     if (tenantCccd.trim() && !/^\d{12}$/.test(tenantCccd.trim())) {
       setErrorMsg("Số CCCD của Khách thuê phải gồm đúng 12 chữ số.");
       return;
-    }
-
-    // Lưu nhớ CCCD & STK chủ nhà cho các lần soạn hợp đồng sau
-    try {
-      localStorage.setItem(
-        `homematch_landlord_info_${user?.id || "default"}`,
-        JSON.stringify({ cccd: landlordCccd.trim(), bank: landlordBank.trim() })
-      );
-    } catch {
-      // ignore storage errors
     }
 
     const snapshotJson = serializeContractSnapshot({

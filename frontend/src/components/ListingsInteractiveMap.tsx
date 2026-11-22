@@ -22,36 +22,7 @@ interface ListingsInteractiveMapProps {
   onLocateMe?: () => void;
 }
 
-// Fallback coordinate mapping for Vietnam districts
-const DISTRICT_COORDINATES: Record<string, [number, number]> = {
-  "cầu giấy": [21.0333, 105.7928],
-  "đống đa": [21.0181, 105.8299],
-  "hai bà trưng": [21.0069, 105.8524],
-  "ba đình": [21.0341, 105.8244],
-  "hoàn kiếm": [21.0285, 105.8542],
-  "thanh xuân": [20.9937, 105.8115],
-  "tây hồ": [21.0717, 105.8239],
-  "hoàng mai": [20.9765, 105.8584],
-  "nam từ liêm": [21.0135, 105.7645],
-  "bắc từ liêm": [21.0631, 105.7588],
-  "hà đông": [20.9723, 105.7766],
-  "long biên": [21.0422, 105.8924],
-  "quận 1": [10.7758, 106.7004],
-  "quận 3": [10.7844, 106.6845],
-  "quận 7": [10.7340, 106.7218],
-  "bình thạnh": [10.8106, 106.7091],
-  "gò vấp": [10.8387, 106.6653],
-  "tân bình": [10.8015, 106.6526],
-  "thủ đức": [10.8504, 106.7533],
-  "hải châu": [16.0592, 108.2208],
-  "thanh khê": [16.0617, 108.1902],
-  "sơn trà": [16.0848, 108.2435],
-  "hà nội": [21.0285, 105.8542],
-  "hồ chí minh": [10.8231, 106.6297],
-  "đà nẵng": [16.0544, 108.2022],
-};
-
-function getListingCoordinates(listing: PropertyListing): [number, number] {
+function getListingCoordinates(listing: PropertyListing): [number, number] | null {
   if (
     typeof listing.latitude === "number" &&
     typeof listing.longitude === "number" &&
@@ -62,22 +33,7 @@ function getListingCoordinates(listing: PropertyListing): [number, number] {
   ) {
     return [listing.latitude, listing.longitude];
   }
-
-  const query = `${listing.address || ""} ${listing.ward || ""} ${listing.district || ""} ${listing.city || ""}`.toLowerCase();
-  for (const [key, coords] of Object.entries(DISTRICT_COORDINATES)) {
-    if (query.includes(key)) {
-      const idNum = Number(listing.id) || 1;
-      const offsetLat = ((idNum % 7) - 3) * 0.0025;
-      const offsetLng = (((idNum * 3) % 7) - 3) * 0.0025;
-      return [coords[0] + offsetLat, coords[1] + offsetLng];
-    }
-  }
-
-  const defaultId = Number(listing.id) || 1;
-  return [
-    21.0285 + ((defaultId % 5) - 2) * 0.003,
-    105.8542 + (((defaultId * 2) % 5) - 2) * 0.003,
-  ];
+  return null;
 }
 
 function escapeHtml(str: string): string {
@@ -237,6 +193,7 @@ export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
       let validCount = 0;
       listings.forEach((listing) => {
         const coords = getListingCoordinates(listing);
+        if (!coords) return;
         bounds.extend(coords);
         validCount++;
 
@@ -369,7 +326,10 @@ export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
     if (userLocation) {
       bounds.extend([userLocation.lat, userLocation.lng]);
     }
-    listings.forEach((l) => bounds.extend(getListingCoordinates(l)));
+    listings.forEach((l) => {
+      const coords = getListingCoordinates(l);
+      if (coords) bounds.extend(coords);
+    });
 
     if (bounds.isValid()) {
       const isMobile = typeof window !== "undefined" && window.innerWidth < 640;

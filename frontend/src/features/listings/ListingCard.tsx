@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { PropertyListing } from "@/types";
-import { listingService } from "@/lib/services";
+import { compareSelection } from "@/lib/compare-selection";
 import { listingsApi, parseListingNumericId, getStoredToken } from "@/lib/api-client";
+import { useAuth } from "@/features/auth/AuthContext";
 import { useToast } from "@/components/Toast";
 import {
   Heart,
@@ -15,9 +16,8 @@ import {
   Droplet,
   Star,
   ShieldCheck,
-  Tag,
-  Phone,
   Flame,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,93 +28,99 @@ interface ListingCardProps {
 }
 
 export function ListingCard({ listing, onFavoriteChange, isFavorite: isFavoriteProp }: ListingCardProps) {
+  const { user, role } = useAuth();
   const { showToast } = useToast();
-  const [isFav, setIsFav] = useState(() => {
-    if (typeof isFavoriteProp === "boolean") return isFavoriteProp;
-    return listingService.isFavorite(listing.id);
-  });
+  const [isFav, setIsFav] = useState(() => Boolean(isFavoriteProp));
   const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     if (typeof isFavoriteProp === "boolean") {
       setIsFav(isFavoriteProp);
-    } else {
-      setIsFav(listingService.isFavorite(listing.id));
+    } else if (role !== "Tenant") {
+      setIsFav(false);
     }
-  }, [isFavoriteProp, listing.id]);
+  }, [isFavoriteProp, listing.id, role]);
 
   useEffect(() => {
     const handleFavUpdated = (e: Event) => {
+      if (role !== "Tenant") {
+        setIsFav(false);
+        return;
+      }
       const customEvent = e as CustomEvent<{ id?: string; isFavorite?: boolean; ids?: string[] }>;
       if (customEvent.detail?.id === listing.id && typeof customEvent.detail?.isFavorite === "boolean") {
         setIsFav(customEvent.detail.isFavorite);
       } else if (Array.isArray(customEvent.detail?.ids)) {
         setIsFav(customEvent.detail.ids.includes(listing.id));
-      } else {
-        setIsFav(listingService.isFavorite(listing.id));
       }
     };
     window.addEventListener("homematch:favorites-updated", handleFavUpdated);
     return () => {
       window.removeEventListener("homematch:favorites-updated", handleFavUpdated);
     };
-  }, [listing.id]);
+  }, [listing.id, role]);
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (isSyncing) return;
 
+    const token = getStoredToken();
+    if (!token || !user) {
+      showToast("Vui lòng đăng nhập tài khoản Người thuê để lưu tin yêu thích.", "info");
+      return;
+    }
+    if (role !== "Tenant") {
+      showToast("Chỉ tài khoản Người thuê mới có thể lưu tin yêu thích.", "error");
+      return;
+    }
+
+    const numericId = parseListingNumericId(listing.id);
+    if (numericId <= 0) {
+      showToast("Tin đăng không hợp lệ.", "error");
+      return;
+    }
+
     const previousState = isFav;
     const nextState = !previousState;
-    const numericId = parseListingNumericId(listing.id);
-    const token = getStoredToken();
 
     // Optimistic update
     setIsFav(nextState);
-    listingService.setFavorite(listing.id, nextState);
+    setIsSyncing(true);
 
-    if (numericId > 0 && token) {
-      setIsSyncing(true);
-      try {
-        const res = await listingsApi.toggleSaveListing(numericId);
-        if (res.isSuccess && typeof res.data === "boolean") {
-          const serverState = res.data;
-          setIsFav(serverState);
-          listingService.setFavorite(listing.id, serverState);
-          showToast(
-            serverState ? "Đã lưu vào danh sách phòng yêu thích!" : "Đã xóa khỏi danh sách yêu thích",
-            serverState ? "success" : "info"
-          );
-        } else {
-          // Revert optimistic update on failure (e.g. 403 Landlord role or server error)
-          setIsFav(previousState);
-          listingService.setFavorite(listing.id, previousState);
-          const errorMsg = res.error?.message || "Không thể đồng bộ trạng thái yêu thích với máy chủ";
-          showToast(errorMsg, "error");
-        }
-      } catch (err) {
-        console.warn("Could not sync favorite to backend", err);
+    try {
+      const res = await listingsApi.toggleSaveListing(numericId);
+      if (res.isSuccess && typeof res.data === "boolean") {
+        const serverState = res.data;
+        setIsFav(serverState);
+        window.dispatchEvent(
+          new CustomEvent("homematch:favorites-updated", {
+            detail: { id: listing.id, isFavorite: serverState },
+          })
+        );
+        showToast(
+          serverState ? "Đã lưu vào danh sách phòng yêu thích!" : "Đã xóa khỏi danh sách yêu thích",
+          serverState ? "success" : "info"
+        );
+        if (onFavoriteChange) onFavoriteChange();
+      } else {
         setIsFav(previousState);
-        listingService.setFavorite(listing.id, previousState);
-        showToast("Lỗi kết nối máy chủ khi lưu tin", "error");
-      } finally {
-        setIsSyncing(false);
+        const errorMsg = res.error?.message || "Không thể đồng bộ trạng thái yêu thích với máy chủ";
+        showToast(errorMsg, "error");
       }
-    } else {
-      showToast(
-        nextState ? "Đã lưu vào danh sách phòng yêu thích!" : "Đã xóa khỏi danh sách yêu thích",
-        nextState ? "success" : "info"
-      );
+    } catch (err) {
+      console.warn("Could not sync favorite to backend", err);
+      setIsFav(previousState);
+      showToast("Lỗi kết nối máy chủ khi lưu tin", "error");
+    } finally {
+      setIsSyncing(false);
     }
-
-    if (onFavoriteChange) onFavoriteChange();
   };
 
   const handleCompareClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const res = listingService.addToCompare(listing.id);
+    const res = compareSelection.add(listing.roomId ?? "");
     showToast(res.message, res.success ? "success" : "error");
   };
 
@@ -135,11 +141,18 @@ export function ListingCard({ listing, onFavoriteChange, isFavorite: isFavoriteP
         href={`/listings/${listing.id}`}
         className="block relative aspect-[16/10] overflow-hidden bg-slate-100 cursor-pointer"
       >
-        <img
-          src={listing.images[0] || "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80"}
-          alt={listing.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
+        {listing.images[0] ? (
+          <img
+            src={listing.images[0]}
+            alt={listing.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100 gap-1.5">
+            <Building2 className="w-8 h-8 opacity-50" />
+            <span className="text-[11px] font-medium">Chưa có ảnh</span>
+          </div>
+        )}
 
         {/* Top Badges & Action Buttons */}
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 z-10 pointer-events-none">
@@ -195,14 +208,18 @@ export function ListingCard({ listing, onFavoriteChange, isFavorite: isFavoriteP
               {formattedPrice(listing.price)}
             </span>
             <span className="text-[11px] text-slate-300 block">
-              Cọc {(listing.deposit / 1000000).toFixed(1)} tr • Đóng 1 tháng
+              {listing.deposit > 0
+                ? `Cọc ${(listing.deposit / 1000000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tr`
+                : "Không yêu cầu cọc"}
             </span>
           </div>
 
-          <div className="flex items-center gap-1 text-xs font-bold bg-white/25 backdrop-blur-md px-2.5 py-1 rounded-lg">
-            <Maximize2 className="w-3.5 h-3.5" />
-            <span>{listing.area} m²</span>
-          </div>
+          {listing.area != null && (
+            <div className="flex items-center gap-1 text-xs font-bold bg-white/25 backdrop-blur-md px-2.5 py-1 rounded-lg">
+              <Maximize2 className="w-3.5 h-3.5" />
+              <span>{listing.area} m²</span>
+            </div>
+          )}
         </div>
       </Link>
 
@@ -231,7 +248,7 @@ export function ListingCard({ listing, onFavoriteChange, isFavorite: isFavoriteP
               {[listing.district, listing.city]
                 .map((p) => p?.trim())
                 .filter((p, idx, arr): p is string => Boolean(p) && arr.findIndex((x) => x?.toLowerCase() === p?.toLowerCase()) === idx)
-                .join(", ")}
+                .join(", ") || listing.address}
             </span>
           </div>
 
@@ -266,12 +283,12 @@ export function ListingCard({ listing, onFavoriteChange, isFavorite: isFavoriteP
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-0.5 text-slate-700 font-medium">
               <Zap className="w-3 h-3 text-amber-500" />
-              <span>{listing.electricityPrice.toLocaleString()}đ</span>
+              <span>{listing.electricityPrice != null ? `${listing.electricityPrice.toLocaleString()}đ` : "--"}</span>
             </span>
             <span>•</span>
             <span className="flex items-center gap-0.5 text-slate-700 font-medium">
               <Droplet className="w-3 h-3 text-sky-500" />
-              <span>{listing.waterPrice.toLocaleString()}đ</span>
+              <span>{listing.waterPrice != null ? `${listing.waterPrice.toLocaleString()}đ` : "--"}</span>
             </span>
           </div>
 

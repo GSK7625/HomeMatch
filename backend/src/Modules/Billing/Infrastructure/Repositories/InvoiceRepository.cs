@@ -92,6 +92,35 @@ public class InvoiceRepository(BillingDbContext context) : IInvoiceRepository
         return (items, totalCount);
     }
 
+    public async Task<IReadOnlyList<Invoice>> GetForDashboardAsync(
+        long? landlordId,
+        long? propertyId,
+        int? billingMonth,
+        int? billingYear,
+        CancellationToken cancellationToken = default)
+    {
+        var query = context.Invoices
+            .AsNoTracking()
+            .Where(i => i.Status != InvoiceStatus.Cancelled);
+
+        if (landlordId.HasValue)
+        {
+            query = query.Where(i => i.LandlordId == landlordId.Value);
+        }
+
+        if (propertyId.HasValue)
+        {
+            query = query.Where(i => i.PropertyId == propertyId.Value);
+        }
+
+        if (billingMonth.HasValue && billingYear.HasValue)
+        {
+            query = query.Where(i => i.BillingMonth == billingMonth.Value && i.BillingYear == billingYear.Value);
+        }
+
+        return await query.ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(Invoice invoice, CancellationToken cancellationToken = default)
     {
         await context.Invoices.AddAsync(invoice, cancellationToken);

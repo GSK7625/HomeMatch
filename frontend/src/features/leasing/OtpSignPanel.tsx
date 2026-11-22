@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
 import { leasingApi } from "@/lib/leasing-api";
 import {
+  formatDate,
   formatDateTime,
   formatVnd,
   getDepositMeta,
@@ -29,7 +30,6 @@ import {
   Loader2,
   Lock,
   Pencil,
-  PlayCircle,
   RotateCcw,
   Send,
   ShieldCheck,
@@ -201,17 +201,6 @@ export function OtpSignPanel({ detail, role, onUpdated }: OtpSignPanelProps) {
         await onUpdated();
       } else {
         showToast(res.error?.message || "Không thể gửi ký hợp đồng.", "error");
-      }
-    });
-
-  const handleActivate = () =>
-    run("activate", async () => {
-      const res = await leasingApi.activateContract(detail.id);
-      if (res.isSuccess) {
-        showToast("Đã kích hoạt hợp đồng thành công! Phòng đã chuyển sang Đang thuê.", "success");
-        await onUpdated();
-      } else {
-        showToast(res.error?.message || "Không thể kích hoạt hợp đồng.", "error");
       }
     });
 
@@ -567,22 +556,20 @@ export function OtpSignPanel({ detail, role, onUpdated }: OtpSignPanelProps) {
           </div>
         )}
 
-        {/* SIGNED -> Activate */}
+        {/* SIGNED -> Auto activate message */}
         {detail.status === "SIGNED" && (
-          <div className="space-y-3">
-            <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-xs text-indigo-900">
-              Cả hai bên đã ký OTP thành công. {isLandlord ? "Sau khi ghi nhận đủ tiền cọc, bấm kích hoạt để bắt đầu hiệu lực." : "Đang chờ chủ nhà xác nhận cọc & kích hoạt hợp đồng."}
+          <div className="p-3.5 rounded-xl bg-indigo-50/80 border border-indigo-200 text-xs text-indigo-900 space-y-1.5">
+            <div className="font-bold flex items-center gap-1.5 text-indigo-950">
+              <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span>Hai bên đã hoàn tất ký hợp đồng điện tử</span>
             </div>
+            <p className="text-[11px] text-indigo-800 leading-relaxed">
+              Hợp đồng đã có chữ ký số xác thực của cả hai bên. Hệ thống sẽ <strong>tự động kích hoạt (ACTIVE)</strong> khi đến ngày bắt đầu thuê ({formatDate(detail.startDate)}).
+            </p>
             {isLandlord && (
-              <button
-                type="button"
-                onClick={handleActivate}
-                disabled={busy === "activate"}
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2"
-              >
-                {busy === "activate" ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
-                <span>Kích Hoạt Hợp Đồng (ACTIVE)</span>
-              </button>
+              <p className="text-[10px] text-indigo-600 pt-1 border-t border-indigo-100">
+                * Chủ nhà vui lòng theo dõi và cập nhật giao dịch tiền cọc tại mục Sổ Cái Tiền Cọc bên dưới nếu có phát sinh.
+              </p>
             )}
           </div>
         )}

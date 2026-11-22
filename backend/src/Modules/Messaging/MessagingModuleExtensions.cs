@@ -44,6 +44,7 @@ public static class MessagingModuleExtensions
         // Repositories & Cross-Module Contracts
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IMessagingStatsReader, MessagingStatsReader>();
+        services.AddScoped<IMessagingDashboardReader, MessagingDashboardReader>();
         services.AddScoped<IChatRealtimeNotifier, SignalRChatRealtimeNotifier>();
         services.AddScoped<INotificationRealtimeNotifier, SignalRNotificationRealtimeNotifier>();
 

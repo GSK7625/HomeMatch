@@ -61,6 +61,7 @@ public static class ListingsModuleExtensions
         services.AddScoped<IListingVisibilityWriter, ListingVisibilityWriter>();
         services.AddScoped<IRoomListingEditReader, ListingContractReader>();
         services.AddScoped<IListingContractReader, ListingContractReader>();
+        services.AddScoped<IListingDashboardReader, ListingDashboardReader>();
         services.AddScoped<ITenantListingActivityReader, TenantListingActivityReader>();
 
         // Listings Handlers

@@ -11,5 +11,6 @@ public record RefreshTokenResult(
     string RefreshToken,
     int ExpiresIn,
     DateTimeOffset ExpiresAt,
-    DateTimeOffset SessionExpiresAt
+    DateTimeOffset SessionExpiresAt,
+    bool RememberMe = true
 );

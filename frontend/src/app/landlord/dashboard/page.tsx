@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/AuthContext";
-import { landlordDashboardService } from "@/lib/services";
-import { LandlordDashboardData } from "@/types";
+import { propertiesApi, landlordDashboardApi } from "@/lib/api-client";
+import { LandlordDashboardData, PropertyDto } from "@/types";
 import {
   Building2,
   Home,
@@ -33,23 +33,64 @@ import {
   ExternalLink,
 } from "lucide-react";
 
+function buildRecentPeriods(count = 6): { value: string; label: string }[] {
+  const now = new Date();
+  const list: { value: string; label: string }[] = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    const val = `${mm}/${yyyy}`;
+    const suffix = i === 0 ? " (Hiện tại)" : i === 1 ? " (Tháng trước)" : "";
+    list.push({ value: val, label: `Kỳ ${val}${suffix}` });
+  }
+  list.push({ value: "all", label: "Tất cả các kỳ" });
+  return list;
+}
+
 export default function LandlordDashboardPage() {
-  const { user, role, switchDemoRole } = useAuth();
+  const { user, role } = useAuth();
+  const periodOptions = useMemo(() => buildRecentPeriods(6), []);
+  const [properties, setProperties] = useState<PropertyDto[]>([]);
   const [data, setData] = useState<LandlordDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedBuilding, setSelectedBuilding] = useState("all");
-  const [selectedPeriod, setSelectedPeriod] = useState("11/2026");
+  const [selectedPeriod, setSelectedPeriod] = useState(() => buildRecentPeriods(1)[0].value);
   const [debtFilter, setDebtFilter] = useState<string>("all");
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [debtSearch, setDebtSearch] = useState("");
+
+  useEffect(() => {
+    if (!user || role !== "Landlord") return;
+    let active = true;
+    propertiesApi
+      .getMyProperties()
+      .then((res) => {
+        if (active && res.isSuccess && res.data) {
+          setProperties(res.data);
+        }
+      })
+      .catch(() => {
+        // Ignore property dropdown load errors
+      });
+    return () => {
+      active = false;
+    };
+  }, [user, role]);
 
   const loadDashboard = useCallback(async (building: string, period: string) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await landlordDashboardService.getDashboard(building, period);
-      setData(res);
+      const res = await landlordDashboardApi.getDashboard(building, period);
+      if (!res.isSuccess || !res.data) {
+        throw new Error(
+          res.error?.message ||
+            "Không thể kết nối đến Backend API (http://localhost:5000). Vui lòng khởi động Backend và PostgreSQL."
+        );
+      }
+      setData(res.data);
     } catch (err) {
       setData(null);
       setError(
@@ -63,21 +104,9 @@ export default function LandlordDashboardPage() {
   }, []);
 
   useEffect(() => {
+    if (!user || role !== "Landlord") return;
     loadDashboard(selectedBuilding, selectedPeriod);
-  }, [loadDashboard, selectedBuilding, selectedPeriod]);
-
-  const handleRemindDebt = (tenantName: string, roomName: string, amount: number) => {
-    setActionNotice(
-      `Đã tạo và gửi tin nhắn nhắc nợ số tiền ${amount.toLocaleString("vi-VN")} đ đến khách ${tenantName} (${roomName}).`
-    );
-    setTimeout(() => setActionNotice(null), 4000);
-  };
-
-  const handleQuickDemoLandlord = () => {
-    switchDemoRole?.("Landlord");
-    setActionNotice("Đã chuyển sang tài khoản Chủ nhà (Nguyễn Văn Hùng). Dữ liệu được đồng bộ ngay lập tức.");
-    setTimeout(() => setActionNotice(null), 3000);
-  };
+  }, [user, role, loadDashboard, selectedBuilding, selectedPeriod]);
 
   // Filtered debt items
   const filteredDebtItems = useMemo(() => {
@@ -110,31 +139,17 @@ export default function LandlordDashboardPage() {
           </p>
         </div>
 
-        {/* 1-Click Demo Switcher */}
-        <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-50/80 to-indigo-50/80 border border-blue-200/80 text-left space-y-3">
-          <div className="flex items-center gap-2 text-blue-900 font-bold text-xs">
-            <Sparkles className="w-4 h-4 text-blue-600" />
-            <span>Trải nghiệm nhanh cho Giám khảo & Người dùng thử nghiệm:</span>
-          </div>
-          <p className="text-[11px] text-blue-700 leading-relaxed">
-            Nhấn nút bên dưới để đăng nhập ngay với tài khoản <strong>Chủ nhà Demo (Nguyễn Văn Hùng)</strong> mà không cần nhập mật khẩu.
-          </p>
-          <button
-            onClick={handleQuickDemoLandlord}
-            className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+        <div className="flex items-center justify-center gap-4 text-xs text-slate-500">
+          <Link
+            href="/auth/login?redirect=/landlord/dashboard"
+            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-500/20 transition-all"
           >
-            <Building2 className="w-4 h-4" />
-            <span>Đăng nhập nhanh với quyền Chủ Nhà (1 chạm)</span>
-          </button>
-        </div>
-
-        <div className="flex items-center justify-center gap-4 text-xs text-slate-400">
-          <span>hoặc</span>
-          <Link href="/auth/login?redirect=/landlord/dashboard" className="text-blue-600 hover:underline font-semibold">
-            Đăng nhập tài khoản cá nhân
+            Đăng nhập tài khoản Chủ nhà
           </Link>
-          <span>•</span>
-          <Link href="/auth/register" className="text-blue-600 hover:underline font-semibold">
+          <Link
+            href="/auth/register"
+            className="px-5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold transition-all"
+          >
             Đăng ký tài khoản mới
           </Link>
         </div>
@@ -201,9 +216,11 @@ export default function LandlordDashboardPage() {
               className="w-full text-xs font-medium rounded-lg border-slate-200 bg-white py-1.5 px-3 text-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-xs cursor-pointer"
             >
               <option value="all">Tất cả tòa nhà & nhà trọ</option>
-              <option value="bld-001">HomeMatch Green - Cầu Giấy</option>
-              <option value="bld-002">Sunrise House - Đống Đa</option>
-              <option value="bld-003">EcoLife Studio - Nam Từ Liêm</option>
+              {properties.map((prop) => (
+                <option key={prop.id} value={String(prop.id)}>
+                  {prop.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -214,9 +231,11 @@ export default function LandlordDashboardPage() {
               onChange={(e) => setSelectedPeriod(e.target.value)}
               className="w-full text-xs font-medium rounded-lg border-slate-200 bg-white py-1.5 px-3 text-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-xs cursor-pointer"
             >
-              <option value="11/2026">Kỳ 11/2026 (Hiện tại)</option>
-              <option value="10/2026">Kỳ 10/2026 (Tháng trước)</option>
-              <option value="09/2026">Kỳ 09/2026</option>
+              {periodOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -688,13 +707,9 @@ export default function LandlordDashboardPage() {
                             </span>
                           </td>
                           <td className="py-3 px-3 text-right">
-                            <button
-                              onClick={() => handleRemindDebt(item.tenantName, item.roomName, item.amount)}
-                              className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1.5 ml-auto"
-                            >
-                              <MessageSquare className="w-3 h-3" />
-                              <span>Nhắc nợ</span>
-                            </button>
+                            <span className="text-[11px] text-slate-400 font-medium">
+                              Chờ API nhắc nợ
+                            </span>
                           </td>
                         </tr>
                       ))}

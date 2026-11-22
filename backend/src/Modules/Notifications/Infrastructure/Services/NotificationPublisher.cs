@@ -1,5 +1,6 @@
 using HomeMatch.Modules.Notifications.Application.Interfaces;
 using HomeMatch.Modules.Notifications.Domain.Entities;
+using HomeMatch.Shared.Contracts.Identity;
 using HomeMatch.Shared.Contracts.Notifications;
 
 namespace HomeMatch.Modules.Notifications.Infrastructure.Services;
@@ -8,13 +9,16 @@ internal sealed class NotificationPublisher : INotificationPublisher
 {
     private readonly INotificationRepository _repository;
     private readonly INotificationRealtimeNotifier? _realtimeNotifier;
+    private readonly IUserNotificationPreferenceReader? _preferenceReader;
 
     public NotificationPublisher(
         INotificationRepository repository,
-        INotificationRealtimeNotifier? realtimeNotifier = null)
+        INotificationRealtimeNotifier? realtimeNotifier = null,
+        IUserNotificationPreferenceReader? preferenceReader = null)
     {
         _repository = repository;
         _realtimeNotifier = realtimeNotifier;
+        _preferenceReader = preferenceReader;
     }
 
     public async Task PublishAsync(
@@ -29,6 +33,15 @@ internal sealed class NotificationPublisher : INotificationPublisher
         if (userId <= 0)
         {
             return;
+        }
+
+        if (_preferenceReader is not null)
+        {
+            var isEnabled = await _preferenceReader.IsInAppNotificationEnabledAsync(userId, cancellationToken);
+            if (!isEnabled)
+            {
+                return;
+            }
         }
 
         var notification = new Notification

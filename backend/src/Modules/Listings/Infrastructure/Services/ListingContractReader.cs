@@ -99,15 +99,15 @@ public sealed class ListingContractReader(
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<long>> GetListingIdsByRoomIdAsync(
-        long roomId,
-        CancellationToken cancellationToken = default)
-    {
-        if (roomId <= 0) return [];
+        public async Task<IReadOnlyList<long>> GetListingIdsByRoomIdAsync(
+            long roomId,
+            CancellationToken cancellationToken = default)
+        {
+            if (roomId <= 0) return [];
 
-        return await db.Listings.AsNoTracking()
-            .Where(l => l.RoomId == roomId)
-            .Select(l => l.Id)
-            .ToListAsync(cancellationToken);
+            return await db.Listings.AsNoTracking()
+                .Where(l => l.RoomId == roomId)
+                .Select(l => l.Id)
+                .ToListAsync(cancellationToken);
+        }
     }
-}

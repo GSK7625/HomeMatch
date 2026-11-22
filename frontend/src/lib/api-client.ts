@@ -41,6 +41,17 @@ import {
   AddListingImageBody,
   UpdateListingImageBody,
   PendingListingsDto,
+  RoomTypeDto,
+  AdminDashboardSummaryDto,
+  AdminUserItemDto,
+  PagedAdminUsersDto,
+  PagedAdminListingsDto,
+  ViolationReportDto,
+  PagedViolationReportsDto,
+  CreateViolationReportBody,
+  ResolveViolationReportBody,
+  CreateCatalogItemBody,
+  UpdateCatalogItemBody,
 } from "@/types";
 
 export const API_BASE = (() => {
@@ -872,6 +883,12 @@ export const catalogsApi = {
       method: "GET",
     });
   },
+
+  getRoomTypes: async () => {
+    return apiRequest<RoomTypeDto[]>("/api/v1/room-types", {
+      method: "GET",
+    });
+  },
 };
 
 // ============================================================================
@@ -997,6 +1014,17 @@ export const listingsApi = {
 // Admin Listings Moderation API (/api/v1/admin/listings)
 // ============================================================================
 export const adminListingsApi = {
+  getAll: async (params?: { status?: string; keyword?: string; page?: number; pageSize?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.status) search.set("status", params.status);
+    if (params?.keyword) search.set("keyword", params.keyword);
+    search.set("page", String(params?.page ?? 1));
+    search.set("pageSize", String(params?.pageSize ?? 20));
+    return apiRequest<PagedAdminListingsDto>(`/api/v1/admin/listings?${search.toString()}`, {
+      method: "GET",
+    });
+  },
+
   getPending: async (page = 1, pageSize = 20) => {
     return apiRequest<PendingListingsDto>(
       `/api/v1/admin/listings/pending?page=${page}&pageSize=${pageSize}`,
@@ -1020,6 +1048,110 @@ export const adminListingsApi = {
     return apiRequest<ListingDetailDto>(`/api/v1/admin/listings/${listingId}/reject`, {
       method: "POST",
       body: JSON.stringify({ reason }),
+    });
+  },
+
+  hide: async (listingId: number, reason?: string) => {
+    return apiRequest<ListingDetailDto>(`/api/v1/admin/listings/${listingId}/hide`, {
+      method: "POST",
+      body: JSON.stringify({ reason: reason || null }),
+    });
+  },
+};
+
+export const adminDashboardApi = {
+  getSummary: async (period = "all") => {
+    return apiRequest<AdminDashboardSummaryDto>(
+      `/api/v1/admin/dashboard?period=${encodeURIComponent(period)}`,
+      { method: "GET" }
+    );
+  },
+};
+
+export const adminUsersApi = {
+  getUsers: async (params?: { search?: string; role?: string; status?: string; page?: number; pageSize?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.search) search.set("search", params.search);
+    if (params?.role) search.set("role", params.role);
+    if (params?.status) search.set("status", params.status);
+    search.set("page", String(params?.page ?? 1));
+    search.set("pageSize", String(params?.pageSize ?? 20));
+    return apiRequest<PagedAdminUsersDto>(`/api/v1/admin/users?${search.toString()}`, {
+      method: "GET",
+    });
+  },
+
+  lock: async (userId: number) => {
+    return apiRequest<AdminUserItemDto>(`/api/v1/admin/users/${userId}/lock`, {
+      method: "POST",
+    });
+  },
+
+  unlock: async (userId: number) => {
+    return apiRequest<AdminUserItemDto>(`/api/v1/admin/users/${userId}/unlock`, {
+      method: "POST",
+    });
+  },
+};
+
+export const reportsApi = {
+  create: async (payload: CreateViolationReportBody) => {
+    return apiRequest<ViolationReportDto>("/api/v1/reports", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+};
+
+export const adminReportsApi = {
+  getReports: async (params?: { status?: string; targetType?: string; page?: number; pageSize?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.status) search.set("status", params.status);
+    if (params?.targetType) search.set("targetType", params.targetType);
+    search.set("page", String(params?.page ?? 1));
+    search.set("pageSize", String(params?.pageSize ?? 20));
+    return apiRequest<PagedViolationReportsDto>(`/api/v1/admin/reports?${search.toString()}`, {
+      method: "GET",
+    });
+  },
+
+  resolve: async (reportId: number, payload: ResolveViolationReportBody) => {
+    return apiRequest<ViolationReportDto>(`/api/v1/admin/reports/${reportId}/resolve`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+};
+
+export const adminCatalogsApi = {
+  getAmenities: async () => {
+    return apiRequest<AmenityDto[]>("/api/v1/admin/catalogs/amenities", { method: "GET" });
+  },
+  createAmenity: async (payload: CreateCatalogItemBody) => {
+    return apiRequest<AmenityDto>("/api/v1/admin/catalogs/amenities", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateAmenity: async (id: number, payload: UpdateCatalogItemBody) => {
+    return apiRequest<AmenityDto>(`/api/v1/admin/catalogs/amenities/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  getRoomTypes: async () => {
+    return apiRequest<RoomTypeDto[]>("/api/v1/admin/catalogs/room-types", { method: "GET" });
+  },
+  createRoomType: async (payload: CreateCatalogItemBody) => {
+    return apiRequest<RoomTypeDto>("/api/v1/admin/catalogs/room-types", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateRoomType: async (id: number, payload: UpdateCatalogItemBody) => {
+    return apiRequest<RoomTypeDto>(`/api/v1/admin/catalogs/room-types/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
     });
   },
 };

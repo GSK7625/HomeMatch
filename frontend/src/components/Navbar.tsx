@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
@@ -36,7 +36,13 @@ import {
   CheckCheck,
   Settings,
 } from "lucide-react";
-import { cn, getInitials } from "@/lib/utils";
+import {
+  cn,
+  dispatchNotificationOpened,
+  getInitials,
+  NOTIFICATION_READ_EVENT,
+  resolveNotificationTarget,
+} from "@/lib/utils";
 
 interface NavItem {
   label: string;
@@ -58,6 +64,47 @@ export function Navbar() {
   const [compareCount, setCompareCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const roleRef = useRef(role);
+  const pathnameRef = useRef(pathname);
+
+  useEffect(() => {
+    roleRef.current = role;
+  }, [role]);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
+  const handleOpenNotification = useCallback(
+    async (item: NotificationDto) => {
+      if (!item.isRead) {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
+        );
+        setUnreadNotifCount((prev) => Math.max(0, prev - 1));
+        notificationsApi.markAsRead(item.id).catch(() => null);
+        window.dispatchEvent(
+          new CustomEvent(NOTIFICATION_READ_EVENT, { detail: { id: item.id } })
+        );
+      }
+
+      setNotifDropdownOpen(false);
+      const targetHref = resolveNotificationTarget(item, roleRef.current);
+      const targetPath = targetHref.split("?")[0];
+
+      // Chỉ khi người dùng bấm trực tiếp vào thông báo ở đúng trang đích mới cập nhật lại dữ liệu trang đó
+      if (pathnameRef.current === targetPath) {
+        dispatchNotificationOpened(item);
+      }
+      router.push(targetHref);
+    },
+    [router]
+  );
+
+  const handleOpenNotificationRef = useRef(handleOpenNotification);
+  useEffect(() => {
+    handleOpenNotificationRef.current = handleOpenNotification;
+  }, [handleOpenNotification]);
 
   const fetchNotificationsSummary = useCallback(async () => {
     const token = getStoredToken();
@@ -141,7 +188,7 @@ export function Navbar() {
     const token = getStoredToken();
     if (!user || !token) return;
 
-    // Mở kết nối WebSocket lắng nghe sự kiện push trực tiếp từ Server
+    // Mở kết nối WebSocket lắng nghe sự kiện push trực tiếp từ Server (chỉ cập nhật chuông & toast, không tự reload trang)
     const realtimeClient = new ChatRealtimeClient({
       onReceiveNotification: (notification) => {
         setNotifications((prev) => [
@@ -149,11 +196,34 @@ export function Navbar() {
           ...prev.filter((n) => n.id !== notification.id),
         ].slice(0, 6));
         setUnreadNotifCount((prev) => prev + 1);
-        showToast(`Thông báo mới: ${notification.title}`, "info");
+        showToast(`Thông báo mới: ${notification.title}`, "info", {
+          actionLabel: "Xem chi tiết →",
+          durationMs: 7000,
+          onClick: () => {
+            handleOpenNotificationRef.current(notification);
+          },
+        });
       },
     });
 
     realtimeClient.start();
+
+    const handleNotificationReadSync = (event: Event) => {
+      const customEvent = event as CustomEvent<{ id?: number }>;
+      const readId = customEvent.detail?.id;
+      if (readId) {
+        setNotifications((prev) => {
+          const existedUnread = prev.some((n) => n.id === readId && !n.isRead);
+          if (existedUnread) {
+            setUnreadNotifCount((count) => Math.max(0, count - 1));
+          }
+          return prev.map((n) => (n.id === readId ? { ...n, isRead: true } : n));
+        });
+      } else {
+        setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+        setUnreadNotifCount(0);
+      }
+    };
 
     // Dự phòng: chỉ kiểm tra lại khi người dùng quay lại tab (window focus), không gửi ngầm định kỳ
     const handleFocus = () => {
@@ -162,14 +232,16 @@ export function Navbar() {
       }
     };
     window.addEventListener("focus", handleFocus);
+    window.addEventListener(NOTIFICATION_READ_EVENT, handleNotificationReadSync);
     document.addEventListener("visibilitychange", handleFocus);
 
     return () => {
       realtimeClient.stop();
       window.removeEventListener("focus", handleFocus);
+      window.removeEventListener(NOTIFICATION_READ_EVENT, handleNotificationReadSync);
       document.removeEventListener("visibilitychange", handleFocus);
     };
-  }, [user, fetchNotificationsSummary]);
+  }, [user, fetchNotificationsSummary, showToast]);
 
   // Guest navigation
   const guestNav: NavItem[] = [
@@ -395,25 +467,7 @@ export function Navbar() {
                             <button
                               key={n.id}
                               type="button"
-                              onClick={async () => {
-                                if (!n.isRead) {
-                                  await notificationsApi.markAsRead(n.id);
-                                  setUnreadNotifCount((prev) => Math.max(0, prev - 1));
-                                }
-                                setNotifDropdownOpen(false);
-                                const t = (n.type || "").toUpperCase();
-                                if (t.includes("VIEWING")) {
-                                  router.push(role === "Landlord" ? "/landlord/viewings" : "/tenant/viewings");
-                                } else if (t.includes("MESSAGE")) {
-                                  router.push(
-                                    n.referenceId
-                                      ? `/messages?conversationId=${n.referenceId}`
-                                      : "/messages"
-                                  );
-                                } else {
-                                  router.push("/tenant/notifications");
-                                }
-                              }}
+                              onClick={() => handleOpenNotification(n)}
                               className={cn(
                                 "w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors flex items-start gap-2.5",
                                 !n.isRead ? "bg-blue-50/40" : ""

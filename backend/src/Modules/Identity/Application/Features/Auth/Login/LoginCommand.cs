@@ -4,7 +4,8 @@ public record LoginCommand(
     string Email,
     string Password,
     string? DeviceInfo = null,
-    string? IpAddress = null
+    string? IpAddress = null,
+    bool RememberMe = true
 );
 
 public record LoginResult(
@@ -12,5 +13,6 @@ public record LoginResult(
     string RefreshToken,
     int ExpiresIn,
     DateTimeOffset ExpiresAt,
-    DateTimeOffset SessionExpiresAt
+    DateTimeOffset SessionExpiresAt,
+    bool RememberMe = true
 );

@@ -35,7 +35,11 @@ public static class CookieAuthHelper
         return null;
     }
 
-    public static void SetRefreshTokenCookie(HttpContext context, string refreshToken, DateTimeOffset expiresAt)
+    public static void SetRefreshTokenCookie(
+        HttpContext context,
+        string refreshToken,
+        DateTimeOffset expiresAt,
+        bool isPersistent = true)
     {
         var cookieName = GetCookieName(context);
         var options = new CookieOptions
@@ -44,7 +48,7 @@ public static class CookieAuthHelper
             SameSite = SameSiteMode.Lax,
             Secure = context.Request.IsHttps,
             Path = CookiePath,
-            Expires = expiresAt
+            Expires = isPersistent ? expiresAt : null
         };
 
         context.Response.Cookies.Append(cookieName, refreshToken, options);

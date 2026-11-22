@@ -60,7 +60,10 @@ public class GetCurrentUserHandler
             FullName: profile?.FullName ?? user.Email,
             PhoneNumber: user.PhoneNumber,
             AvatarUrl: profile?.AvatarUrl,
+            DateOfBirth: profile?.DateOfBirth,
+            Gender: profile?.Gender,
+            NotifyPush: profile?.NotifyPush ?? true,
             CreatedAt: user.CreatedAt,
-            UpdatedAt: user.UpdatedAt));
+            UpdatedAt: profile?.UpdatedAt ?? user.UpdatedAt));
     }
 }

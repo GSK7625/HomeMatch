@@ -86,6 +86,7 @@ public class RefreshTokenHandler
         var newRawRefreshToken = TokenHasher.GenerateSecureToken();
         var newTokenHash = TokenHasher.HashToken(newRawRefreshToken);
         var now = DateTimeOffset.UtcNow;
+        var isRememberMe = string.Equals(tokenEntity.TokenType, "REMEMBER_ME", StringComparison.OrdinalIgnoreCase);
 
         tokenEntity.RevokedAt = now;
         tokenEntity.ReplacedByTokenHash = newTokenHash;
@@ -94,7 +95,7 @@ public class RefreshTokenHandler
         {
             UserId = user.UserId,
             TokenHash = newTokenHash,
-            TokenType = "REFRESH",
+            TokenType = tokenEntity.TokenType,
             DeviceInfo = command.DeviceInfo ?? tokenEntity.DeviceInfo,
             IpAddress = command.IpAddress ?? tokenEntity.IpAddress,
             CreatedAt = now,
@@ -123,6 +124,7 @@ public class RefreshTokenHandler
             RefreshToken: newRawRefreshToken,
             ExpiresIn: _jwtTokenService.AccessTokenExpirationSeconds,
             ExpiresAt: now.AddSeconds(_jwtTokenService.AccessTokenExpirationSeconds),
-            SessionExpiresAt: tokenEntity.ExpiresAt));
+            SessionExpiresAt: tokenEntity.ExpiresAt,
+            RememberMe: isRememberMe));
     }
 }

@@ -4,8 +4,14 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
-import { listingService } from "@/lib/services";
-import { getStoredToken, isTokenExpired, refreshAccessTokenSilently, notificationsApi } from "@/lib/api-client";
+import { compareSelection } from "@/lib/compare-selection";
+import {
+  getStoredToken,
+  isTokenExpired,
+  refreshAccessTokenSilently,
+  notificationsApi,
+  listingsApi,
+} from "@/lib/api-client";
 import { NotificationDto } from "@/types";
 import { useToast } from "@/components/Toast";
 import { ChatRealtimeClient } from "@/features/messaging/signalr-client";
@@ -20,7 +26,6 @@ import {
   FileText,
   Zap,
   ShieldCheck,
-  User,
   LogOut,
   ChevronDown,
   Menu,
@@ -29,6 +34,7 @@ import {
   Bell,
   Eye,
   CheckCheck,
+  Settings,
 } from "lucide-react";
 import {
   cn,
@@ -133,14 +139,47 @@ export function Navbar() {
   }, [user]);
 
   useEffect(() => {
-    const updateCounters = () => {
-      setFavCount(listingService.getFavorites().length);
-      setCompareCount(listingService.getCompareList().length);
+    const syncCompare = () => setCompareCount(compareSelection.getIds().length);
+    syncCompare();
+
+    const handleCompareUpdated = (e: Event) => {
+      const ids = (e as CustomEvent<{ ids?: string[] }>).detail?.ids;
+      setCompareCount(Array.isArray(ids) ? ids.length : compareSelection.getIds().length);
     };
-    updateCounters();
-    const interval = setInterval(updateCounters, 1500);
-    return () => clearInterval(interval);
+    window.addEventListener("homematch:compare-updated", handleCompareUpdated);
+    return () => window.removeEventListener("homematch:compare-updated", handleCompareUpdated);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    const token = getStoredToken();
+    if (user && role === "Tenant" && token) {
+      listingsApi
+        .getSavedListings()
+        .then((res) => {
+          if (active && res.isSuccess && Array.isArray(res.data)) {
+            setFavCount(res.data.length);
+          }
+        })
+        .catch(() => null);
+    } else {
+      setFavCount(0);
+    }
+
+    const handleFavUpdated = (e: Event) => {
+      const detail = (e as CustomEvent<{ ids?: string[]; isFavorite?: boolean }>).detail;
+      if (Array.isArray(detail?.ids)) {
+        setFavCount(detail.ids.length);
+      } else if (typeof detail?.isFavorite === "boolean") {
+        setFavCount((prev) => Math.max(0, prev + (detail.isFavorite ? 1 : -1)));
+      }
+    };
+    window.addEventListener("homematch:favorites-updated", handleFavUpdated);
+    return () => {
+      active = false;
+      window.removeEventListener("homematch:favorites-updated", handleFavUpdated);
+    };
+  }, [user, role]);
 
   // Realtime SignalR notification listener (chấm dứt polling liên tục bằng HTTP interval)
   useEffect(() => {
@@ -612,8 +651,8 @@ export function Navbar() {
                         onClick={() => setUserDropdownOpen(false)}
                         className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
                       >
-                        <User className="w-4 h-4 text-slate-400" />
-                        <span>Cài đặt tài khoản & Bảo mật</span>
+                        <Settings className="w-4 h-4 text-slate-400" />
+                        <span>Cài đặt tài khoản</span>
                       </Link>
 
                       <div className="my-1 border-t border-slate-100" />
@@ -815,21 +854,18 @@ export function Navbar() {
                     )}
                   </>
                 )}
-
-                {user && (
-                  <Link
-                    href="/settings"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100"
-                  >
-                    <User className="w-4 h-4 text-slate-500" />
-                    <span>Cài đặt tài khoản</span>
-                  </Link>
-                )}
               </div>
 
               {user && (
                 <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                  <Link
+                    href="/settings"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 border border-slate-200"
+                  >
+                    <Settings className="w-4 h-4 text-slate-500" />
+                    <span>Cài đặt tài khoản</span>
+                  </Link>
                   <button
                     disabled={loggingOut}
                     onClick={async () => {

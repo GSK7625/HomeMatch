@@ -3,15 +3,14 @@
 import React, { useState, useMemo, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { listingService } from "@/lib/services";
+import { compareSelection } from "@/lib/compare-selection";
 import { listingsApi, catalogsApi, getStoredToken } from "@/lib/api-client";
+import { useAuth } from "@/features/auth/AuthContext";
 import { PropertyListing, ProvinceDto, WardDto, AmenityDto, RoomTypeDto } from "@/types";
 import { ListingCard } from "@/features/listings/ListingCard";
 import { useToast } from "@/components/Toast";
 import {
   Search,
-  Filter,
-  MapPin,
   SlidersHorizontal,
   Grid,
   List,
@@ -19,93 +18,115 @@ import {
   Scale,
   X,
   ArrowRight,
+  Loader2,
   Navigation,
 } from "lucide-react";
-import {
-  cn,
-  formatRoomTypeLabel,
-  mapListingSummaryToCard,
-  matchesLocationFilter,
-  normalizeLocationName,
-} from "@/lib/utils";
+import { cn, mapListingSummaryToCard, normalizeLocationName } from "@/lib/utils";
 import { ListingsInteractiveMap } from "@/components/ListingsInteractiveMap";
 
-const ALL_AMENITIES = [
-  "Điều hòa",
-  "Nóng lạnh",
-  "Máy giặt",
-  "Máy giặt riêng",
-  "Tủ lạnh",
-  "Ban công",
-  "Thang máy",
-  "Gác lửng",
-  "Giờ tự do",
-  "Chỗ để xe",
-  "Bảo vệ 24/7",
-  "Vệ sinh riêng",
-  "Nuôi thú cưng",
-];
+const ROOM_TYPE_OPTIONS = [
+  { code: "", label: "Tất cả loại phòng" },
+  { code: "SINGLE", label: "Phòng trọ đơn" },
+  { code: "STUDIO", label: "Phòng Studio / CCMN" },
+  { code: "1B1B", label: "Căn hộ 1 phòng ngủ (1B1B)" },
+  { code: "2B1B", label: "Căn hộ 2 phòng ngủ (2B1B)" },
+  { code: "DORMITORY", label: "Ký túc xá / Ở ghép" },
+] as const;
+
+function normalizeRoomTypeParam(raw: string | null): string {
+  if (!raw || raw === "all") return "";
+  const upper = raw.trim().toUpperCase();
+  if (upper === "SINGLE" || upper === "STUDIO" || upper === "1B1B" || upper === "2B1B" || upper === "DORMITORY") {
+    return upper;
+  }
+  const lower = raw.trim().toLowerCase();
+  if (lower === "phòng trọ") return "SINGLE";
+  if (lower === "studio" || lower === "chung cư mini") return "STUDIO";
+  if (lower === "căn hộ dịch vụ") return "1B1B";
+  if (lower === "ở ghép") return "DORMITORY";
+  return "";
+}
 
 function ListingsContent() {
   const searchParams = useSearchParams();
+  const { user, role } = useAuth();
   const { showToast } = useToast();
 
-  const [allListings, setAllListings] = useState<PropertyListing[]>([]);
-  const [totalServerCount, setTotalServerCount] = useState<number | null>(null);
+  const [listings, setListings] = useState<PropertyListing[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const [provinces, setProvinces] = useState<ProvinceDto[]>([]);
   const [wards, setWards] = useState<WardDto[]>([]);
   const [catalogAmenities, setCatalogAmenities] = useState<AmenityDto[]>([]);
   const [catalogRoomTypes, setCatalogRoomTypes] = useState<RoomTypeDto[]>([]);
-  const [provinceCode, setProvinceCode] = useState("");
-  const [wardCode, setWardCode] = useState("");
-  const [occupants, setOccupants] = useState<number>(0);
 
-  const initialKeyword = searchParams.get("keyword") ?? searchParams.get("q") ?? "";
-  const [keyword, setKeyword] = useState(initialKeyword);
-  const [city, setCity] = useState(searchParams.get("city") || "Tất cả");
-  const [district, setDistrict] = useState(searchParams.get("district") || "Tất cả");
-  const [selectedTypes, setSelectedTypes] = useState<string[]>(
-    searchParams.get("roomType") && searchParams.get("roomType") !== "all"
-      ? [searchParams.get("roomType")!]
-      : []
+  const initialQueryKeyword =
+    searchParams.get("keyword") ||
+    searchParams.get("q") ||
+    (searchParams.get("district") && searchParams.get("district") !== "Tất cả"
+      ? searchParams.get("district")!
+      : "");
+
+  const [keyword, setKeyword] = useState(initialQueryKeyword);
+  const [debouncedKeyword, setDebouncedKeyword] = useState(initialQueryKeyword.trim());
+  const [cityParam, setCityParam] = useState(searchParams.get("city") || "Tất cả");
+  const [provinceCode, setProvinceCode] = useState(searchParams.get("provinceCode") || "");
+  const [wardCode, setWardCode] = useState(searchParams.get("wardCode") || "");
+  const [occupants, setOccupants] = useState<number>(0);
+  const [selectedRoomType, setSelectedRoomType] = useState<string>(
+    normalizeRoomTypeParam(searchParams.get("roomType"))
   );
   const [priceRange, setPriceRange] = useState(searchParams.get("price") || "all");
   const [areaRange, setAreaRange] = useState("all");
-  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc" | "area-desc">("newest");
+  const [selectedAmenityIds, setSelectedAmenityIds] = useState<number[]>([]);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showMap, setShowMap] = useState(false);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [page, setPage] = useState(1);
-  const pageSize = 10; // Requirement Section 4.1: Max 10 items/page
+  const pageSize = 10;
 
   const [compareList, setCompareList] = useState<string[]>([]);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
-    if (city !== "Tất cả" || provinceCode) count++;
-    if (district !== "Tất cả" || wardCode) count++;
-    if (selectedTypes.length > 0) count += selectedTypes.length;
+    if (provinceCode) count++;
+    if (wardCode) count++;
+    if (selectedRoomType) count++;
     if (priceRange !== "all") count++;
     if (areaRange !== "all") count++;
     if (occupants > 0) count++;
-    if (selectedAmenities.length > 0) count += selectedAmenities.length;
+    count += selectedAmenityIds.length;
     return count;
-  }, [city, provinceCode, district, wardCode, selectedTypes, priceRange, areaRange, occupants, selectedAmenities]);
+  }, [provinceCode, wardCode, selectedRoomType, priceRange, areaRange, occupants, selectedAmenityIds]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedKeyword(keyword.trim());
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [keyword]);
 
   useEffect(() => {
     const nextKw = searchParams.get("keyword") ?? searchParams.get("q") ?? "";
     const nextCity = searchParams.get("city") || "Tất cả";
-    const nextDistrict = searchParams.get("district") || "Tất cả";
-    const nextRoomType = searchParams.get("roomType");
+    const nextDistrict = searchParams.get("district") || "";
+    const effectiveKw =
+      nextKw || (nextDistrict && nextDistrict !== "Tất cả" ? nextDistrict : "");
+    const nextProvinceCode = searchParams.get("provinceCode") || "";
+    const nextWardCode = searchParams.get("wardCode") || "";
+    const nextRoomType = normalizeRoomTypeParam(searchParams.get("roomType"));
     const nextPrice = searchParams.get("price") || "all";
 
-    setKeyword(nextKw);
-    setCity(nextCity);
-    setDistrict(nextDistrict);
-    setProvinceCode("");
-    setWardCode("");
-    setSelectedTypes(nextRoomType && nextRoomType !== "all" ? [nextRoomType] : []);
+    setKeyword(effectiveKw);
+    setDebouncedKeyword(effectiveKw.trim());
+    setCityParam(nextCity);
+    setProvinceCode(nextProvinceCode);
+    setWardCode(nextWardCode);
+    setSelectedRoomType(nextRoomType);
     setPriceRange(nextPrice);
     setPage(1);
   }, [searchParams]);
@@ -123,16 +144,17 @@ function ListingsContent() {
   }, []);
 
   useEffect(() => {
-    if (provinces.length === 0 || city === "Tất cả" || provinceCode) return;
+    if (provinces.length === 0 || cityParam === "Tất cả" || provinceCode) return;
     const matched = provinces.find(
       (p) =>
-        normalizeLocationName(p.name) === normalizeLocationName(city) ||
-        normalizeLocationName(p.fullName) === normalizeLocationName(city)
+        normalizeLocationName(p.name) === normalizeLocationName(cityParam) ||
+        normalizeLocationName(p.fullName) === normalizeLocationName(cityParam)
     );
     if (matched) {
       setProvinceCode(matched.code);
+      setCityParam("Tất cả");
     }
-  }, [provinces, city, provinceCode]);
+  }, [provinces, cityParam, provinceCode]);
 
   useEffect(() => {
     if (!provinceCode) {
@@ -146,108 +168,44 @@ function ListingsContent() {
   }, [provinceCode]);
 
   useEffect(() => {
-    let isMounted = true;
-    async function fetchPublicListings() {
-      try {
-        let minPrice: number | undefined;
-        let maxPrice: number | undefined;
-        if (priceRange === "under3") maxPrice = 3000000;
-        else if (priceRange === "3to5") {
-          minPrice = 3000000;
-          maxPrice = 5000000;
-        } else if (priceRange === "5to8") {
-          minPrice = 5000000;
-          maxPrice = 8000000;
-        } else if (priceRange === "over8") minPrice = 8000000;
-
-        let minArea: number | undefined;
-        let maxArea: number | undefined;
-        if (areaRange === "under25") maxArea = 25;
-        else if (areaRange === "25to40") {
-          minArea = 25;
-          maxArea = 40;
-        } else if (areaRange === "over40") minArea = 40;
-
-        let roomTypeCode: string | undefined;
-        if (selectedTypes.length === 1) {
-          const matchedRt = catalogRoomTypes.find((rt) => rt.name === selectedTypes[0] || rt.code === selectedTypes[0]);
-          if (matchedRt) roomTypeCode = matchedRt.code;
-          else if (selectedTypes[0] === "Phòng trọ") roomTypeCode = "SINGLE";
-          else if (selectedTypes[0] === "Studio") roomTypeCode = "STUDIO";
-          else if (selectedTypes[0] === "Chung cư mini") roomTypeCode = "STUDIO";
-          else if (selectedTypes[0] === "Căn hộ dịch vụ" || selectedTypes[0] === "Căn hộ") roomTypeCode = "1B1B";
-          else if (selectedTypes[0] === "Ở ghép") roomTypeCode = "DORMITORY";
-        }
-
-        const matchedAmenityIds = selectedAmenities
-          .map((name) => catalogAmenities.find((a) => a.name.toLowerCase() === name.toLowerCase())?.id)
-          .filter((id): id is number => typeof id === "number");
-
-        const searchRes = await listingsApi.searchListings({
-          keyword: keyword.trim() || undefined,
-          provinceCode: provinceCode || undefined,
-          wardCode: wardCode || undefined,
-          minPrice,
-          maxPrice,
-          minArea,
-          maxArea,
-          roomType: roomTypeCode,
-          occupants: occupants > 0 ? occupants : undefined,
-          amenityIds: matchedAmenityIds.length > 0 ? matchedAmenityIds : undefined,
-          page: 1,
-          pageSize: 50,
-        });
-
-        if (isMounted && searchRes.isSuccess && searchRes.data) {
-          const backendMapped = searchRes.data.items.map((b) => mapListingSummaryToCard(b));
-          setAllListings(backendMapped);
-          setTotalServerCount(searchRes.data.totalCount);
-          setCompareList(listingService.getCompareList());
-          return;
-        }
-
-        const res = await listingsApi.getPublicListings(50);
-        if (isMounted && res.isSuccess && res.data) {
-          const backendMapped: PropertyListing[] = res.data.map((b) => mapListingSummaryToCard(b));
-          setAllListings(backendMapped);
-          setTotalServerCount(null);
-          setCompareList(listingService.getCompareList());
-          return;
-        }
-      } catch (err) {
-        console.warn("Could not fetch public listings from backend", err);
+    setCompareList(compareSelection.getIds());
+    const handleCompareUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<{ ids?: string[] }>;
+      if (Array.isArray(customEvent.detail?.ids)) {
+        setCompareList(customEvent.detail.ids);
+      } else {
+        setCompareList(compareSelection.getIds());
       }
-      if (isMounted) {
-        setAllListings([]);
-        setCompareList(listingService.getCompareList());
-      }
-    }
-    fetchPublicListings();
-    return () => {
-      isMounted = false;
     };
-  }, [keyword, provinceCode, wardCode, priceRange, areaRange, selectedTypes, occupants, selectedAmenities, catalogAmenities, catalogRoomTypes]);
+    window.addEventListener("homematch:compare-updated", handleCompareUpdated);
+    return () => window.removeEventListener("homematch:compare-updated", handleCompareUpdated);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
-    if (getStoredToken()) {
+    if (user && role === "Tenant" && getStoredToken()) {
       listingsApi.getSavedListings().then((res) => {
         if (isMounted && res.isSuccess && Array.isArray(res.data)) {
-          listingService.syncFavorites(res.data.map((s) => String(s.listingId)));
+          const ids = res.data.map((s) => String(s.listingId));
+          setSavedIds(new Set(ids));
+          window.dispatchEvent(new CustomEvent("homematch:favorites-updated", { detail: { ids } }));
         }
       }).catch(() => null);
+    } else {
+      setSavedIds(new Set());
+      if (!getStoredToken()) {
+        window.dispatchEvent(new CustomEvent("homematch:favorites-updated", { detail: { ids: [] } }));
+      }
     }
     return () => {
       isMounted = false;
     };
-  }, []);
-
-  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  }, [user, role]);
 
   const handleNearMe = () => {
     setShowMap(true);
     showToast("Đang định vị vị trí của bạn qua GPS...", "info");
-    if (navigator.geolocation) {
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           showToast("Đã định vị thành công! Đang hiển thị vị trí của bạn trên bản đồ.", "success");
@@ -265,192 +223,169 @@ function ListingsContent() {
     }
   };
 
-  const toggleType = (type: string) => {
-    setSelectedTypes((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
-    );
-  };
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchListings() {
+      setIsLoading(true);
+      setErrorMsg(null);
 
-  const toggleAmenity = (amenity: string) => {
-    setSelectedAmenities((prev) =>
-      prev.includes(amenity) ? prev.filter((a) => a !== amenity) : [...prev, amenity]
+      let minPrice: number | undefined;
+      let maxPrice: number | undefined;
+      if (priceRange === "under3") maxPrice = 3000000;
+      else if (priceRange === "3to5") {
+        minPrice = 3000000;
+        maxPrice = 5000000;
+      } else if (priceRange === "5to8") {
+        minPrice = 5000000;
+        maxPrice = 8000000;
+      } else if (priceRange === "over8") minPrice = 8000000;
+
+      let minArea: number | undefined;
+      let maxArea: number | undefined;
+      if (areaRange === "under25") maxArea = 25;
+      else if (areaRange === "25to40") {
+        minArea = 25;
+        maxArea = 40;
+      } else if (areaRange === "over40") minArea = 40;
+
+      try {
+        const searchRes = await listingsApi.searchListings({
+          keyword: debouncedKeyword || undefined,
+          provinceCode: provinceCode || undefined,
+          wardCode: wardCode || undefined,
+          minPrice,
+          maxPrice,
+          minArea,
+          maxArea,
+          roomType: selectedRoomType || undefined,
+          occupants: occupants > 0 ? occupants : undefined,
+          amenityIds: selectedAmenityIds.length > 0 ? selectedAmenityIds : undefined,
+          page,
+          pageSize,
+        });
+
+        if (!isMounted) return;
+        if (searchRes.isSuccess && searchRes.data) {
+          setListings(searchRes.data.items.map(mapListingSummaryToCard));
+          setTotalCount(searchRes.data.totalCount);
+        } else {
+          setListings([]);
+          setTotalCount(0);
+          setErrorMsg(searchRes.error?.message || "Không thể tải danh sách phòng từ máy chủ.");
+        }
+      } catch {
+        if (!isMounted) return;
+        setListings([]);
+        setTotalCount(0);
+        setErrorMsg("Lỗi kết nối máy chủ khi tìm kiếm phòng.");
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    fetchListings();
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    debouncedKeyword,
+    provinceCode,
+    wardCode,
+    priceRange,
+    areaRange,
+    selectedRoomType,
+    occupants,
+    selectedAmenityIds,
+    page,
+  ]);
+
+  const toggleAmenityId = (amenityId: number) => {
+    setSelectedAmenityIds((prev) =>
+      prev.includes(amenityId) ? prev.filter((id) => id !== amenityId) : [...prev, amenityId]
     );
+    setPage(1);
   };
 
   const resetFilters = () => {
     setKeyword("");
-    setCity("Tất cả");
-    setDistrict("Tất cả");
+    setDebouncedKeyword("");
+    setCityParam("Tất cả");
     setProvinceCode("");
     setWardCode("");
     setOccupants(0);
-    setSelectedTypes([]);
+    setSelectedRoomType("");
     setPriceRange("all");
     setAreaRange("all");
-    setSelectedAmenities([]);
+    setSelectedAmenityIds([]);
     setPage(1);
   };
 
-  // Filter listings
-  const filteredListings = useMemo(() => {
-    return allListings
-      .filter((item) => {
-        // Keyword
-        if (keyword.trim()) {
-          const kw = keyword.trim().toLowerCase();
-          const matchTitle = item.title.toLowerCase().includes(kw);
-          const matchAddr = item.address.toLowerCase().includes(kw);
-          const matchDistrict = item.district.toLowerCase().includes(kw);
-          const matchCity = item.city.toLowerCase().includes(kw);
-          const matchRoomType = item.roomType.toLowerCase().includes(kw);
-          if (!matchTitle && !matchAddr && !matchDistrict && !matchCity && !matchRoomType) return false;
-        }
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
-        // City
-        if (city !== "Tất cả" && !matchesLocationFilter(item.city, city)) return false;
-
-        // District
-        if (
-          district !== "Tất cả" &&
-          !matchesLocationFilter(item.district, district) &&
-          !matchesLocationFilter(item.address, district)
-        ) {
-          return false;
-        }
-
-        // Room Type
-        if (selectedTypes.length > 0) {
-          const matchesType = selectedTypes.some((sel) => {
-            if (sel === item.roomType) return true;
-            const rt = catalogRoomTypes.find((c) => c.name === sel || c.code === sel);
-            return rt ? formatRoomTypeLabel(rt.code) === item.roomType : false;
-          });
-          if (!matchesType) return false;
-        }
-
-        // Price
-        if (priceRange === "under3" && item.price >= 3000000) return false;
-        if (priceRange === "3to5" && (item.price < 3000000 || item.price > 5000000)) return false;
-        if (priceRange === "5to8" && (item.price < 5000000 || item.price > 8000000)) return false;
-        if (priceRange === "over8" && item.price <= 8000000) return false;
-
-        // Area
-        if (areaRange === "under25" && item.area >= 25) return false;
-        if (areaRange === "25to40" && (item.area < 25 || item.area > 40)) return false;
-        if (areaRange === "over40" && item.area <= 40) return false;
-
-        // Amenities
-        if (selectedAmenities.length > 0) {
-          const hasAll = selectedAmenities.every((a) => item.amenities.includes(a));
-          if (!hasAll) return false;
-        }
-
-        return true;
-      })
-      .sort((a, b) => {
-        if (sortBy === "price-asc") return a.price - b.price;
-        if (sortBy === "price-desc") return b.price - a.price;
-        if (sortBy === "area-desc") return b.area - a.area;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-  }, [allListings, keyword, city, district, selectedTypes, priceRange, areaRange, selectedAmenities, sortBy]);
-
-  // Pagination slice
-  const totalPages = Math.ceil(filteredListings.length / pageSize) || 1;
-  const paginatedListings = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return filteredListings.slice(start, start + pageSize);
-  }, [filteredListings, page, pageSize]);
+  const quickAmenityIds = useMemo(() => {
+    const findByKeyword = (kw: string) =>
+      catalogAmenities.find((a) => a.name.toLowerCase().includes(kw.toLowerCase()));
+    return {
+      washingMachine: findByKeyword("máy giặt"),
+      balcony: findByKeyword("ban công"),
+      pets: findByKeyword("thú cưng"),
+    };
+  }, [catalogAmenities]);
 
   const renderFilterFormContent = () => (
     <>
-      {/* City / Province (Backend Catalog) */}
+      {/* Province (Backend Catalog) */}
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
           Tỉnh / Thành phố
         </label>
         <select
-          value={provinceCode || city}
+          value={provinceCode}
           onChange={(e) => {
-            const val = e.target.value;
-            if (provinces.some((p) => p.code === val)) {
-              setProvinceCode(val);
-              setCity("Tất cả");
-            } else {
-              setProvinceCode("");
-              setCity(val);
-            }
+            setProvinceCode(e.target.value);
             setWardCode("");
-            setDistrict("Tất cả");
             setPage(1);
           }}
           className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium"
         >
-          <option value="Tất cả">Tất cả địa điểm</option>
-          {provinces.length > 0 ? (
-            provinces.map((p) => (
-              <option key={p.code} value={p.code}>
-                {p.fullName || p.name}
-              </option>
-            ))
-          ) : (
-            <>
-              <option value="Hà Nội">Hà Nội</option>
-              <option value="Hồ Chí Minh">TP. Hồ Chí Minh</option>
-            </>
-          )}
+          <option value="">Tất cả địa điểm</option>
+          {provinces.map((p) => (
+            <option key={p.code} value={p.code}>
+              {p.fullName || p.name}
+            </option>
+          ))}
         </select>
       </div>
 
-      {/* Ward / District */}
+      {/* Ward (Backend Catalog) */}
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-          Phường / Xã / Quận
+          Phường / Xã
         </label>
         <select
-          value={wardCode || district}
+          value={wardCode}
+          disabled={!provinceCode}
           onChange={(e) => {
-            const val = e.target.value;
-            if (wards.some((w) => w.code === val)) {
-              setWardCode(val);
-              setDistrict("Tất cả");
-            } else {
-              setWardCode("");
-              setDistrict(val);
-            }
+            setWardCode(e.target.value);
             setPage(1);
           }}
-          className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium"
+          className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium disabled:opacity-60"
         >
-          <option value="Tất cả">Tất cả khu vực</option>
-          {wards.length > 0 &&
-            wards.map((w) => (
-              <option key={w.code} value={w.code}>
-                {w.fullName || w.name}
-              </option>
-            ))}
-          {city === "Hà Nội" && (
-            <>
-              <option value="Cầu Giấy">Cầu Giấy</option>
-              <option value="Đống Đa">Đống Đa</option>
-              <option value="Hai Bà Trưng">Hai Bà Trưng</option>
-              <option value="Thanh Xuân">Thanh Xuân</option>
-            </>
-          )}
-          {city === "Hồ Chí Minh" && (
-            <>
-              <option value="Bình Thạnh">Bình Thạnh</option>
-              <option value="Quận 1">Quận 1</option>
-              <option value="Quận 7">Quận 7</option>
-            </>
-          )}
+          <option value="">
+            {provinceCode ? "Tất cả phường / xã" : "Chọn Tỉnh / Thành phố trước"}
+          </option>
+          {wards.map((w) => (
+            <option key={w.code} value={w.code}>
+              {w.fullName || w.name}
+            </option>
+          ))}
         </select>
       </div>
 
       {/* Occupants */}
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-          Số người ở dự kiến
+          Số người ở tối thiểu
         </label>
         <select
           value={occupants}
@@ -468,27 +403,31 @@ function ListingsContent() {
         </select>
       </div>
 
-      {/* Room Type */}
+      {/* Room Type (aligned with Backend Catalog / enum) */}
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
           Loại hình phòng
         </label>
         <div className="space-y-2 text-xs">
           {(catalogRoomTypes.length > 0
-            ? catalogRoomTypes.map((rt) => rt.name)
-            : ["Phòng trọ", "Studio", "Chung cư mini", "Căn hộ dịch vụ"]
-          ).map((t) => (
-            <label key={t} className="flex items-center gap-2 cursor-pointer select-none">
+            ? [
+                { code: "", label: "Tất cả loại phòng" },
+                ...catalogRoomTypes.map((rt) => ({ code: rt.code, label: rt.name })),
+              ]
+            : ROOM_TYPE_OPTIONS
+          ).map((opt) => (
+            <label key={opt.code || "ALL"} className="flex items-center gap-2 cursor-pointer select-none">
               <input
-                type="checkbox"
-                checked={selectedTypes.includes(t)}
+                type="radio"
+                name="roomType"
+                checked={selectedRoomType === opt.code}
                 onChange={() => {
-                  toggleType(t);
+                  setSelectedRoomType(opt.code);
                   setPage(1);
                 }}
-                className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
+                className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
               />
-              <span className="text-slate-700">{t}</span>
+              <span className="text-slate-700">{opt.label}</span>
             </label>
           ))}
         </div>
@@ -553,35 +492,34 @@ function ListingsContent() {
         </div>
       </div>
 
-      {/* Amenities Pills */}
-      <div>
-        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-          Tiện ích đi kèm
-        </label>
-        <div className="flex flex-wrap gap-1.5">
-          {(catalogAmenities.length > 0 ? catalogAmenities.map((a) => a.name) : ALL_AMENITIES).map((amenity) => {
-            const isChecked = selectedAmenities.includes(amenity);
-            return (
-              <button
-                key={amenity}
-                type="button"
-                onClick={() => {
-                  toggleAmenity(amenity);
-                  setPage(1);
-                }}
-                className={cn(
-                  "px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors",
-                  isChecked
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                )}
-              >
-                {amenity}
-              </button>
-            );
-          })}
+      {/* Amenities Pills (from Backend Catalog) */}
+      {catalogAmenities.length > 0 && (
+        <div>
+          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+            Tiện ích đi kèm
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {catalogAmenities.map((amenity) => {
+              const isChecked = selectedAmenityIds.includes(amenity.id);
+              return (
+                <button
+                  key={amenity.id}
+                  type="button"
+                  onClick={() => toggleAmenityId(amenity.id)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors",
+                    isChecked
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                  )}
+                >
+                  {amenity.name}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 
@@ -603,7 +541,7 @@ function ListingsContent() {
               )}
             </h1>
             <span className="px-2.5 py-0.5 rounded-full bg-white text-blue-700 border border-blue-200 text-xs font-bold">
-              {filteredListings.length} phòng
+              {totalCount} phòng
             </span>
           </div>
           <button
@@ -623,7 +561,7 @@ function ListingsContent() {
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="Tìm theo tên đường, quận huyện, trường học..."
+            placeholder="Tìm theo từ khóa, tên đường, tiêu đề tin..."
             value={keyword}
             onChange={(e) => {
               setKeyword(e.target.value);
@@ -684,7 +622,7 @@ function ListingsContent() {
             <span className="sm:hidden">{showMap ? "Ẩn map" : "Bản đồ"}</span>
           </button>
 
-          {/* View Mode (Only on desktop/tablet where multi-column view actually toggles) */}
+          {/* View Mode */}
           <div className="hidden sm:inline-flex items-center h-10 border border-slate-200 rounded-xl p-1 bg-slate-50 shrink-0 gap-0.5">
             <button
               onClick={() => setViewMode("grid")}
@@ -776,7 +714,7 @@ function ListingsContent() {
                   onClick={() => setIsMobileFilterOpen(false)}
                   className="flex-1 py-2.5 px-3 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-sm"
                 >
-                  Xem {filteredListings.length} phòng
+                  Xem {totalCount} phòng
                 </button>
               </div>
             </div>
@@ -789,14 +727,14 @@ function ListingsContent() {
           {showMap && (
             <div id="listings-map-section" className="scroll-mt-24 animate-in fade-in duration-200">
               <ListingsInteractiveMap
-                listings={filteredListings}
+                listings={listings}
                 userLocation={userCoords}
                 onLocateMe={handleNearMe}
               />
             </div>
           )}
 
-          {/* Commercial Quick Filter Chips */}
+          {/* Quick Filter Chips */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
             <span className="text-slate-400 font-semibold text-[11px] whitespace-nowrap">Lọc nhanh:</span>
             <button
@@ -811,103 +749,110 @@ function ListingsContent() {
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
               )}
             >
-              <span>💵 3 - 5 triệu/tháng</span>
+              <span>3 - 5 triệu/tháng</span>
               {priceRange === "3to5" && <X className="w-3 h-3 text-white/90 shrink-0" />}
             </button>
+            {quickAmenityIds.washingMachine && (
+              <button
+                onClick={() => toggleAmenityId(quickAmenityIds.washingMachine!.id)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap flex items-center gap-1.5",
+                  selectedAmenityIds.includes(quickAmenityIds.washingMachine.id)
+                    ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                )}
+              >
+                <span>{quickAmenityIds.washingMachine.name}</span>
+                {selectedAmenityIds.includes(quickAmenityIds.washingMachine.id) && (
+                  <X className="w-3 h-3 text-white/90 shrink-0" />
+                )}
+              </button>
+            )}
+            {quickAmenityIds.balcony && (
+              <button
+                onClick={() => toggleAmenityId(quickAmenityIds.balcony!.id)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap flex items-center gap-1.5",
+                  selectedAmenityIds.includes(quickAmenityIds.balcony.id)
+                    ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                )}
+              >
+                <span>{quickAmenityIds.balcony.name}</span>
+                {selectedAmenityIds.includes(quickAmenityIds.balcony.id) && (
+                  <X className="w-3 h-3 text-white/90 shrink-0" />
+                )}
+              </button>
+            )}
+            {quickAmenityIds.pets && (
+              <button
+                onClick={() => toggleAmenityId(quickAmenityIds.pets!.id)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap flex items-center gap-1.5",
+                  selectedAmenityIds.includes(quickAmenityIds.pets.id)
+                    ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                )}
+              >
+                <span>{quickAmenityIds.pets.name}</span>
+                {selectedAmenityIds.includes(quickAmenityIds.pets.id) && (
+                  <X className="w-3 h-3 text-white/90 shrink-0" />
+                )}
+              </button>
+            )}
             <button
               onClick={() => {
-                toggleAmenity("Máy giặt riêng");
+                setSelectedRoomType((prev) => (prev === "1B1B" ? "" : "1B1B"));
                 setPage(1);
               }}
               className={cn(
                 "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap flex items-center gap-1.5",
-                selectedAmenities.includes("Máy giặt riêng")
+                selectedRoomType === "1B1B"
                   ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
               )}
             >
-              <span>🧺 Máy giặt riêng</span>
-              {selectedAmenities.includes("Máy giặt riêng") && <X className="w-3 h-3 text-white/90 shrink-0" />}
-            </button>
-            <button
-              onClick={() => {
-                toggleAmenity("Ban công");
-                setPage(1);
-              }}
-              className={cn(
-                "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap flex items-center gap-1.5",
-                selectedAmenities.includes("Ban công")
-                  ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-              )}
-            >
-              <span>🌿 Ban công thoáng</span>
-              {selectedAmenities.includes("Ban công") && <X className="w-3 h-3 text-white/90 shrink-0" />}
-            </button>
-            <button
-              onClick={() => {
-                toggleAmenity("Nuôi thú cưng");
-                setPage(1);
-              }}
-              className={cn(
-                "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap flex items-center gap-1.5",
-                selectedAmenities.includes("Nuôi thú cưng")
-                  ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-              )}
-            >
-              <span>🐾 Cho nuôi pet</span>
-              {selectedAmenities.includes("Nuôi thú cưng") && <X className="w-3 h-3 text-white/90 shrink-0" />}
-            </button>
-            <button
-              onClick={() => {
-                toggleType("Căn hộ dịch vụ");
-                setPage(1);
-              }}
-              className={cn(
-                "px-3 py-1.5 rounded-full font-semibold border transition-all whitespace-nowrap flex items-center gap-1.5",
-                selectedTypes.includes("Căn hộ dịch vụ")
-                  ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-              )}
-            >
-              <span>✨ Căn hộ dịch vụ</span>
-              {selectedTypes.includes("Căn hộ dịch vụ") && <X className="w-3 h-3 text-white/90 shrink-0" />}
+              <span>Căn hộ 1B1B</span>
+              {selectedRoomType === "1B1B" && <X className="w-3 h-3 text-white/90 shrink-0" />}
             </button>
           </div>
 
-          {/* Results Summary & Sorting */}
+          {/* Results Summary */}
           <div className="flex items-center justify-between flex-wrap gap-4 pb-2">
             <div>
               <p className="text-sm font-bold text-slate-800">
                 Tìm thấy{" "}
-                <span className="text-blue-600 font-black">{filteredListings.length}</span> phòng
-                phù hợp
+                <span className="text-blue-600 font-black">{totalCount}</span> phòng phù hợp
               </p>
-              {selectedAmenities.length > 0 && (
+              {selectedAmenityIds.length > 0 && (
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Lọc theo: {selectedAmenities.join(", ")}
+                  Lọc theo:{" "}
+                  {selectedAmenityIds
+                    .map((id) => catalogAmenities.find((a) => a.id === id)?.name)
+                    .filter(Boolean)
+                    .join(", ")}
                 </p>
               )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 font-medium">Sắp xếp:</span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              >
-                <option value="newest">Mới nhất</option>
-                <option value="price-asc">Giá tăng dần</option>
-                <option value="price-desc">Giá giảm dần</option>
-                <option value="area-desc">Diện tích lớn nhất</option>
-              </select>
             </div>
           </div>
 
           {/* Listings List */}
-          {paginatedListings.length === 0 ? (
+          {isLoading ? (
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center space-y-3">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
+              <p className="text-xs font-medium text-slate-500">Đang tải danh sách phòng từ máy chủ...</p>
+            </div>
+          ) : errorMsg ? (
+            <div className="bg-rose-50 rounded-2xl border border-rose-200 p-10 text-center space-y-3">
+              <p className="text-sm font-bold text-rose-700">{errorMsg}</p>
+              <button
+                onClick={resetFilters}
+                className="px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition-colors"
+              >
+                Đặt lại bộ lọc
+              </button>
+            </div>
+          ) : listings.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
                 <Search className="w-6 h-6" />
@@ -931,19 +876,17 @@ function ListingsContent() {
                 viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"
               )}
             >
-              {paginatedListings.map((listing) => (
+              {listings.map((listing) => (
                 <ListingCard
                   key={listing.id}
                   listing={listing}
-                  onFavoriteChange={() => {
-                    // Refresh
-                  }}
+                  isFavorite={savedIds.has(listing.id)}
                 />
               ))}
             </div>
           )}
 
-          {/* Pagination Controls */}
+          {/* Server-side Pagination Controls */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 pt-6">
               <button
@@ -977,43 +920,6 @@ function ListingsContent() {
         </div>
       </div>
 
-      {/* Floating Mobile Map/List Toggle Switcher (Airbnb style) */}
-      <div
-        className={cn(
-          "lg:hidden fixed left-1/2 -translate-x-1/2 z-40 transition-all duration-300",
-          compareList.length > 0 ? "bottom-20" : "bottom-6"
-        )}
-      >
-        <button
-          type="button"
-          onClick={() => {
-            const next = !showMap;
-            setShowMap(next);
-            if (next) {
-              setTimeout(() => {
-                document.getElementById("listings-map-section")?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "start",
-                });
-              }, 100);
-            }
-          }}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-900/95 hover:bg-slate-800 active:scale-95 text-white font-bold text-xs shadow-xl border border-slate-700/60 backdrop-blur-md transition-all cursor-pointer"
-        >
-          {showMap ? (
-            <>
-              <List className="w-4 h-4 text-blue-400" />
-              <span>Xem danh sách ({filteredListings.length})</span>
-            </>
-          ) : (
-            <>
-              <MapIcon className="w-4 h-4 text-blue-400" />
-              <span>Xem bản đồ ({filteredListings.length})</span>
-            </>
-          )}
-        </button>
-      </div>
-
       {/* Floating Comparison Bar if items exist */}
       {compareList.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-slate-900/95 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4">
@@ -1033,7 +939,7 @@ function ListingsContent() {
           </Link>
           <button
             onClick={() => {
-              listingService.clearCompare();
+              compareSelection.clear();
               setCompareList([]);
             }}
             className="text-slate-400 hover:text-white p-1 rounded"

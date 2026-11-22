@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
-import { listingService } from "@/lib/services";
+import { getStoredToken, listingsApi } from "@/lib/api-client";
 import {
   Home,
   Search,
@@ -30,13 +30,34 @@ export function BottomNav() {
 
   useEffect(() => {
     if (!mounted) return;
-    const updateFavs = () => {
-      setFavCount(listingService.getFavorites().length);
+    let active = true;
+    if (user && role === "Tenant" && getStoredToken()) {
+      listingsApi
+        .getSavedListings()
+        .then((res) => {
+          if (active && res.isSuccess && Array.isArray(res.data)) {
+            setFavCount(res.data.length);
+          }
+        })
+        .catch(() => null);
+    } else {
+      setFavCount(0);
+    }
+
+    const handleFavUpdated = (e: Event) => {
+      const detail = (e as CustomEvent<{ ids?: string[]; isFavorite?: boolean }>).detail;
+      if (Array.isArray(detail?.ids)) {
+        setFavCount(detail.ids.length);
+      } else if (typeof detail?.isFavorite === "boolean") {
+        setFavCount((prev) => Math.max(0, prev + (detail.isFavorite ? 1 : -1)));
+      }
     };
-    updateFavs();
-    const interval = setInterval(updateFavs, 2000);
-    return () => clearInterval(interval);
-  }, [mounted]);
+    window.addEventListener("homematch:favorites-updated", handleFavUpdated);
+    return () => {
+      active = false;
+      window.removeEventListener("homematch:favorites-updated", handleFavUpdated);
+    };
+  }, [mounted, user, role]);
 
   // Prevent SSR/Hydration mismatch
   if (!mounted) {

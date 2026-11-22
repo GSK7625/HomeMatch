@@ -6,4 +6,6 @@ public sealed record CreatePropertyCommand(
     string ProvinceCode,
     string WardCode,
     string AddressDetail,
-    string PropertyType);
+    string PropertyType,
+    decimal? Latitude,
+    decimal? Longitude);

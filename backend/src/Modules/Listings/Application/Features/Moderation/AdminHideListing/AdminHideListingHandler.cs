@@ -1,5 +1,5 @@
+using HomeMatch.Modules.Listings.Application.DTOs;
 using HomeMatch.Modules.Listings.Application.Interfaces;
-using HomeMatch.Modules.Listings.Application.Models;
 using HomeMatch.Shared.Common;
 
 namespace HomeMatch.Modules.Listings.Application.Features.Moderation.AdminHideListing;
@@ -8,22 +8,22 @@ public sealed record AdminHideListingCommand(long AdminId, long ListingId, strin
 
 public sealed class AdminHideListingHandler(IListingRepository listings)
 {
-    public async Task<Result<ListingResult>> HandleAsync(
+    public async Task<Result<ListingDto>> HandleAsync(
         AdminHideListingCommand command,
         CancellationToken cancellationToken = default)
     {
         if (command.AdminId <= 0 || command.ListingId <= 0)
-            return Result.Failure<ListingResult>(ListingsErrors.InvalidReview);
+            return Result.Failure<ListingDto>(ListingsErrors.InvalidReview);
 
         if (command.Reason is not null && command.Reason.Trim().Length > 500)
-            return Result.Failure<ListingResult>(ListingsErrors.InvalidReview);
+            return Result.Failure<ListingDto>(ListingsErrors.InvalidReview);
 
         var listing = await listings.GetByIdAsync(command.ListingId, cancellationToken);
         if (listing is null)
-            return Result.Failure<ListingResult>(ListingsErrors.ListingNotFound);
+            return Result.Failure<ListingDto>(ListingsErrors.ListingNotFound);
 
         if (listing.Status is not ("PUBLISHED" or "PENDING_APPROVAL" or "HIDDEN"))
-            return Result.Failure<ListingResult>(ListingsErrors.InvalidStatus);
+            return Result.Failure<ListingDto>(ListingsErrors.InvalidStatus);
 
         if (listing.Status != "HIDDEN")
         {
@@ -36,7 +36,7 @@ public sealed class AdminHideListingHandler(IListingRepository listings)
             listing.UpdatedAt = now;
 
             var saved = await listings.SaveChangesAsync(cancellationToken);
-            if (saved.IsFailure) return Result.Failure<ListingResult>(saved.Error);
+            if (saved.IsFailure) return Result.Failure<ListingDto>(saved.Error);
         }
 
         return Result.Success(ListingMapping.ToResult(listing, await listings.GetCoordinatesAsync(listing.Id, cancellationToken)));

@@ -4,6 +4,7 @@ namespace HomeMatch.Modules.Listings.Application;
 
 public static class ListingsErrors
 {
+    public static readonly Error InvalidComparison = new("Listing.InvalidComparison", "Chọn từ 1 đến 3 RoomId dương, không trùng nhau.");
     public static readonly Error InvalidSearch = new("Listing.InvalidSearch", "Bộ lọc tìm kiếm không hợp lệ. Kiểm tra khoảng giá, diện tích, số người, loại phòng và tiện nghi.");
     public static readonly Error RevisionConflict = new("Listing.RevisionConflict", "Tin đã thay đổi, vui lòng tải lại trước khi thao tác.");
     public static readonly Error EditLocked = new("Listing.EditLocked", "Ẩn hoặc rút tin trước khi sửa nội dung và ảnh.");
@@ -14,11 +15,13 @@ public static class ListingsErrors
     public static readonly Error DuplicateSlug = new("Listing.DuplicateSlug", "Đường dẫn tin đã tồn tại.");
     public static readonly Error InvalidInput = new("Listing.InvalidInput", "Thông tin tin đăng không hợp lệ.");
     public static readonly Error InvalidCoordinates = new("Listing.InvalidCoordinates", "Tọa độ phải có cả kinh độ và vĩ độ hợp lệ.");
+    public static readonly Error CoordinatesOutOfDate = new("Listing.CoordinatesOutOfDate", "Không thể duyệt: tọa độ tin đăng không còn khớp với tọa độ hiện tại của tòa nhà.");
     public static readonly Error InvalidStatus = new("Listing.InvalidStatus", "Trạng thái tin đăng không hợp lệ.");
     public static readonly Error RoomUnavailable = new("Listing.RoomUnavailable", "Phòng phải còn trống và thuộc chủ nhà.");
     public static readonly Error Incomplete = new("Listing.Incomplete", "Tin cần tọa độ và ít nhất một ảnh đại diện.");
     public static readonly Error MissingTariffs = new("Listing.MissingTariffs", "Cần có đơn giá điện và nước đang hiệu lực.");
     public static readonly Error RoomAlreadyPublished = new("Listing.RoomAlreadyPublished", "Phòng đã có tin đang đăng.");
+    public static readonly Error RoomAlreadyListed = new("Listing.RoomAlreadyListed", "Phòng đã có tin đăng. Hãy sử dụng tin hiện có để chỉnh sửa và gửi duyệt lại.");
     public static readonly Error ImageNotFound = new("Listing.ImageNotFound", "Không tìm thấy ảnh của tin.");
     public static readonly Error InvalidImage = new("Listing.InvalidImage", "Thông tin ảnh không hợp lệ.");
     public static readonly Error LastImage = new("Listing.LastImage", "Ẩn tin trước khi xóa ảnh cuối cùng.");

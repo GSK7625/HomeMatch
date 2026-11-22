@@ -214,6 +214,11 @@ internal sealed class ContractRepository : IContractRepository
             .ToListAsync(cancellationToken);
     }
 
+    public void Remove(Contract contract)
+    {
+        _dbContext.Contracts.Remove(contract);
+    }
+
     public async Task AddAsync(Contract contract, CancellationToken cancellationToken = default)
     {
         await _dbContext.Contracts.AddAsync(contract, cancellationToken);

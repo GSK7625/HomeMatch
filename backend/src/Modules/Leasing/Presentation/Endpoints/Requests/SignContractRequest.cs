@@ -5,7 +5,8 @@ namespace HomeMatch.Modules.Leasing.Presentation.Endpoints.Requests;
 public sealed record SignContractRequest(
     string DocumentHash,
     string OtpCode,
-    string SignatureMethod = "OTP_EMAIL")
+    string SignatureMethod = "OTP_EMAIL",
+    string? SignatureData = null)
 {
     public IReadOnlyList<ErrorDetail> Validate()
     {
@@ -36,6 +37,19 @@ public sealed record SignContractRequest(
         else if (SignatureMethod.Length > 50)
         {
             errors.Add(new ErrorDetail("signatureMethod", "Tên phương thức ký không được vượt quá 50 ký tự."));
+        }
+
+        if (!string.IsNullOrWhiteSpace(SignatureData))
+        {
+            var trimmed = SignatureData.Trim();
+            if (!trimmed.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+            {
+                errors.Add(new ErrorDetail("signatureData", "Dữ liệu chữ ký phải là ảnh định dạng data:image/* hợp lệ."));
+            }
+            else if (trimmed.Length > 250_000)
+            {
+                errors.Add(new ErrorDetail("signatureData", "Dung lượng ảnh chữ ký quá lớn (tối đa ~250KB)."));
+            }
         }
 
         return errors;

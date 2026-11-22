@@ -106,6 +106,10 @@ namespace HomeMatch.Modules.Leasing.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("landlord_id");
 
+                    b.Property<string>("LandlordSignatureData")
+                        .HasColumnType("text")
+                        .HasColumnName("landlord_signature_data");
+
                     b.Property<DateTimeOffset?>("LandlordSignedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("landlord_signed_at");
@@ -146,6 +150,10 @@ namespace HomeMatch.Modules.Leasing.Infrastructure.Persistence.Migrations
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint")
                         .HasColumnName("tenant_id");
+
+                    b.Property<string>("TenantSignatureData")
+                        .HasColumnType("text")
+                        .HasColumnName("tenant_signature_data");
 
                     b.Property<DateTimeOffset?>("TenantSignedAt")
                         .HasColumnType("timestamp with time zone")

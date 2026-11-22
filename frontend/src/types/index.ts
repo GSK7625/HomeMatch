@@ -38,10 +38,31 @@ export interface CurrentUserProfile {
   role: UserRole;
   phoneNumber?: string | null;
   avatarUrl?: string;
+  dateOfBirth?: string | null;
+  gender?: "MALE" | "FEMALE" | "OTHER" | string | null;
+  notifyPush?: boolean;
   emailConfirmed?: boolean;
   emailVerified?: boolean;
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface UpdateProfilePayload {
+  fullName: string;
+  phoneNumber?: string | null;
+  dateOfBirth?: string | null;
+  gender?: "MALE" | "FEMALE" | "OTHER" | null;
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}
+
+export interface NotificationSettings {
+  notifyPush: boolean;
+  updatedAt: string;
 }
 
 export interface AuthTokens {
@@ -75,6 +96,7 @@ export interface TenantReview {
 
 export interface PropertyListing {
   id: string;
+  roomId?: number;
   title: string;
   description: string;
   address: string;
@@ -83,14 +105,14 @@ export interface PropertyListing {
   city: string;
   price: number; // VND/month
   deposit: number; // VND
-  area: number; // m2
+  area: number | null; // m2
   roomType: "Phòng trọ" | "Chung cư mini" | "Căn hộ dịch vụ" | "Nhà nguyên căn" | "Ở ghép" | "Studio";
   status: RoomStatus;
   images: string[];
   amenities: string[];
   landlordId: string;
-  landlordName: string;
-  landlordPhone: string;
+  landlordName?: string | null;
+  landlordPhone?: string | null;
   landlordAvatar?: string;
   isVerifiedLandlord?: boolean;
   rating?: number;
@@ -99,11 +121,11 @@ export interface PropertyListing {
   tags?: string[];
   nearbyPOIs?: NearbyPOI[];
   reviews?: TenantReview[];
-  electricityPrice: number; // VND/kWh
-  waterPrice: number; // VND/m3
-  serviceFee: number; // VND/month
-  latitude: number;
-  longitude: number;
+  electricityPrice?: number | null; // VND/kWh
+  waterPrice?: number | null; // VND/m3
+  serviceFee?: number | null; // VND/month
+  latitude?: number | null;
+  longitude?: number | null;
   createdAt: string;
   viewCount: number;
   isFeatured?: boolean;
@@ -927,4 +949,121 @@ export interface UpdateCatalogItemBody {
   code?: string;
   name?: string;
   isActive?: boolean;
+}
+
+// ============================================================================
+// Leasing Module DTOs (/api/v1/leasing/contracts)
+// ============================================================================
+export type LeasingContractStatus =
+  | "DRAFT"
+  | "PENDING_SIGNATURE"
+  | "SIGNATURE_EXPIRED"
+  | "REJECTED"
+  | "SIGNED"
+  | "ACTIVE"
+  | "EXPIRED_PENDING_HANDOVER"
+  | "HANDOVER_OVERDUE"
+  | "COMPLETED"
+  | "TERMINATED"
+  | "CANCELLED"
+  | string;
+
+export type LeasingDepositStatus = "PENDING" | "PAID" | "REFUNDED" | "FORFEITED" | string;
+
+export interface LeasingContractDto {
+  id: number;
+  contractCode: string;
+  roomId: number;
+  tenantId: number;
+  landlordId: number;
+  startDate: string;
+  endDate: string;
+  monthlyRent: number;
+  depositAmount: number;
+  depositStatus: LeasingDepositStatus;
+  billingDueDay: number;
+  contractFileUrl?: string | null;
+  documentSnapshot?: string | null;
+  documentVersion: number;
+  documentGeneratedAt?: string | null;
+  status: LeasingContractStatus;
+  signatureExpiresAt?: string | null;
+  landlordSignedAt?: string | null;
+  tenantSignedAt?: string | null;
+  signedDocumentHash?: string | null;
+  landlordSignatureData?: string | null;
+  tenantSignatureData?: string | null;
+  handoverDueAt?: string | null;
+  handoverConfirmedAt?: string | null;
+  handoverConfirmedBy?: number | null;
+  actualOccupancyEndDate?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LeasingDepositTransactionDto {
+  id: number;
+  contractId: number;
+  transactionType: "RECEIVED" | "REFUNDED" | "DEDUCTED" | string;
+  amount: number;
+  reason?: string | null;
+  recordedBy: number;
+  createdAt: string;
+}
+
+export interface LeasingContractDetailDto extends LeasingContractDto {
+  totalDepositReceived: number;
+  totalDepositRefunded: number;
+  totalDepositDeducted: number;
+  currentDepositBalance: number;
+  depositTransactions: LeasingDepositTransactionDto[];
+}
+
+export interface LeasingPagedContractsDto {
+  items: LeasingContractDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface LeasingContractDocumentUrlDto {
+  downloadUrl: string;
+  documentHash?: string | null;
+  objectKey: string;
+  expiresAt: string;
+}
+
+export interface LeasingRequestOtpDto {
+  maskedEmail: string;
+  expiresAt: string;
+  message: string;
+}
+
+export interface LeasingHandoverDetailsDto {
+  contractId: number;
+  contractCode: string;
+  roomId: number;
+  contractStatus: LeasingContractStatus;
+  startDate: string;
+  endDate: string;
+  handoverDueAt?: string | null;
+  isHandoverConfirmed: boolean;
+  handoverConfirmedAt?: string | null;
+  handoverConfirmedBy?: number | null;
+  actualOccupancyEndDate?: string | null;
+  isOccupancyReleased: boolean;
+}
+
+export interface CreateLeasingContractPayload {
+  roomId: number;
+  tenantId: number;
+  startDate: string;
+  endDate: string;
+  monthlyRent: number;
+  depositAmount: number;
+  billingDueDay: number;
+  contractCode?: string;
+  documentSnapshot?: string;
+  signatureExpiresAt?: string;
+  handoverDueAt?: string;
 }

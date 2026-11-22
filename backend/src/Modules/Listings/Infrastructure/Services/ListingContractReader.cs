@@ -7,8 +7,15 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Services;
 
 public sealed class ListingContractReader(
     ListingsDbContext db,
-    IRoomListingReader rooms) : IListingContractReader
+    IRoomListingReader rooms) : IListingContractReader, IRoomListingEditReader
 {
+    public Task<bool> IsRoomEditBlockedAsync(long roomId, CancellationToken cancellationToken) =>
+        IsAnyRoomEditBlockedAsync([roomId], cancellationToken);
+
+    public Task<bool> IsAnyRoomEditBlockedAsync(IReadOnlyCollection<long> roomIds, CancellationToken cancellationToken) =>
+        db.Listings.AnyAsync(listing => roomIds.Contains(listing.RoomId)
+            && (listing.Status == "PUBLISHED" || listing.Status == "PENDING_APPROVAL"), cancellationToken);
+
     public async Task<ListingContractInfo?> GetListingByIdAsync(long listingId, CancellationToken cancellationToken = default)
     {
         if (listingId <= 0) return null;

@@ -87,5 +87,7 @@ public interface IContractRepository
 
     Task AddAsync(Contract contract, CancellationToken cancellationToken = default);
 
+    void Remove(Contract contract);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

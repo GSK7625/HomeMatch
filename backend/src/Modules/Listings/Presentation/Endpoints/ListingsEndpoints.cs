@@ -2,6 +2,7 @@ using System.Security.Claims;
 using HomeMatch.Modules.Listings.Presentation.Endpoints.Requests;
 using HomeMatch.Modules.Listings.Presentation.Endpoints.Responses;
 using HomeMatch.Modules.Listings.Application.Features.Listings.CreateListing;
+using HomeMatch.Modules.Listings.Application.Features.Listings.CompareRooms;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListingById;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListings;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetPublicListingById;
@@ -24,6 +25,13 @@ public static class ListingsEndpoints
 {
     public static void MapListingEndpoints(this RouteGroupBuilder group)
     {
+        group.MapGet("/compare", CompareRoomsAsync)
+            .AllowAnonymous()
+            .WithName("Listings.CompareRooms")
+            .WithSummary("So sánh tối đa 3 phòng có tin đăng công khai")
+            .Produces<ApiResponse<IReadOnlyList<PublicListingDetailResponse>>>(StatusCodes.Status200OK)
+            .Produces<ApiResponse<string>>(StatusCodes.Status400BadRequest);
+
         group.MapGet("/search", SearchAsync)
             .AllowAnonymous()
             .WithName("Listings.Search")
@@ -111,6 +119,15 @@ public static class ListingsEndpoints
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
+    }
+
+    private static async Task<IResult> CompareRoomsAsync(
+        [FromQuery] long[]? roomIds, CompareRoomsHandler handler, CancellationToken cancellationToken)
+    {
+        var result = await handler.HandleAsync(new(roomIds), cancellationToken);
+        if (result.IsFailure) return ListingsHttpErrors.Failure(result.Error);
+        return Results.Ok(ApiResponse<IReadOnlyList<PublicListingDetailResponse>>.Success(
+            result.Value.Select(ListingResponseMapper.ToResponse).ToArray()));
     }
 
     private static async Task<IResult> SearchAsync(

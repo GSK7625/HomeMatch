@@ -18,8 +18,14 @@ public class JwtTokenService : IJwtTokenService
 
     public JwtTokenService(IConfiguration configuration)
     {
-        _secret = configuration["Jwt:Secret"]
-            ?? throw new InvalidOperationException("Cấu hình 'Jwt:Secret' không được để trống.");
+        var secret = configuration["Jwt:Secret"];
+        if (string.IsNullOrWhiteSpace(secret) || secret.Length < 32)
+        {
+            throw new InvalidOperationException(
+                "Cấu hình 'Jwt:Secret' không được để trống và phải có tối thiểu 32 ký tự.");
+        }
+
+        _secret = secret;
         _issuer = configuration["Jwt:Issuer"] ?? "HomeMatch";
         _audience = configuration["Jwt:Audience"] ?? "HomeMatchApp";
     }

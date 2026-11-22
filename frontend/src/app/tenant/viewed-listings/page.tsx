@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
 import {
   getStoredToken,
-  parseListingNumericId,
   tenantOverviewApi,
 } from "@/lib/api-client";
 import { ViewedListingContractItem } from "@/types";
@@ -16,7 +15,6 @@ import {
   Maximize2,
   Calendar,
   MessageSquare,
-  Search,
   ArrowRight,
   RefreshCw,
   User,
@@ -31,8 +29,6 @@ export default function TenantViewedListingsPage() {
   const [items, setItems] = useState<ViewedListingContractItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"recent" | "price_asc" | "price_desc" | "area_desc">("recent");
 
   const loadViewedListings = useCallback(async () => {
     if (!user) return;
@@ -60,25 +56,6 @@ export default function TenantViewedListingsPage() {
   useEffect(() => {
     loadViewedListings();
   }, [loadViewedListings]);
-
-  const filteredAndSorted = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    const list = items.filter((item) => {
-      if (!q) return true;
-      return (
-        item.title.toLowerCase().includes(q) ||
-        (item.address || "").toLowerCase().includes(q) ||
-        item.landlordName.toLowerCase().includes(q)
-      );
-    });
-
-    return [...list].sort((a, b) => {
-      if (sortBy === "price_asc") return a.price - b.price;
-      if (sortBy === "price_desc") return b.price - a.price;
-      if (sortBy === "area_desc") return b.areaSqm - a.areaSqm;
-      return new Date(b.viewedAt).getTime() - new Date(a.viewedAt).getTime();
-    });
-  }, [items, searchQuery, sortBy]);
 
   if (!user) {
     return (
@@ -142,40 +119,6 @@ export default function TenantViewedListingsPage() {
         </div>
       </div>
 
-      {/* Search & Sort Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Tìm theo tên phòng, địa chỉ hoặc tên chủ nhà..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-500 whitespace-nowrap">
-            Sắp xếp:
-          </span>
-          <select
-            value={sortBy}
-            onChange={(e) =>
-              setSortBy(
-                e.target.value as "recent" | "price_asc" | "price_desc" | "area_desc"
-              )
-            }
-            className="px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-semibold text-slate-800"
-          >
-            <option value="recent">Mới xem gần nhất</option>
-            <option value="price_asc">Giá thuê: Thấp đến Cao</option>
-            <option value="price_desc">Giá thuê: Cao đến Thấp</option>
-            <option value="area_desc">Diện tích: Lớn đến Nhỏ</option>
-          </select>
-        </div>
-      </div>
-
       {/* Viewed Listings Grid */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -192,13 +135,13 @@ export default function TenantViewedListingsPage() {
             </div>
           ))}
         </div>
-      ) : filteredAndSorted.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200/80 p-14 text-center space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
             <Eye className="w-8 h-8" />
           </div>
           <h2 className="text-lg font-bold text-slate-800">
-            Không tìm thấy phòng đã xem phù hợp
+            Chưa có phòng đã xem nào
           </h2>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             Hãy khám phá các phòng trọ trên sàn để hệ thống lưu lại lịch sử tìm kiếm cho bạn.
@@ -206,7 +149,7 @@ export default function TenantViewedListingsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSorted.map((item) => {
+          {items.map((item) => {
             const listingSlug = String(item.listingId);
             const defaultImg =
               item.primaryImageUrl ||

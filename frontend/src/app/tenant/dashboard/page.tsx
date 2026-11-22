@@ -4,23 +4,21 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
-import {
-  listingService,
-  leasingService,
-  billingService,
-  viewingService,
-  messagingService,
-} from "@/lib/services";
+import { leasingApi } from "@/lib/leasing-api";
 import {
   getStoredToken,
   notificationsApi,
-  parseListingNumericId,
   tenantOverviewApi,
   viewingsApi,
 } from "@/lib/api-client";
 import {
-  LeaseContract,
-  MonthlyBill,
+  formatDate,
+  formatVnd,
+  getStatusMeta,
+} from "@/features/leasing/leasing-helpers";
+import { parseContractSnapshot } from "@/features/leasing/contract-snapshot";
+import {
+  LeasingContractDto,
   NotificationDto,
   ViewedListingContractItem,
   ViewingAppointmentDto,
@@ -64,8 +62,7 @@ export default function TenantDashboardPage() {
   >("overview");
   const [isLoading, setIsLoading] = useState(true);
 
-  const [contracts, setContracts] = useState<LeaseContract[]>([]);
-  const [bills, setBills] = useState<MonthlyBill[]>([]);
+  const [contracts, setContracts] = useState<LeasingContractDto[]>([]);
   const [viewedListings, setViewedListings] = useState<ViewedListingContractItem[]>([]);
   const [upcomingViewings, setUpcomingViewings] = useState<ViewingAppointmentDto[]>([]);
   const [recentNotifications, setRecentNotifications] = useState<NotificationDto[]>([]);
@@ -98,11 +95,12 @@ export default function TenantDashboardPage() {
       try {
         const token = getStoredToken();
         if (token) {
-          const [dashRes, viewedRes, viewingsRes, notifRes] = await Promise.all([
+          const [dashRes, viewedRes, viewingsRes, notifRes, contractsRes] = await Promise.all([
             tenantOverviewApi.getDashboard(),
             tenantOverviewApi.getViewedListings(1, 6),
             viewingsApi.getAppointments({ roleView: "TENANT", page: 1, pageSize: 6 }),
             notificationsApi.getNotifications({ page: 1, pageSize: 5 }),
+            leasingApi.getContracts({ roleView: "TENANT", page: 1, pageSize: 20 }),
           ]);
 
           if (dashRes.isSuccess && dashRes.data) {
@@ -111,14 +109,14 @@ export default function TenantDashboardPage() {
               email: dashRes.data.email,
               phoneNumber: dashRes.data.phoneNumber || "",
             });
-            const clientFavCount = typeof window !== "undefined" ? listingService.getFavorites().length : 0;
             setStats({
               viewedCount: dashRes.data.totalViewedListings,
-              favCount: dashRes.data.totalSavedListings > 0 ? dashRes.data.totalSavedListings : clientFavCount,
+              favCount: dashRes.data.totalSavedListings,
               viewingCount: dashRes.data.totalAppointments,
               chatCount: dashRes.data.totalConversations,
             });
           } else {
+            // When no token: clean empty states, absolutely no mock listings or mock viewings
             setProfileSummary({
               fullName: user.displayName || user.fullName || "Người thuê",
               email: user.email,
@@ -130,14 +128,18 @@ export default function TenantDashboardPage() {
               viewingCount: 0,
               chatCount: 0,
             });
+            setViewedListings([]);
+            setUpcomingViewings([]);
+            setRecentNotifications([]);
+            setUnreadNotificationsCount(0);
           }
 
           setViewedListings(viewedRes.isSuccess && viewedRes.data ? viewedRes.data.items : []);
           setUpcomingViewings(viewingsRes.isSuccess && viewingsRes.data ? viewingsRes.data.items : []);
           setRecentNotifications(notifRes.isSuccess && notifRes.data ? notifRes.data.items : []);
           setUnreadNotificationsCount(notifRes.isSuccess && notifRes.data ? notifRes.data.unreadCount : 0);
+          setContracts(contractsRes.isSuccess && contractsRes.data ? contractsRes.data.items : []);
         } else {
-          // When no token: clean empty states, absolutely no mock listings or mock viewings
           setProfileSummary({
             fullName: user.displayName || user.fullName || "Người thuê",
             email: user.email,
@@ -153,16 +155,8 @@ export default function TenantDashboardPage() {
           setUpcomingViewings([]);
           setRecentNotifications([]);
           setUnreadNotificationsCount(0);
+          setContracts([]);
         }
-
-        // Real user contracts & bills only (filter strictly by current tenant name/phone)
-        const myContracts = leasingService
-          .getAll()
-          .filter((c) => c.tenantName === user.displayName || c.tenantPhone === user.phoneNumber);
-        setContracts(myContracts);
-        const myContractIds = new Set(myContracts.map((c) => c.id));
-        const myBills = billingService.getAll().filter((b) => myContractIds.has(b.contractId));
-        setBills(myBills);
       } catch {
         showToast("Không thể tải thông tin Dashboard. Vui lòng tải lại trang.", "error");
       } finally {
@@ -205,13 +199,6 @@ export default function TenantDashboardPage() {
       window.removeEventListener(NOTIFICATION_READ_EVENT, handleNotificationReadSync);
     };
   }, [refreshDashboard]);
-
-  const handlePayBill = (billId: string, amount: number) => {
-    billingService.payBill(billId, amount);
-    loadData();
-    showToast("Thanh toán thành công! Công nợ kỳ này đã được cập nhật.", "success");
-  };
-
   const handleMarkNotificationRead = async (notif: NotificationDto) => {
     if (notif.isRead) return;
     const token = getStoredToken();
@@ -465,7 +452,7 @@ export default function TenantDashboardPage() {
           )}
         >
           <DollarSign className="w-4 h-4" />
-          <span>Hóa Đơn & Điện Nước ({bills.length})</span>
+          <span>Hóa Đơn & Điện Nước</span>
         </button>
       </div>
 
@@ -781,190 +768,76 @@ export default function TenantDashboardPage() {
               </p>
             </div>
           ) : (
-            contracts.map((ctr) => (
-              <div
-                key={ctr.id}
-                className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-4"
-              >
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs font-bold bg-slate-100 px-2.5 py-1 rounded-md text-slate-800">
-                      {ctr.contractNumber}
-                    </span>
-                    <h3 className="font-bold text-slate-900 text-base">{ctr.roomName}</h3>
-                  </div>
+            contracts.map((ctr) => {
+              const statusMeta = getStatusMeta(ctr.status);
+              const snap = parseContractSnapshot(ctr.documentSnapshot);
+              return (
+                <Link
+                  key={ctr.id}
+                  href={`/tenant/contracts/${ctr.id}`}
+                  className="block bg-white rounded-2xl border border-slate-200/80 hover:border-blue-300 shadow-xs p-6 space-y-4 transition-all"
+                >
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-xs font-bold bg-slate-100 px-2.5 py-1 rounded-md text-slate-800">
+                        {ctr.contractCode}
+                      </span>
+                      <h3 className="font-bold text-slate-900 text-base">
+                        {snap.roomName || `Phòng #${ctr.roomId}`}
+                      </h3>
+                    </div>
 
-                  <div className="flex items-center gap-2">
                     <span
                       className={cn(
                         "px-3 py-1 rounded-full text-xs font-bold border",
-                        ctr.status === "Còn hiệu lực"
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : "bg-amber-50 text-amber-700 border-amber-200"
+                        statusMeta.badgeClass
                       )}
                     >
-                      {ctr.status} ({ctr.daysRemaining} ngày còn lại)
+                      {statusMeta.label}
                     </span>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                  <div>
-                    <span className="text-slate-400 block font-medium">Giá thuê hàng tháng</span>
-                    <span className="font-black text-blue-600 text-sm">
-                      {ctr.monthlyRent.toLocaleString()} đ/tháng
-                    </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                    <div>
+                      <span className="text-slate-400 block font-medium">Giá thuê hàng tháng</span>
+                      <span className="font-black text-blue-600 text-sm">
+                        {formatVnd(ctr.monthlyRent)}/tháng
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block font-medium">Tiền cọc giữ chỗ</span>
+                      <span className="font-bold text-slate-800 text-sm">
+                        {formatVnd(ctr.depositAmount)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block font-medium">Thời hạn hợp đồng</span>
+                      <span className="font-medium text-slate-700">
+                        {formatDate(ctr.startDate)} → {formatDate(ctr.endDate)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block font-medium">Ngày đóng tiền hàng tháng</span>
+                      <span className="font-medium text-slate-700">
+                        Ngày {ctr.billingDueDay}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block font-medium">Tiền cọc giữ chỗ</span>
-                    <span className="font-bold text-slate-800 text-sm">
-                      {ctr.depositAmount.toLocaleString()} đ
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block font-medium">Thời hạn hợp đồng</span>
-                    <span className="font-medium text-slate-700">
-                      {ctr.startDate} → {ctr.endDate}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block font-medium">Kỳ hạn thanh toán</span>
-                    <span className="font-medium text-slate-700">
-                      {ctr.paymentCycle} tháng / lần
-                    </span>
-                  </div>
-                </div>
-
-                {ctr.terms && (
-                  <div className="p-3 bg-slate-50 rounded-xl text-xs text-slate-600 border border-slate-100">
-                    <span className="font-bold text-slate-800 block mb-0.5">Điều khoản chính:</span>
-                    {ctr.terms}
-                  </div>
-                )}
-              </div>
-            ))
+                </Link>
+              );
+            })
           )}
         </div>
       )}
 
       {/* TAB 4: Monthly Bills */}
       {activeTab === "bills" && (
-        <div className="space-y-4">
-          {bills.length === 0 ? (
-            <div className="p-12 text-center space-y-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
-              <CreditCard className="w-10 h-10 text-slate-300 mx-auto" />
-              <h4 className="text-sm font-bold text-slate-800">Chưa Có Hóa Đơn Cần Thanh Toán</h4>
-              <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                Bạn chưa có hóa đơn tiền phòng hoặc hóa đơn dịch vụ điện nước nào phát sinh trong kỳ này.
-              </p>
-            </div>
-          ) : (
-            bills.map((bill) => (
-            <div
-              key={bill.id}
-              className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-4"
-            >
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
-                <div>
-                  <span className="text-xs font-bold text-blue-600 uppercase tracking-wider block">
-                    Kỳ thanh toán: {bill.period}
-                  </span>
-                  <h3 className="font-bold text-slate-900 text-base">{bill.roomName}</h3>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <span
-                    className={cn(
-                      "px-3 py-1 rounded-full text-xs font-bold border",
-                      bill.status === "Đã thanh toán"
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : "bg-rose-50 text-rose-700 border-rose-200"
-                    )}
-                  >
-                    {bill.status}
-                  </span>
-
-                  {bill.remainingDebt > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => handlePayBill(bill.id, bill.remainingDebt)}
-                      className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
-                    >
-                      <CreditCard className="w-3.5 h-3.5" />
-                      <span>Thanh toán ngay ({bill.remainingDebt.toLocaleString()} đ)</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-slate-500 block">Tiền phòng cơ bản</span>
-                  <span className="font-bold text-slate-900 text-sm">
-                    {bill.rentAmount.toLocaleString()} đ
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-100">
-                  <span className="text-amber-800 font-medium block">
-                    Tiền điện ({bill.electricityUsage} kWh)
-                  </span>
-                  <span className="font-bold text-amber-950 text-sm">
-                    {bill.electricityCost.toLocaleString()} đ
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-sky-50/60 border border-sky-100">
-                  <span className="text-sky-800 font-medium block">
-                    Tiền nước ({bill.waterUsage} m³)
-                  </span>
-                  <span className="font-bold text-sky-950 text-sm">
-                    {bill.waterCost.toLocaleString()} đ
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-slate-500 block">Phí dịch vụ chung</span>
-                  <span className="font-bold text-slate-900 text-sm">
-                    {bill.serviceCost.toLocaleString()} đ
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-slate-900 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                <div>
-                  <span className="text-slate-400 block">
-                    Công thức công nợ: Còn nợ = Tổng phải thu − Đã thanh toán
-                  </span>
-                  <span className="text-sm font-semibold text-slate-200">
-                    Hạn thanh toán: trước ngày {bill.dueDate}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-6">
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Tổng phải thu</span>
-                    <span className="font-black text-white text-base">
-                      {bill.totalDue.toLocaleString()} đ
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Đã thanh toán</span>
-                    <span className="font-bold text-emerald-400 text-base">
-                      {bill.paidAmount.toLocaleString()} đ
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Số tiền còn nợ</span>
-                    <span className="font-black text-rose-400 text-base">
-                      {bill.remainingDebt.toLocaleString()} đ
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            ))
-          )}
+        <div className="p-12 text-center space-y-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+          <CreditCard className="w-10 h-10 text-slate-300 mx-auto" />
+          <h4 className="text-sm font-bold text-slate-800">Hóa Đơn & Thanh Toán Đang Chờ Đồng Bộ Backend</h4>
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            Dữ liệu hóa đơn tiền phòng và điện nước sẽ được hiển thị trực tiếp từ hệ thống Backend Billing API sau khi hoàn tất tích hợp.
+          </p>
         </div>
       )}
     </div>

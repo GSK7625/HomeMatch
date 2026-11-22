@@ -7,7 +7,7 @@ using HomeMatch.Modules.Listings.Application.Features.Moderation.GetAdminListing
 using HomeMatch.Modules.Listings.Application.Features.Listings.SearchListings;
 using HomeMatch.Modules.Listings.Application.Features.Reports;
 using HomeMatch.Modules.Listings.Application.Interfaces;
-using HomeMatch.Modules.Listings.Application.Models;
+using HomeMatch.Modules.Listings.Application.DTOs;
 using HomeMatch.Modules.Listings.Domain.Entities;
 using HomeMatch.Modules.Properties.Application.DTOs;
 using HomeMatch.Modules.Properties.Application.Features.AdminCatalogs;
@@ -151,6 +151,7 @@ public class AdminFeaturesTests
         public Task<int> ExpirePublishedAsync(DateTimeOffset now, long? roomId, CancellationToken cancellationToken) => Task.FromResult(0);
         public Task<(IReadOnlyList<Listing> Items, int TotalCount)> SearchPublicAsync(SearchListingsQuery query, long[] roomIds, long[] keywordRoomIds, CancellationToken cancellationToken) => Task.FromResult<(IReadOnlyList<Listing>, int)>(([], 0));
         public Task<Listing?> GetByIdAsync(long listingId, CancellationToken cancellationToken) => Task.FromResult(listing.Id == listingId ? listing : null);
+        public Task<IReadOnlyList<Listing>> GetPublicByRoomIdsAsync(IReadOnlyCollection<long> roomIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Listing>>([]);
         public Task<Listing?> GetOwnedAsync(long landlordId, long listingId, CancellationToken cancellationToken) => Task.FromResult<Listing?>(null);
         public Task<IReadOnlyList<Listing>> GetMineAsync(long landlordId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Listing>>([]);
         public Task<(IReadOnlyList<Listing> Items, int TotalCount)> GetPendingAsync(int page, int pageSize, CancellationToken cancellationToken) => Task.FromResult<(IReadOnlyList<Listing>, int)>(([], 0));
@@ -159,6 +160,7 @@ public class AdminFeaturesTests
         public Task<IReadOnlyList<Listing>> GetPublicCandidatesAsync(int offset, int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Listing>>([]);
         public Task<bool> SlugExistsAsync(string slug, long? exceptId, CancellationToken cancellationToken) => Task.FromResult(false);
         public Task<bool> HasOtherPublishedAsync(long roomId, long listingId, CancellationToken cancellationToken) => Task.FromResult(false);
+        public Task<bool> RoomHasListingAsync(long roomId, CancellationToken cancellationToken) => Task.FromResult(false);
         public Task<ListingCoordinates?> GetCoordinatesAsync(long listingId, CancellationToken cancellationToken) => Task.FromResult<ListingCoordinates?>(null);
         public Task<IReadOnlyDictionary<long, ListingCoordinates>> GetCoordinatesBatchAsync(IReadOnlyCollection<long> listingIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyDictionary<long, ListingCoordinates>>(new Dictionary<long, ListingCoordinates>());
         public Task SetCoordinatesAsync(Listing l, double longitude, double latitude, CancellationToken cancellationToken) => Task.CompletedTask;
@@ -194,6 +196,9 @@ public class AdminFeaturesTests
     {
         public Task<IdentityUserInfo?> GetUserByIdAsync(long userId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IdentityUserInfo?>(new IdentityUserInfo(userId, $"User {userId}", $"user{userId}@test.vn", null, "Tenant"));
+
+        public Task<IReadOnlyList<IdentityUserInfo>> GetTenantsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<IdentityUserInfo>>([]);
     }
 
     private sealed class FakeCatalogRepo : IAdminCatalogRepository

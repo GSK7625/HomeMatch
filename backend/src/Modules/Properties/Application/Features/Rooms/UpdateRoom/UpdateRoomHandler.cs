@@ -10,14 +10,18 @@ public sealed class UpdateRoomHandler
     private readonly IPropertyRepository _properties;
     private readonly IRoomRepository _rooms;
     private readonly ICatalogReader _catalogs;
-    private readonly IListingVisibilityWriter _listingVisibility;
+    private readonly IRoomListingEditReader _listingEditReader;
 
-    public UpdateRoomHandler(IPropertyRepository properties, IRoomRepository rooms, ICatalogReader catalogs, IListingVisibilityWriter listingVisibility)
+    public UpdateRoomHandler(
+        IPropertyRepository properties,
+        IRoomRepository rooms,
+        ICatalogReader catalogs,
+        IRoomListingEditReader listingEditReader)
     {
         _properties = properties;
         _rooms = rooms;
         _catalogs = catalogs;
-        _listingVisibility = listingVisibility;
+        _listingEditReader = listingEditReader;
     }
 
     public async Task<Result<RoomResult>> HandleAsync(UpdateRoomCommand command, CancellationToken cancellationToken = default)
@@ -26,6 +30,9 @@ public sealed class UpdateRoomHandler
             return Result.Failure<RoomResult>(PropertiesErrors.PropertyNotFound);
         var room = await _rooms.GetAsync(command.PropertyId, command.RoomId, cancellationToken);
         if (room is null) return Result.Failure<RoomResult>(PropertiesErrors.RoomNotFound);
+        // shortcut: this read does not serialize edits with submit/approve; use a shared lock if concurrent transitions must be atomic.
+        if (await _listingEditReader.IsRoomEditBlockedAsync(room.Id, cancellationToken))
+            return Result.Failure<RoomResult>(PropertiesErrors.RoomEditLocked);
         var number = (command.RoomNumber ?? room.RoomNumber).Trim();
         var floor = command.Floor ?? room.Floor;
         var area = command.AreaSqm ?? room.AreaSqm;
@@ -48,12 +55,6 @@ public sealed class UpdateRoomHandler
             var currentAmenityIds = await _rooms.GetAmenityIdsAsync(room.Id, cancellationToken);
             amenitiesChanged = !currentAmenityIds.OrderBy(id => id).SequenceEqual(amenityIds.OrderBy(id => id));
         }
-
-        var hasChanges = number != room.RoomNumber || floor != room.Floor || area != room.AreaSqm
-            || type != room.RoomType || occupants != room.MaxOccupants
-            || command.AvailableFrom is not null && command.AvailableFrom != room.AvailableFrom
-            || amenitiesChanged;
-        if (hasChanges) await _listingVisibility.HidePublishedForRoomAsync(room.Id, cancellationToken);
 
         if (amenityIds is not null && amenitiesChanged)
         {

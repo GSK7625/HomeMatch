@@ -36,9 +36,21 @@ internal sealed class LeasingContractReader : ILeasingContractReader
 
     public async Task<IReadOnlyList<LeasingContractInfo>> GetActiveContractsByLandlordIdAsync(long landlordId, CancellationToken cancellationToken = default)
     {
-        return await _dbContext.Contracts
+        return await GetActiveContractsAsync(landlordId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<LeasingContractInfo>> GetActiveContractsAsync(long? landlordId = null, CancellationToken cancellationToken = default)
+    {
+        var query = _dbContext.Contracts
             .AsNoTracking()
-            .Where(c => c.LandlordId == landlordId && c.Status == ContractStatus.Active)
+            .Where(c => c.Status == ContractStatus.Active);
+
+        if (landlordId.HasValue)
+        {
+            query = query.Where(c => c.LandlordId == landlordId.Value);
+        }
+
+        return await query
             .Select(c => new LeasingContractInfo(
                 c.Id,
                 c.ContractCode,

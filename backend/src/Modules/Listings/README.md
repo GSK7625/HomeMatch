@@ -31,11 +31,18 @@ HTTP giữ các API tạo, sửa, đăng, ẩn tin, media và yêu thích. Các 
 - Toggle yêu thích được tuần tự hóa theo cặp user/tin bằng PostgreSQL advisory lock trong transaction.
 - Vi phạm unique slug hoặc phòng đã có tin công khai được chuyển thành lỗi nghiệp vụ.
 
-## So sánh — hoãn triển khai
+## So sánh phòng
 
-Các API GET/POST `/api/v1/listings/comparisons` và DELETE `/api/v1/listings/comparisons/{listingId}` đã được gỡ, cùng use case, DTO và repository phục vụ các API này. Chưa triển khai API so sánh thay thế.
+- `GET /api/v1/listings/compare?roomIds=1&roomIds=2&roomIds=3` cho phép anonymous, nhận từ 1 đến 3 RoomId dương, không trùng; input không hợp lệ trả 400 `Listing.InvalidComparison`.
+- Trả `ApiResponse` chứa mảng chi tiết công khai hiện có: Listing, Room, Property, tiện ích và biểu giá. `id` là ListingId; `roomId` là ID phòng dùng để đối chiếu yêu cầu. Kết quả giữ thứ tự RoomId đã gửi và mỗi phòng chỉ xuất hiện một lần.
+- Chỉ trả tin `PUBLISHED` chưa hết hạn và phòng `AVAILABLE`. Phòng không tồn tại hoặc không còn công khai được bỏ khỏi mảng; client đối chiếu RoomId còn thiếu để thông báo không còn khả dụng. Nếu không phòng nào hợp lệ, trả 200 với mảng rỗng.
+- Client giữ danh sách ID đã chọn. API chỉ đọc dữ liệu, không lưu khay so sánh ở backend.
 
-Bảng `user_room_comparisons`, entity EF và migration hiện có được giữ nguyên để tránh thay đổi schema hoặc xóa dữ liệu trong task gỡ API. Phần so sánh sẽ được xử lý ở task riêng.
+### API lưu khay cũ
+
+Các API GET/POST `/api/v1/listings/comparisons` và DELETE `/api/v1/listings/comparisons/{listingId}` đã được gỡ, cùng use case, DTO và repository phục vụ các API này.
+
+Bảng `user_room_comparisons`, entity EF và migration hiện có được giữ nguyên để tránh thay đổi schema hoặc xóa dữ liệu; API so sánh mới không sử dụng bảng này.
 
 ## Migration
 
@@ -53,9 +60,11 @@ Thêm media bằng URL vẫn chỉ bật trong Development theo giới hạn có
 
 ## Kiểm tra
 
+- `backend/tests/IntegrationTests/PropertyCoordinatesHttpTests.cs`: HTTP thật qua Kestrel với repository, shared contracts và PostgreSQL/PostGIS thật; kiểm tra tọa độ property, PATCH không ghi dữ liệu khi lỗi, đồng bộ khi submit, khóa sửa và approve. Danh tính được cấp bởi authentication handler riêng của tests, không kiểm tra phát hành/xác minh JWT.
+- `backend/tests/IntegrationTests/ListingsRoomRulesTests.cs`: unique room ở mọi trạng thái, hai request tạo trùng và nâng cấp/rollback migration. Đặt `HOMEMATCH_TEST_POSTGRES` trỏ đến database quản trị của instance PostgreSQL/PostGIS dành cho kiểm thử, với quyền tạo database; mỗi test tự tạo và xóa database `homematch_test_<guid>`, không chạy trên database nghiệp vụ. Lệnh: `dotnet test backend/tests/IntegrationTests/HomeMatch.IntegrationTests.csproj`.
 - `backend/tests/UnitTests/Listings/ListingsHandlerTests.cs`: ranh giới kiến trúc, validation, quyền truy cập và xử lý kết quả persistence.
 - `backend/tests/IntegrationTests/Listings/ListingsPersistenceTests.cs`: nâng cấp dữ liệu cũ và thao tác đồng thời trên PostgreSQL/PostGIS.
 - `backend/tests/IntegrationTests/Properties/PropertyListingFlowTests.cs`: vòng đời tin đăng qua HTTP, bao gồm chống đọc tin nháp/đã ẩn qua yêu thích.
 - `backend/tests/IntegrationTests/Listings/ListingsRouteTests.cs`: kiểm tra quyền Tenant của hai API yêu thích và xác nhận ba API so sánh không còn đăng ký route; URL cũ trả 404 hoặc 405 từ bộ định tuyến.
 - `backend/tests/IntegrationTests/Listings/ListingsModerationTests.cs`: JWT thật cho gửi duyệt/duyệt/từ chối, alias, gửi lại và kiểm tra lại điều kiện; dữ liệu phòng giả qua shared contract.
-- Persistence tests xác minh tin cũ và bốn trường xét duyệt giữ nguyên khi bỏ cờ, concurrency quyết định, duyệt hai tin cùng phòng và rollback ảnh từ editor đã cũ. HTTP flow Properties/Listings dùng dữ liệu phòng thật với geocoding giả.
+- Persistence tests xác minh tin cũ và bốn trường xét duyệt giữ nguyên khi bỏ cờ, concurrency quyết định, duyệt hai tin cùng phòng và rollback ảnh từ editor đã cũ. Khi kiểm thử HTTP flow Properties/Listings, gửi tọa độ client đã xác nhận vào property; backend không còn geocoder để giả lập.

@@ -1,55 +1,121 @@
+using System.Globalization;
 using HomeMatch.Modules.Billing.Application.Interfaces;
-using HomeMatch.Modules.Billing.Infrastructure.Persistence;
+using HomeMatch.Shared.Common;
 using HomeMatch.Shared.Contracts.Billing;
-using Microsoft.EntityFrameworkCore;
+using HomeMatch.Shared.Contracts.Identity;
+using HomeMatch.Shared.Contracts.Leasing;
+using HomeMatch.Shared.Contracts.Listings;
+using HomeMatch.Shared.Contracts.Messaging;
+using HomeMatch.Shared.Contracts.Properties;
+using HomeMatch.Shared.Contracts.Viewings;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace HomeMatch.Modules.Billing.Infrastructure.Services;
 
 public class LandlordDashboardService : ILandlordDashboardService
 {
-    private readonly BillingDbContext _db;
+    private static readonly TimeZoneInfo VietnamTimeZone =
+        TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
 
-    public LandlordDashboardService(BillingDbContext db)
+    private readonly IInvoiceRepository _invoiceRepository;
+    private readonly IPropertyDashboardReader _propertyReader;
+    private readonly ILeasingContractReader _contractReader;
+    private readonly IListingDashboardReader _listingReader;
+    private readonly IViewingDashboardReader _viewingReader;
+    private readonly IMessagingDashboardReader _messagingReader;
+    private readonly IIdentityUserReader _identityUserReader;
+    private readonly Func<DateOnly>? _todayProvider;
+
+    [ActivatorUtilitiesConstructor]
+    public LandlordDashboardService(
+        IInvoiceRepository invoiceRepository,
+        IPropertyDashboardReader propertyReader,
+        ILeasingContractReader contractReader,
+        IListingDashboardReader listingReader,
+        IViewingDashboardReader viewingReader,
+        IMessagingDashboardReader messagingReader,
+        IIdentityUserReader identityUserReader)
+        : this(
+            invoiceRepository,
+            propertyReader,
+            contractReader,
+            listingReader,
+            viewingReader,
+            messagingReader,
+            identityUserReader,
+            todayProvider: null)
     {
-        _db = db;
     }
 
-    public async Task<LandlordDashboardDto> GetDashboardAsync(string? buildingId, string? period, CancellationToken cancellationToken = default)
+    public LandlordDashboardService(
+        IInvoiceRepository invoiceRepository,
+        IPropertyDashboardReader propertyReader,
+        ILeasingContractReader contractReader,
+        IListingDashboardReader listingReader,
+        IViewingDashboardReader viewingReader,
+        IMessagingDashboardReader messagingReader,
+        IIdentityUserReader identityUserReader,
+        Func<DateOnly>? todayProvider)
     {
-        var targetPeriod = string.IsNullOrWhiteSpace(period) ? "11/2026" : period.Trim();
-        var filterBuilding = string.IsNullOrWhiteSpace(buildingId) || buildingId.Equals("all", StringComparison.OrdinalIgnoreCase)
-            ? null
-            : buildingId.Trim();
+        _invoiceRepository = invoiceRepository;
+        _propertyReader = propertyReader;
+        _contractReader = contractReader;
+        _listingReader = listingReader;
+        _viewingReader = viewingReader;
+        _messagingReader = messagingReader;
+        _identityUserReader = identityUserReader;
+        _todayProvider = todayProvider;
+    }
 
-        var today = new DateOnly(2026, 11, 12);
+    public async Task<LandlordDashboardDto> GetDashboardAsync(
+        long? landlordId,
+        string? buildingId,
+        string? period,
+        CancellationToken cancellationToken = default)
+    {
+        var today = _todayProvider?.Invoke() ?? BusinessDate.Today();
 
-        // 1. Query Rooms & Occupancy from PostgreSQL
-        var roomsQuery = _db.Rooms.AsNoTracking();
-        if (filterBuilding != null)
+        if (!TryParseBuildingId(buildingId, out var propertyId))
         {
-            roomsQuery = roomsQuery.Where(r => r.BuildingId == filterBuilding);
+            return new LandlordDashboardDto();
         }
-        var rooms = await roomsQuery.ToListAsync(cancellationToken);
+
+        var (billingMonth, billingYear) = ParsePeriod(period, today);
+
+        // 1. Rooms & Occupancy from Properties module
+        var rooms = await _propertyReader.GetRoomsForDashboardAsync(landlordId, propertyId, cancellationToken);
+        var roomMap = rooms.ToDictionary(r => r.RoomId);
+        var roomIdSet = rooms.Select(r => r.RoomId).ToHashSet();
 
         var totalRooms = rooms.Count;
-        var vacantRooms = rooms.Count(r => r.Status == "AVAILABLE");
-        var rentedRooms = rooms.Count(r => r.Status == "RENTED");
+        var vacantRooms = rooms.Count(r => string.Equals(r.Status, "AVAILABLE", StringComparison.OrdinalIgnoreCase));
+        var rentedRooms = rooms.Count(r => string.Equals(r.Status, "RENTED", StringComparison.OrdinalIgnoreCase));
         var occupancyRate = totalRooms > 0 ? Math.Round((double)rentedRooms * 100.0 / totalRooms, 1) : 0;
-        var activeListings = vacantRooms;
 
-        // 2. Query Invoices & Financials from PostgreSQL
-        var invoicesQuery = _db.DashboardInvoices.AsNoTracking();
-        if (filterBuilding != null)
-        {
-            invoicesQuery = invoicesQuery.Where(i => i.BuildingId == filterBuilding);
-        }
-        invoicesQuery = invoicesQuery.Where(i => i.Period == targetPeriod);
-        var invoices = await invoicesQuery.ToListAsync(cancellationToken);
+        // 2. Listings & Views from Listings module
+        var listings = await _listingReader.GetListingsForDashboardAsync(
+            landlordId,
+            propertyId.HasValue ? roomIdSet : null,
+            cancellationToken);
+
+        var activeListings = listings.Count(l => string.Equals(l.Status, "PUBLISHED", StringComparison.OrdinalIgnoreCase));
+        var totalViewsCount = (int)Math.Min(int.MaxValue, listings.Sum(l => l.ViewCount));
+        var listingMap = listings.ToDictionary(l => l.ListingId);
+        var listingIds = listings.Select(l => l.ListingId).ToList();
+
+        // 3. Invoices & Financials from Billing module (billing.invoices)
+        var invoices = await _invoiceRepository.GetForDashboardAsync(
+            landlordId,
+            propertyId,
+            billingMonth,
+            billingYear,
+            cancellationToken);
 
         decimal totalRent = 0;
         decimal totalElectricity = 0;
         decimal totalWater = 0;
         decimal totalService = 0;
+        decimal totalReceivables = 0;
         decimal totalCollected = 0;
 
         foreach (var inv in invoices)
@@ -58,14 +124,57 @@ public class LandlordDashboardService : ILandlordDashboardService
             totalElectricity += inv.ElectricityAmount;
             totalWater += inv.WaterAmount;
             totalService += inv.ServiceAmount;
+            totalReceivables += inv.TotalAmount;
             totalCollected += inv.PaidAmount;
         }
 
-        var totalReceivables = totalRent + totalElectricity + totalWater + totalService;
-        var remainingDebt = Math.Max(0, totalReceivables - totalCollected);
-        var collectionRate = totalReceivables > 0 ? Math.Round((double)totalCollected * 100.0 / (double)totalReceivables, 1) : 0;
+        var remainingDebt = Math.Max(0m, totalReceivables - totalCollected);
+        var collectionRate = totalReceivables > 0
+            ? Math.Round((double)totalCollected * 100.0 / (double)totalReceivables, 1)
+            : 0;
 
-        // 3. Debt Aging Analysis from PostgreSQL Invoices
+        // 4. Active Contracts & Deposits from Leasing module (leasing.contracts)
+        var allActiveContracts = await _contractReader.GetActiveContractsAsync(landlordId, cancellationToken);
+        var contracts = propertyId.HasValue
+            ? allActiveContracts.Where(c => roomIdSet.Contains(c.RoomId)).ToList()
+            : allActiveContracts.ToList();
+
+        // 5. Viewings & Lead Funnel from Viewings & Messaging modules
+        var allViewings = await _viewingReader.GetViewingsByListingIdsAsync(listingIds, cancellationToken);
+        var leadStats = await _messagingReader.GetLeadFunnelByListingIdsAsync(listingIds, cancellationToken);
+
+        var nonCancelledViewings = allViewings
+            .Where(v => !string.Equals(v.Status, "CANCELLED", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var viewingsTodaySource = nonCancelledViewings
+            .Where(v => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(v.AppointmentTime, VietnamTimeZone).DateTime) == today)
+            .OrderBy(v => v.AppointmentTime)
+            .ToList();
+
+        // 6. Batch-resolve unique tenant profiles via Identity module
+        var unpaidInvoices = invoices
+            .Where(inv => inv.TotalAmount - inv.PaidAmount > 0)
+            .ToList();
+
+        var tenantIds = unpaidInvoices.Select(i => i.TenantId)
+            .Concat(contracts.Select(c => c.TenantId))
+            .Concat(viewingsTodaySource.Select(v => v.TenantId))
+            .Where(id => id > 0)
+            .Distinct()
+            .ToList();
+
+        var tenantMap = new Dictionary<long, IdentityUserInfo>(tenantIds.Count);
+        foreach (var tenantId in tenantIds)
+        {
+            var userInfo = await _identityUserReader.GetUserByIdAsync(tenantId, cancellationToken);
+            if (userInfo is not null)
+            {
+                tenantMap[tenantId] = userInfo;
+            }
+        }
+
+        // 7. Debt Aging Analysis from real billing.invoices
         decimal currentAmount = 0;
         decimal overdue1To30 = 0;
         decimal overdue31To60 = 0;
@@ -73,17 +182,14 @@ public class LandlordDashboardService : ILandlordDashboardService
         decimal totalDebt = 0;
         decimal overdueDebt = 0;
 
-        var debtItems = new List<LandlordDebtItemDto>();
+        var debtItems = new List<LandlordDebtItemDto>(unpaidInvoices.Count);
 
-        foreach (var inv in invoices)
+        foreach (var inv in unpaidInvoices)
         {
-            var invTotal = inv.RentAmount + inv.ElectricityAmount + inv.WaterAmount + inv.ServiceAmount;
-            var invRemaining = invTotal - inv.PaidAmount;
-            if (invRemaining <= 0) continue;
-
+            var invRemaining = (decimal)(inv.TotalAmount - inv.PaidAmount);
             totalDebt += invRemaining;
-            var overdueDays = today.DayNumber - inv.DueDate.DayNumber;
 
+            var overdueDays = today.DayNumber - inv.DueDate.DayNumber;
             string bucket;
             if (overdueDays <= 0)
             {
@@ -110,14 +216,16 @@ public class LandlordDashboardService : ILandlordDashboardService
                 }
             }
 
+            tenantMap.TryGetValue(inv.TenantId, out var tenant);
+
             debtItems.Add(new LandlordDebtItemDto
             {
                 InvoiceId = inv.InvoiceCode,
-                RoomName = inv.RoomName,
-                TenantName = inv.TenantName,
-                TenantPhone = inv.TenantPhone,
+                RoomName = FormatRoomName(inv.RoomId, roomMap),
+                TenantName = !string.IsNullOrWhiteSpace(tenant?.FullName) ? tenant.FullName : $"Khách thuê #{inv.TenantId}",
+                TenantPhone = tenant?.PhoneNumber ?? string.Empty,
                 Amount = invRemaining,
-                DueDate = inv.DueDate.ToString("yyyy-MM-dd"),
+                DueDate = inv.DueDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 OverdueDays = Math.Max(0, overdueDays),
                 AgingBucket = bucket
             });
@@ -125,31 +233,25 @@ public class LandlordDashboardService : ILandlordDashboardService
 
         debtItems.Sort((a, b) => b.OverdueDays.CompareTo(a.OverdueDays));
 
-        // 4. Query Contracts & Deposits from PostgreSQL
-        var contractsQuery = _db.Contracts.AsNoTracking().Where(c => c.Status == "ACTIVE");
-        if (filterBuilding != null)
-        {
-            contractsQuery = contractsQuery.Where(c => c.BuildingId == filterBuilding);
-        }
-        var contracts = await contractsQuery.ToListAsync(cancellationToken);
-
+        // 8. Deposits Report from real leasing.contracts
         decimal totalDeposits = 0;
-        var depositItems = new List<LandlordDepositItemDto>();
+        var depositItems = new List<LandlordDepositItemDto>(contracts.Count);
 
         foreach (var c in contracts)
         {
             totalDeposits += c.DepositAmount;
             var daysRemaining = c.EndDate.DayNumber - today.DayNumber;
+            tenantMap.TryGetValue(c.TenantId, out var tenant);
 
             depositItems.Add(new LandlordDepositItemDto
             {
-                ContractId = c.Id.ToString(),
+                ContractId = c.Id.ToString(CultureInfo.InvariantCulture),
                 ContractCode = c.ContractCode,
-                RoomName = c.RoomName,
-                TenantName = c.TenantName,
+                RoomName = FormatRoomName(c.RoomId, roomMap),
+                TenantName = !string.IsNullOrWhiteSpace(tenant?.FullName) ? tenant.FullName : $"Khách thuê #{c.TenantId}",
                 DepositAmount = c.DepositAmount,
-                StartDate = c.StartDate.ToString("yyyy-MM-dd"),
-                EndDate = c.EndDate.ToString("yyyy-MM-dd"),
+                StartDate = c.StartDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                EndDate = c.EndDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 DaysRemaining = Math.Max(0, daysRemaining),
                 DepositStatus = daysRemaining <= 30 ? "Sắp đáo hạn" : "Đang giữ"
             });
@@ -157,33 +259,43 @@ public class LandlordDashboardService : ILandlordDashboardService
 
         depositItems.Sort((a, b) => a.DaysRemaining.CompareTo(b.DaysRemaining));
 
-        // 5. Query Viewings from PostgreSQL
-        var viewingsQuery = _db.Viewings.AsNoTracking();
-        if (filterBuilding != null)
+        // 9. Viewings Today from real viewings.viewing_appointments
+        var viewingItems = viewingsTodaySource.Select(v =>
         {
-            viewingsQuery = viewingsQuery.Where(v => v.BuildingId == filterBuilding);
-        }
-        var viewings = await viewingsQuery.ToListAsync(cancellationToken);
+            var localTime = TimeZoneInfo.ConvertTime(v.AppointmentTime, VietnamTimeZone);
+            listingMap.TryGetValue(v.ListingId, out var listing);
+            tenantMap.TryGetValue(v.TenantId, out var tenant);
 
-        var viewingItems = viewings.Select(v => new LandlordViewingItemDto
-        {
-            AppointmentId = v.Id.ToString(),
-            ScheduledTime = v.ScheduledTime,
-            RoomName = v.RoomName,
-            TenantName = v.TenantName,
-            TenantPhone = v.TenantPhone,
-            ViewingType = v.ViewingType,
-            Status = v.Status
+            var roomName = listing is not null
+                ? FormatRoomName(listing.RoomId, roomMap, listing.Title)
+                : $"Tin đăng #{v.ListingId}";
+
+            return new LandlordViewingItemDto
+            {
+                AppointmentId = v.AppointmentId.ToString(CultureInfo.InvariantCulture),
+                ScheduledTime = localTime.ToString("HH:mm", CultureInfo.InvariantCulture),
+                RoomName = roomName,
+                TenantName = !string.IsNullOrWhiteSpace(tenant?.FullName) ? tenant.FullName : $"Khách thuê #{v.TenantId}",
+                TenantPhone = tenant?.PhoneNumber ?? string.Empty,
+                ViewingType = v.IsVirtual ? "Online" : "Trực tiếp",
+                Status = v.Status
+            };
         }).ToList();
+
+        // 10. Marketing & Leads Funnel (monotonic conversion pipeline from real modules)
+        var contractSignedLeads = Math.Max(leadStats.ContractSignedLeads, contracts.Count);
+        var viewingScheduledLeads = Math.Max(leadStats.ViewingScheduledLeads, nonCancelledViewings.Count);
+        var contactedLeads = Math.Max(leadStats.ContactedLeads, Math.Max(viewingScheduledLeads, contractSignedLeads));
+        var newLeads = Math.Max(leadStats.TotalLeads, contactedLeads);
 
         var funnel = new LandlordMarketingFunnelDto
         {
             ActiveListingsCount = activeListings,
-            TotalViewsCount = rooms.Count * 15 + viewings.Count * 10,
-            NewLeads = rooms.Count + viewings.Count + contracts.Count,
-            ContactedLeads = viewings.Count + contracts.Count,
-            ViewingScheduledLeads = viewings.Count,
-            ContractSignedLeads = contracts.Count
+            TotalViewsCount = totalViewsCount,
+            NewLeads = newLeads,
+            ContactedLeads = contactedLeads,
+            ViewingScheduledLeads = viewingScheduledLeads,
+            ContractSignedLeads = contractSignedLeads
         };
 
         return new LandlordDashboardDto
@@ -229,5 +341,82 @@ public class LandlordDashboardService : ILandlordDashboardService
             MarketingAndLeads = funnel,
             ViewingsToday = viewingItems
         };
+    }
+
+    private static bool TryParseBuildingId(string? buildingId, out long? propertyId)
+    {
+        if (string.IsNullOrWhiteSpace(buildingId) ||
+            buildingId.Trim().Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            propertyId = null;
+            return true;
+        }
+
+        if (long.TryParse(buildingId.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed > 0)
+        {
+            propertyId = parsed;
+            return true;
+        }
+
+        propertyId = null;
+        return false;
+    }
+
+    private static (int? Month, int? Year) ParsePeriod(string? period, DateOnly today)
+    {
+        if (string.IsNullOrWhiteSpace(period))
+        {
+            return (today.Month, today.Year);
+        }
+
+        var trimmed = period.Trim();
+        if (trimmed.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            return (null, null);
+        }
+
+        // Format: MM/yyyy
+        var slashParts = trimmed.Split('/');
+        if (slashParts.Length == 2 &&
+            int.TryParse(slashParts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var slashMonth) &&
+            int.TryParse(slashParts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var slashYear) &&
+            slashMonth is >= 1 and <= 12 &&
+            slashYear >= 2020)
+        {
+            return (slashMonth, slashYear);
+        }
+
+        // Format: yyyy-MM
+        var dashParts = trimmed.Split('-');
+        if (dashParts.Length == 2 &&
+            int.TryParse(dashParts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var dashYear) &&
+            int.TryParse(dashParts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var dashMonth) &&
+            dashMonth is >= 1 and <= 12 &&
+            dashYear >= 2020)
+        {
+            return (dashMonth, dashYear);
+        }
+
+        return (today.Month, today.Year);
+    }
+
+    private static string FormatRoomName(
+        long roomId,
+        IReadOnlyDictionary<long, DashboardRoomInfo> roomMap,
+        string? fallbackTitle = null)
+    {
+        if (roomMap.TryGetValue(roomId, out var room))
+        {
+            return string.IsNullOrWhiteSpace(room.PropertyName)
+                ? room.RoomNumber
+                : $"{room.RoomNumber} - {room.PropertyName}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(fallbackTitle))
+        {
+            return fallbackTitle;
+        }
+
+        return $"Phòng #{roomId}";
     }
 }

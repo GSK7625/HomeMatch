@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
+import { getRememberedEmail } from "@/lib/api-client";
 import { useToast } from "@/components/Toast";
 import {
   Home,
@@ -30,8 +31,17 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const savedEmail = getRememberedEmail();
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   // Error & Status states matching Identity errors
   const [errorCode, setErrorCode] = useState<string | null>(null);
@@ -54,7 +64,7 @@ function LoginForm() {
     setErrorCode(null);
     setResendSuccess(null);
 
-    const res = await login(email.trim(), password);
+    const res = await login(email.trim(), password, rememberMe);
     setLoading(false);
 
     if (res.success) {
@@ -237,6 +247,19 @@ function LoginForm() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-0.5">
+            <label htmlFor="remember-me" className="inline-flex items-center gap-2 cursor-pointer select-none">
+              <input
+                id="remember-me"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/30 cursor-pointer"
+              />
+              <span className="text-xs font-medium text-slate-600">Ghi nhớ đăng nhập trên thiết bị này</span>
+            </label>
           </div>
 
           <button

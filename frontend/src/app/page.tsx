@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
 import { fetchHealth, listingsApi, getStoredToken } from "@/lib/api-client";
-import { listingService } from "@/lib/services";
 import { PropertyListing, HealthCheck } from "@/types";
 import { ListingCard } from "@/features/listings/ListingCard";
 import {
@@ -42,6 +41,7 @@ export default function HomePage() {
   const router = useRouter();
   const { role } = useAuth();
   const [listings, setListings] = useState<PropertyListing[]>([]);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [health, setHealth] = useState<HealthCheck | null>(null);
 
   useEffect(() => {
@@ -86,18 +86,27 @@ export default function HomePage() {
 
     fetchHealth().then(setHealth).catch(() => null);
 
-    if (getStoredToken()) {
-      listingsApi.getSavedListings().then((res) => {
-        if (isMounted && res.isSuccess && Array.isArray(res.data)) {
-          listingService.syncFavorites(res.data.map((s) => String(s.listingId)));
-        }
-      }).catch(() => null);
+    if (role === "Tenant" && getStoredToken()) {
+      listingsApi
+        .getSavedListings()
+        .then((res) => {
+          if (isMounted && res.isSuccess && Array.isArray(res.data)) {
+            const ids = res.data.map((s) => String(s.listingId));
+            setSavedIds(new Set(ids));
+            window.dispatchEvent(
+              new CustomEvent("homematch:favorites-updated", { detail: { ids } })
+            );
+          }
+        })
+        .catch(() => null);
+    } else {
+      setSavedIds(new Set());
     }
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [role]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -434,7 +443,11 @@ export default function HomePage() {
         {displayListings.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {displayListings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
+              <ListingCard
+                key={listing.id}
+                listing={listing}
+                isFavorite={savedIds.has(listing.id)}
+              />
             ))}
           </div>
         ) : (

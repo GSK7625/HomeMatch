@@ -5,6 +5,7 @@ using HomeMatch.Modules.Leasing.Domain.Enums;
 using HomeMatch.Shared.Common;
 using HomeMatch.Shared.Contracts.Identity;
 using HomeMatch.Shared.Contracts.Notifications;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace HomeMatch.Modules.Leasing.Application.Commands.SignContract;
@@ -17,6 +18,7 @@ public sealed class SignContractHandler
     private readonly INotificationPublisher _notificationPublisher;
     private readonly ILeasingEmailService _leasingEmailService;
     private readonly ILogger<SignContractHandler> _logger;
+    private readonly IMemoryCache _cache;
 
     public SignContractHandler(
         IContractRepository contractRepository,
@@ -24,7 +26,8 @@ public sealed class SignContractHandler
         IIdentityUserReader identityUserReader,
         INotificationPublisher notificationPublisher,
         ILeasingEmailService leasingEmailService,
-        ILogger<SignContractHandler> logger)
+        ILogger<SignContractHandler> logger,
+        IMemoryCache cache)
     {
         _contractRepository = contractRepository;
         _identityOtpService = identityOtpService;
@@ -32,6 +35,7 @@ public sealed class SignContractHandler
         _notificationPublisher = notificationPublisher;
         _leasingEmailService = leasingEmailService;
         _logger = logger;
+        _cache = cache;
     }
 
     public async Task<Result<ContractDto>> HandleAsync(
@@ -50,6 +54,15 @@ public sealed class SignContractHandler
             return Result.Failure<ContractDto>(LeasingErrors.InvalidOtp);
         }
 
+        // Kiểm tra giới hạn số lần nhập sai OTP (Khóa tạm thời 10 phút sau 5 lần nhập sai liên tiếp)
+        var failedAttemptsKey = $"leasing_otp_failed_attempts_{command.ActorId}_{command.ContractId}";
+        if (_cache.TryGetValue(failedAttemptsKey, out int failedCount) && failedCount >= 5)
+        {
+            _logger.LogWarning("Tài khoản [ID: {ActorId}] đã bị khóa tạm thời do nhập sai OTP quá 5 lần trên Hợp đồng [ID: {ContractId}].",
+                command.ActorId, command.ContractId);
+            return Result.Failure<ContractDto>(LeasingErrors.TooManyOtpAttempts);
+        }
+
         // 3. Xác thực OTP thông qua ASP.NET Core Identity Token Provider
         var isOtpValid = await _identityOtpService.VerifySignatureOtpAsync(
             command.ActorId,
@@ -59,10 +72,15 @@ public sealed class SignContractHandler
 
         if (!isOtpValid)
         {
-            _logger.LogWarning("Xác thực OTP thất bại cho Người dùng [ID: {ActorId}] trên Hợp đồng [ID: {ContractId}].",
-                command.ActorId, command.ContractId);
+            var updatedCount = failedCount + 1;
+            _cache.Set(failedAttemptsKey, updatedCount, TimeSpan.FromMinutes(10));
+            _logger.LogWarning("Xác thực OTP thất bại ({Attempts}/5) cho Người dùng [ID: {ActorId}] trên Hợp đồng [ID: {ContractId}].",
+                updatedCount, command.ActorId, command.ContractId);
             return Result.Failure<ContractDto>(LeasingErrors.InvalidOtp);
         }
+
+        // Xóa bộ đếm sai OTP khi xác thực thành công
+        _cache.Remove(failedAttemptsKey);
 
         // 4. Khóa dòng hợp đồng với SELECT ... FOR UPDATE để bảo vệ an toàn tuyệt đối khi cả 2 bên ký đồng thời
         var contract = await _contractRepository.GetForUpdateAsync(command.ContractId, cancellationToken);

@@ -3,9 +3,11 @@ using HomeMatch.Modules.Messaging.Application.Commands.MarkConversationRead;
 using HomeMatch.Modules.Messaging.Application.Commands.SaveMessageDraft;
 using HomeMatch.Modules.Messaging.Application.Commands.SendMessage;
 using HomeMatch.Modules.Messaging.Application.Commands.StartOrGetConversation;
+using HomeMatch.Modules.Messaging.Application.Commands.UpdateLeadStatus;
 using HomeMatch.Modules.Messaging.Application.DTOs;
 using HomeMatch.Modules.Messaging.Application.Queries.GetConversationMessages;
 using HomeMatch.Modules.Messaging.Application.Queries.GetConversations;
+using HomeMatch.Modules.Messaging.Application.Queries.GetLandlordLeads;
 using HomeMatch.Modules.Messaging.Domain.Constants;
 using HomeMatch.Modules.Messaging.Presentation.Endpoints.Requests;
 using HomeMatch.Shared.Common;
@@ -240,6 +242,100 @@ public static class MessagingEndpoints
         .Produces<ApiResponse<MessageDraftDto>>(StatusCodes.Status403Forbidden)
         .Produces<ApiResponse<MessageDraftDto>>(StatusCodes.Status404NotFound);
 
+        // 7. Quản lý danh sách khách quan tâm của Chủ nhà (GET / PATCH /api/v1/messaging/leads)
+        var leadsGroup = endpoints.MapGroup("/leads")
+            .RequireAuthorization(policy => policy
+                .RequireAuthenticatedUser()
+                .RequireRole("Landlord", "LANDLORD", "Admin", "ADMIN"));
+
+        leadsGroup.MapGet("", async (
+            [FromQuery] long? listingId,
+            [FromQuery] long? roomId,
+            [FromQuery] string? status,
+            [FromQuery] string? search,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            [FromServices] GetLandlordLeadsHandler handler = default!,
+            HttpContext httpContext = default!,
+            CancellationToken cancellationToken = default) =>
+        {
+            if (!TryGetUserId(httpContext, out var userId))
+            {
+                return Results.Json(
+                    ApiResponse.Failure<LandlordLeadsResponseDto>(MessagingErrors.AuthenticationRequired),
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+
+            var result = await handler.HandleAsync(
+                new GetLandlordLeadsQuery(
+                    LandlordId: userId,
+                    ListingId: listingId,
+                    RoomId: roomId,
+                    Status: status,
+                    Search: search,
+                    Page: page,
+                    PageSize: pageSize),
+                cancellationToken);
+
+            if (result.IsFailure)
+            {
+                return MapFailureResult<LandlordLeadsResponseDto>(result.Error);
+            }
+
+            return Results.Ok(ApiResponse.Success(result.Value));
+        })
+        .WithName("GetLandlordLeads")
+        .WithSummary("Lấy danh sách khách quan tâm (Leads) của chủ nhà theo tin đăng/phòng và trạng thái liên hệ")
+        .Produces<ApiResponse<LandlordLeadsResponseDto>>(StatusCodes.Status200OK)
+        .Produces<ApiResponse<LandlordLeadsResponseDto>>(StatusCodes.Status400BadRequest)
+        .Produces<ApiResponse<LandlordLeadsResponseDto>>(StatusCodes.Status401Unauthorized)
+        .Produces<ApiResponse<LandlordLeadsResponseDto>>(StatusCodes.Status403Forbidden);
+
+        leadsGroup.MapPatch("/{id:long}", async (
+            long id,
+            [FromBody] UpdateLeadRequest request,
+            [FromServices] UpdateLeadStatusHandler handler,
+            HttpContext httpContext,
+            CancellationToken cancellationToken) =>
+        {
+            if (!TryGetUserId(httpContext, out var userId))
+            {
+                return Results.Json(
+                    ApiResponse.Failure<LandlordLeadDto>(MessagingErrors.AuthenticationRequired),
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+
+            var validationErrors = request.Validate();
+            if (validationErrors.Count > 0)
+            {
+                return Results.BadRequest(ApiResponse.Failure<LandlordLeadDto>(
+                    Error.Validation("Messaging.ValidationFailed", "Dữ liệu cập nhật khách quan tâm không hợp lệ.", validationErrors)));
+            }
+
+            var result = await handler.HandleAsync(
+                new UpdateLeadStatusCommand(
+                    LeadId: id,
+                    LandlordId: userId,
+                    Status: request.Status,
+                    Notes: request.Notes,
+                    UpdateNotes: request.Notes is not null),
+                cancellationToken);
+
+            if (result.IsFailure)
+            {
+                return MapFailureResult<LandlordLeadDto>(result.Error);
+            }
+
+            return Results.Ok(ApiResponse.Success(result.Value));
+        })
+        .WithName("UpdateLandlordLead")
+        .WithSummary("Cập nhật trạng thái liên hệ và ghi chú cho khách quan tâm")
+        .Produces<ApiResponse<LandlordLeadDto>>(StatusCodes.Status200OK)
+        .Produces<ApiResponse<LandlordLeadDto>>(StatusCodes.Status400BadRequest)
+        .Produces<ApiResponse<LandlordLeadDto>>(StatusCodes.Status401Unauthorized)
+        .Produces<ApiResponse<LandlordLeadDto>>(StatusCodes.Status403Forbidden)
+        .Produces<ApiResponse<LandlordLeadDto>>(StatusCodes.Status404NotFound);
+
         return endpoints;
     }
 
@@ -254,8 +350,8 @@ public static class MessagingEndpoints
     {
         var statusCode = error.Code switch
         {
-            "Messaging.ConversationNotFound" or "Messaging.ListingNotFound" => StatusCodes.Status404NotFound,
-            "Messaging.Forbidden" => StatusCodes.Status403Forbidden,
+            "Messaging.ConversationNotFound" or "Messaging.ListingNotFound" or "Messaging.LeadNotFound" => StatusCodes.Status404NotFound,
+            "Messaging.Forbidden" or "Messaging.LeadForbidden" => StatusCodes.Status403Forbidden,
             "Messaging.AuthenticationRequired" => StatusCodes.Status401Unauthorized,
             _ => StatusCodes.Status400BadRequest
         };

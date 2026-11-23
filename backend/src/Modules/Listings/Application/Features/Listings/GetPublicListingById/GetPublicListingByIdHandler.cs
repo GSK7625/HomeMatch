@@ -15,7 +15,7 @@ public sealed class GetPublicListingByIdHandler(IListingRepository listings, IRo
             return Result.Failure<PublicListingDetailDto>(ListingsErrors.ListingNotFound);
 
         var room = await rooms.GetRoomDetailAsync(listing!.RoomId, cancellationToken);
-        if (room?.Status != "AVAILABLE")
+        if (room is not { Status: "AVAILABLE", DeletedAt: null })
             return Result.Failure<PublicListingDetailDto>(ListingsErrors.ListingNotFound);
 
         var coordinates = await listings.GetCoordinatesAsync(query.ListingId, cancellationToken);

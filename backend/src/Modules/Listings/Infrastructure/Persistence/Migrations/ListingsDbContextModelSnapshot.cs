@@ -39,6 +39,10 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("deleted_at");
+
                     b.Property<long>("DepositAmount")
                         .HasColumnType("bigint")
                         .HasColumnName("deposit_amount");
@@ -142,7 +146,8 @@ namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("RoomId")
                         .IsUnique()
-                        .HasDatabaseName("ux_listings_room");
+                        .HasDatabaseName("ux_listings_room")
+                        .HasFilter("deleted_at IS NULL");
 
                     b.HasIndex("Slug")
                         .IsUnique()

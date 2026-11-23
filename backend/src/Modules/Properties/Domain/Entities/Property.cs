@@ -5,6 +5,8 @@ namespace HomeMatch.Modules.Properties.Domain.Entities;
 /// </summary>
 public sealed class Property
 {
+    public DateTimeOffset? DeletedAt { get; set; }
+
     /// <summary>Mã định danh duy nhất của Tòa nhà / Bất động sản</summary>
     public long Id { get; set; }
 

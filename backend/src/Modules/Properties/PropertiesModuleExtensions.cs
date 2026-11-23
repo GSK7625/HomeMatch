@@ -4,6 +4,8 @@ using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetProvinces;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetRoomTypes;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetWards;
 using HomeMatch.Modules.Properties.Application.Features.Properties.CreateProperty;
+using HomeMatch.Modules.Properties.Application.Features.Properties.DeleteProperty;
+using HomeMatch.Modules.Properties.Application.Features.Rooms.DeleteRoom;
 using HomeMatch.Modules.Properties.Application.Features.Properties.GetMyProperties;
 using HomeMatch.Modules.Properties.Application.Features.Properties.GetPropertyById;
 using HomeMatch.Modules.Properties.Application.Features.Properties.UpdateProperty;
@@ -44,6 +46,9 @@ public static class PropertiesModuleExtensions
             }
         });
 
+        services.AddScoped<IRoomOperationLock, PostgresRoomOperationLock>();
+        services.AddScoped<DeletePropertyHandler>();
+        services.AddScoped<DeleteRoomHandler>();
         services.AddScoped<IPropertyRepository, PropertyRepository>();
         services.AddScoped<IRoomRepository, RoomRepository>();
         services.AddScoped<ITariffRepository, TariffRepository>();

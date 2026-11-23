@@ -7,6 +7,7 @@ using HomeMatch.Shared.Common;
 using HomeMatch.Shared.Contracts;
 using HomeMatch.Shared.Contracts.Identity;
 using HomeMatch.Shared.Contracts.Notifications;
+using HomeMatch.Shared.Contracts.Properties;
 using Microsoft.Extensions.Logging;
 
 namespace HomeMatch.Modules.Leasing.Application.Commands.CreateContract;
@@ -16,6 +17,7 @@ public sealed class CreateContractHandler
     private const long MaxFileSizeBytes = 15 * 1024 * 1024; // 15 MB
     private readonly IContractRepository _contractRepository;
     private readonly IRoomListingReader _roomReader;
+    private readonly IRoomOperationLock _roomOperations;
     private readonly IIdentityUserReader _userReader;
     private readonly IContractDocumentStorage _storage;
     private readonly INotificationPublisher _notificationPublisher;
@@ -24,6 +26,7 @@ public sealed class CreateContractHandler
     public CreateContractHandler(
         IContractRepository contractRepository,
         IRoomListingReader roomReader,
+        IRoomOperationLock roomOperations,
         IIdentityUserReader userReader,
         IContractDocumentStorage storage,
         INotificationPublisher notificationPublisher,
@@ -31,6 +34,7 @@ public sealed class CreateContractHandler
     {
         _contractRepository = contractRepository;
         _roomReader = roomReader;
+        _roomOperations = roomOperations;
         _userReader = userReader;
         _storage = storage;
         _notificationPublisher = notificationPublisher;
@@ -171,20 +175,26 @@ public sealed class CreateContractHandler
             memoryStream.Position = 0;
             var storageKey = await _storage.UploadAsync(objectKey, memoryStream, "application/pdf", cancellationToken);
 
-            var expiresAt = (command.SignatureExpiresAt ?? DateTimeOffset.UtcNow.AddDays(3)).ToUniversalTime();
-            var submitResult = contract.SubmitForSignature(
-                storageKey,
-                documentHash,
-                enrichedSnapshot,
-                expiresAt,
-                command.HandoverDueAt?.ToUniversalTime());
-
-            if (submitResult.IsFailure)
+            await using (var roomLock = await _roomOperations.AcquireAsync(command.RoomId, cancellationToken))
             {
-                return Result.Failure<ContractDto>(submitResult.Error);
-            }
+                if (await _roomReader.GetRoomAsync(command.RoomId, cancellationToken) is null)
+                    return Result.Failure<ContractDto>(LeasingErrors.RoomNotFound);
 
-            await _contractRepository.SaveChangesAsync(cancellationToken);
+                var expiresAt = (command.SignatureExpiresAt ?? DateTimeOffset.UtcNow.AddDays(3)).ToUniversalTime();
+                var submitResult = contract.SubmitForSignature(
+                    storageKey,
+                    documentHash,
+                    enrichedSnapshot,
+                    expiresAt,
+                    command.HandoverDueAt?.ToUniversalTime());
+
+                if (submitResult.IsFailure)
+                {
+                    return Result.Failure<ContractDto>(submitResult.Error);
+                }
+
+                await _contractRepository.SaveChangesAsync(cancellationToken);
+            }
 
             _logger.LogInformation("Đã upload PDF hợp đồng [ID: {ContractId}] lên Cloudflare R2, Hash=[{Hash}], Key=[{Key}] và chuyển sang PENDING_SIGNATURE.",
                 contract.Id, documentHash, storageKey);

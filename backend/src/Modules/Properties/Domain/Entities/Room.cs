@@ -5,6 +5,9 @@ namespace HomeMatch.Modules.Properties.Domain.Entities;
 /// </summary>
 public sealed class Room
 {
+    public DateTimeOffset? DeletedAt { get; set; }
+    public DateTimeOffset? DeletionRequestedAt { get; set; }
+
     /// <summary>Mã định danh duy nhất của Phòng</summary>
     public long Id { get; set; }
 

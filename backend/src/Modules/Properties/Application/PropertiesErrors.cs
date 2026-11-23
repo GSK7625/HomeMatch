@@ -4,6 +4,8 @@ namespace HomeMatch.Modules.Properties.Application;
 
 public static class PropertiesErrors
 {
+    public static readonly Error PropertyHasRooms = new("Property.HasRooms", "Hãy xóa các phòng trước khi xóa tòa nhà.");
+    public static readonly Error RoomHasContract = new("Room.HasContract", "Phòng còn hợp đồng giữ chỗ hoặc chưa hoàn tất bàn giao.");
     public static readonly Error PropertyNotFound = new("Property.NotFound", "Không tìm thấy căn thuộc tài khoản này.");
     public static readonly Error InvalidProperty = new("Property.InvalidInput", "Thông tin căn không hợp lệ.");
     public static readonly Error PropertyEditLocked = new("Property.EditLocked", "Tòa nhà có tin đang công khai hoặc chờ duyệt. Hãy ẩn hoặc rút các tin đó trước khi sửa tòa nhà.");

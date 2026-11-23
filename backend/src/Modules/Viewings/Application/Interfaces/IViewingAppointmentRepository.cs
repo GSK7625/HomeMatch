@@ -32,4 +32,5 @@ public interface IViewingAppointmentRepository
     Task AddAsync(ViewingAppointment appointment, CancellationToken cancellationToken = default);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
+    Task<bool> TrySaveChangesAsync(ViewingAppointment appointment, string expectedStatus, CancellationToken cancellationToken = default);
 }

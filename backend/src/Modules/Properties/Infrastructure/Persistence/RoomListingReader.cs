@@ -8,7 +8,7 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
     public async Task<IReadOnlyList<RoomListingSearchMatch>> SearchAvailableRoomsAsync(
         RoomListingSearchFilter filter, CancellationToken cancellationToken)
     {
-        var query = db.Rooms.AsNoTracking().Where(room => room.Status == "AVAILABLE");
+        var query = db.Rooms.AsNoTracking().Where(room => room.Status == "AVAILABLE" && room.DeletedAt == null && room.DeletionRequestedAt == null && room.Property.DeletedAt == null);
         if (filter.ProvinceCode is not null)
             query = query.Where(room => room.Property.ProvinceCode == filter.ProvinceCode);
         if (filter.WardCode is not null)
@@ -46,6 +46,7 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
             {
                 room.Id, room.RoomNumber, room.Floor, room.AreaSqm, room.RoomType,
                 room.MaxOccupants, room.Status, room.AvailableFrom,
+                DeletedAt = room.DeletedAt ?? room.DeletionRequestedAt ?? room.Property.DeletedAt,
                 Property = new RoomListingPropertySnapshot(
                     room.Property.Id, room.Property.Name, room.Property.PropertyType,
                     province.Code, province.FullName, ward.Code, ward.FullName,
@@ -69,12 +70,12 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
 
         return new RoomListingDetailSnapshot(
             detail.Id, detail.RoomNumber, detail.Floor, detail.AreaSqm, detail.RoomType,
-            detail.MaxOccupants, detail.Status, detail.AvailableFrom, detail.Property, amenities, tariffs);
+            detail.MaxOccupants, detail.Status, detail.AvailableFrom, detail.Property, amenities, tariffs) { DeletedAt = detail.DeletedAt };
     }
 
     public Task<RoomListingSnapshot?> GetRoomAsync(long roomId, CancellationToken cancellationToken) =>
         db.Rooms.AsNoTracking()
-            .Where(room => room.Id == roomId)
+            .Where(room => room.Id == roomId && room.DeletedAt == null && room.DeletionRequestedAt == null && room.Property.DeletedAt == null)
             .Select(room => new RoomListingSnapshot(
                 room.Id, room.PropertyId, room.Property.LandlordId, room.Status,
                 room.Property.ProvinceCode, room.Property.WardCode, room.Property.AddressDetail,
@@ -88,7 +89,7 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
             return new Dictionary<long, RoomListingSnapshot>();
 
         var rooms = await db.Rooms.AsNoTracking()
-            .Where(room => roomIds.Contains(room.Id))
+            .Where(room => roomIds.Contains(room.Id) && room.DeletedAt == null && room.DeletionRequestedAt == null && room.Property.DeletedAt == null)
             .Select(room => new RoomListingSnapshot(
                 room.Id, room.PropertyId, room.Property.LandlordId, room.Status,
                 room.Property.ProvinceCode, room.Property.WardCode, room.Property.AddressDetail,
@@ -180,7 +181,7 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
     public async Task<bool> HasElectricityAndWaterRatesAsync(
         long roomId, DateOnly date, CancellationToken cancellationToken)
     {
-        var propertyId = await db.Rooms.AsNoTracking().Where(room => room.Id == roomId)
+        var propertyId = await db.Rooms.AsNoTracking().Where(room => room.Id == roomId && room.DeletedAt == null && room.DeletionRequestedAt == null && room.Property.DeletedAt == null)
             .Select(room => (long?)room.PropertyId).FirstOrDefaultAsync(cancellationToken);
         if (propertyId is null)
             return false;

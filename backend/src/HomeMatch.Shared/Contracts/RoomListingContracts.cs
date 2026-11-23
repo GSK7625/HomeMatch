@@ -56,7 +56,10 @@ public sealed record RoomListingDetailSnapshot(
     DateOnly AvailableFrom,
     RoomListingPropertySnapshot Property,
     IReadOnlyList<RoomListingAmenitySnapshot> Amenities,
-    IReadOnlyList<RoomListingTariffSnapshot> Tariffs);
+    IReadOnlyList<RoomListingTariffSnapshot> Tariffs)
+{
+    public DateTimeOffset? DeletedAt { get; init; }
+}
 
 public sealed record RoomListingPropertySnapshot(
     long Id,

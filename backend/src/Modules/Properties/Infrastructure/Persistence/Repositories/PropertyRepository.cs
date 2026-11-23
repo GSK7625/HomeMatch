@@ -10,13 +10,13 @@ public sealed class PropertyRepository(PropertiesDbContext db) : IPropertyReposi
 {
     /// Kiểm tra quyền sở hữu đối với tòa nhà
     public Task<Property?> GetOwnedAsync(long landlordId, long propertyId, CancellationToken cancellationToken) =>
-        db.Properties.FirstOrDefaultAsync(p => p.Id == propertyId && p.LandlordId == landlordId, cancellationToken);
+        db.Properties.FirstOrDefaultAsync(p => p.Id == propertyId && p.LandlordId == landlordId && p.DeletedAt == null, cancellationToken);
 
     public Task<bool> IsOwnedAsync(long landlordId, long propertyId, CancellationToken cancellationToken) =>
-        db.Properties.AsNoTracking().AnyAsync(p => p.Id == propertyId && p.LandlordId == landlordId, cancellationToken);
+        db.Properties.AsNoTracking().AnyAsync(p => p.Id == propertyId && p.LandlordId == landlordId && p.DeletedAt == null, cancellationToken);
 
     public async Task<IReadOnlyList<PropertyResult>> GetMineAsync(long landlordId, CancellationToken cancellationToken) =>
-        await db.Properties.AsNoTracking().Where(p => p.LandlordId == landlordId)
+        await db.Properties.AsNoTracking().Where(p => p.LandlordId == landlordId && p.DeletedAt == null)
             .OrderByDescending(p => p.CreatedAt).ThenBy(p => p.Id)
             .Select(p => new PropertyResult(p.Id, p.Name, p.ProvinceCode, p.WardCode,
                 p.AddressDetail, p.PropertyType, p.Latitude, p.Longitude)).ToListAsync(cancellationToken);
@@ -37,7 +37,7 @@ public sealed class PropertyRepository(PropertiesDbContext db) : IPropertyReposi
     }
 
     public async Task<IReadOnlyList<long>> GetRoomIdsAsync(long propertyId, CancellationToken cancellationToken) =>
-        await db.Rooms.Where(r => r.PropertyId == propertyId).Select(r => r.Id).ToListAsync(cancellationToken);
+        await db.Rooms.Where(r => r.PropertyId == propertyId && r.DeletedAt == null).Select(r => r.Id).ToListAsync(cancellationToken);
 
     public void Add(Property property) => db.Properties.Add(property);
     public Task SaveChangesAsync(CancellationToken cancellationToken) => db.SaveChangesAsync(cancellationToken);

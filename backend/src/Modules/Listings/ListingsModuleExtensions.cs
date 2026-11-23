@@ -3,6 +3,7 @@ using HomeMatch.Modules.Listings.Application.Features.ListingImages.AddListingIm
 using HomeMatch.Modules.Listings.Application.Features.ListingImages.DeleteListingImage;
 using HomeMatch.Modules.Listings.Application.Features.ListingImages.UpdateListingImage;
 using HomeMatch.Modules.Listings.Application.Features.Listings.CreateListing;
+using HomeMatch.Modules.Listings.Application.Features.Listings.DeleteListing;
 using HomeMatch.Modules.Listings.Application.Features.Listings.CompareRooms;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListingById;
 using HomeMatch.Modules.Listings.Application.Features.Listings.GetMyListings;
@@ -24,8 +25,8 @@ using HomeMatch.Modules.Listings.Application.Features.SavedListings.ToggleSaveLi
 using HomeMatch.Modules.Listings.Application.Interfaces;
 using HomeMatch.Modules.Listings.Infrastructure.Persistence;
 using HomeMatch.Modules.Listings.Infrastructure.Persistence.Repositories;
-using HomeMatch.Modules.Listings.Infrastructure.BackgroundServices;
 using HomeMatch.Modules.Listings.Infrastructure.Services;
+using HomeMatch.Modules.Listings.Infrastructure.BackgroundServices;
 using HomeMatch.Modules.Listings.Presentation.Endpoints;
 using HomeMatch.Shared.Contracts;
 using HomeMatch.Shared.Contracts.Listings;
@@ -55,6 +56,8 @@ public static class ListingsModuleExtensions
             }
         });
 
+        services.AddScoped<DeleteListingHandler>();
+        services.AddScoped<IListingDeletionWriter, ListingDeletionWriter>();
         services.AddScoped<IListingRepository, ListingRepository>();
         services.AddScoped<IViolationReportRepository, ViolationReportRepository>();
         services.AddHostedService<ListingExpirationService>();

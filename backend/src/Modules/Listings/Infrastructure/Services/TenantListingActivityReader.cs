@@ -35,7 +35,7 @@ public sealed class TenantListingActivityReader(
 
         return await db.SavedListings
             .AsNoTracking()
-            .Where(s => s.UserId == userId && s.Listing.Status == "PUBLISHED")
+            .Where(s => s.UserId == userId && s.Listing.DeletedAt == null && s.Listing.Status == "PUBLISHED")
             .CountAsync(cancellationToken);
     }
 
@@ -108,8 +108,9 @@ public sealed class TenantListingActivityReader(
                 .ThenBy(i => i.Id)
                 .FirstOrDefault()?.ImageUrl;
 
-            var isPublished = listing.Status == "PUBLISHED"
-                && (roomDetail is null || roomDetail.Status == "AVAILABLE");
+            var isPublished = listing.DeletedAt == null && listing.Status == "PUBLISHED"
+                && (listing.ExpiresAt == null || listing.ExpiresAt > DateTimeOffset.UtcNow)
+                && (roomDetail is { Status: "AVAILABLE", DeletedAt: null });
 
             items.Add(new ViewedListingContractItem(
                 ViewId: view.Id,

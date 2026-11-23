@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HomeMatch.Modules.Listings.Application.Features.Listings.DeleteListing;
 using HomeMatch.Modules.Listings.Presentation.Endpoints.Requests;
 using HomeMatch.Modules.Listings.Presentation.Endpoints.Responses;
 using HomeMatch.Modules.Listings.Application.Features.Listings.CreateListing;
@@ -52,6 +53,16 @@ public static class ListingsEndpoints
             .WithSummary("Lấy chi tiết tin đăng công khai")
             .Produces<ApiResponse<PublicListingDetailResponse>>(StatusCodes.Status200OK)
             .Produces<ApiResponse<string>>(StatusCodes.Status404NotFound);
+
+        group.MapDelete("/{listingId:long}", DeleteAsync)
+            .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Landlord"))
+            .WithName("Listings.Delete")
+            .WithSummary("Xóa mềm tài nguyên, giữ dữ liệu lịch sử")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ApiResponse<object>>(StatusCodes.Status401Unauthorized)
+            .Produces<ApiResponse<object>>(StatusCodes.Status403Forbidden)
+            .Produces<ApiResponse<object>>(StatusCodes.Status404NotFound)
+            .Produces<ApiResponse<object>>(StatusCodes.Status409Conflict);
 
         group.MapPost("/", CreateAsync)
             .RequireAuthorization()
@@ -119,6 +130,15 @@ public static class ListingsEndpoints
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
+    }
+
+    private static async Task<IResult> DeleteAsync(ClaimsPrincipal user, long listingId,
+        DeleteListingHandler handler, CancellationToken cancellationToken)
+    {
+        var landlordId = RequestActor.LandlordId(user);
+        if (landlordId is null) return ListingsHttpErrors.MissingLandlord();
+        var result = await handler.HandleAsync(new(landlordId.Value, listingId), cancellationToken);
+        return result.IsFailure ? ListingsHttpErrors.Failure(result.Error) : Results.NoContent();
     }
 
     private static async Task<IResult> CompareRoomsAsync(

@@ -145,6 +145,8 @@ export default function LandlordListingsPage() {
   const [backendListings, setBackendListings] = useState<ListingSummaryDto[]>([]);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ListingSummaryDto | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
 
   // Properties & Rooms for dropdown in Create Listing
@@ -312,6 +314,25 @@ export default function LandlordListingsPage() {
     setSelectedAmenities((prev) =>
       prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]
     );
+  };
+
+  const handleDeleteListing = async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    try {
+      const res = await listingsApi.deleteListing(deleteTarget.id);
+      if (!res.isSuccess) {
+        showToast(res.error?.message || "Không thể xóa tin đăng.", "error");
+        return;
+      }
+      showToast("Đã xóa tin đăng khỏi danh sách quản lý.", "success");
+      setDeleteTarget(null);
+      await loadData();
+    } catch {
+      showToast("Không thể kết nối máy chủ. Vui lòng thử lại.", "error");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   // Submit listing to Admin for Approval
@@ -703,6 +724,17 @@ export default function LandlordListingsPage() {
                   </div>
 
                   <div className="flex items-center gap-1.5">
+                    {["DRAFT", "HIDDEN", "EXPIRED", "REJECTED"].includes((item.status || "").toUpperCase()) && (
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(item)}
+                        disabled={deleting}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Xóa tin</span>
+                      </button>
+                    )}
                     {((item.status || "").toUpperCase() === "DRAFT" ||
                       (item.status || "").toUpperCase() === "REJECTED") && (
                       <button
@@ -758,6 +790,25 @@ export default function LandlordListingsPage() {
             <span>Đăng Tin Cho Thuê Mới</span>
           </button>
         </div>
+      )}
+
+      {deleteTarget && (
+        <Modal isOpen={true} onClose={() => { if (!deleting) setDeleteTarget(null); }} title="Xóa tin đăng" maxWidth="sm">
+          <p className="text-sm text-slate-700 break-words">
+            Bạn muốn xóa tin <strong>{deleteTarget.title}</strong> khỏi danh sách quản lý?
+          </p>
+          <p className="text-xs text-slate-500 mt-2">
+            Lịch xem phòng đang chờ hoặc đã xác nhận sẽ bị hủy. Phòng, hợp đồng thuê và lịch sử hội thoại vẫn được giữ lại.
+          </p>
+          <div className="flex gap-3 mt-5">
+            <button type="button" disabled={deleting} onClick={() => setDeleteTarget(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+              Hủy
+            </button>
+            <button type="button" disabled={deleting} onClick={handleDeleteListing} className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 disabled:opacity-50">
+              {deleting ? "Đang xóa..." : "Xác nhận xóa"}
+            </button>
+          </div>
+        </Modal>
       )}
 
       {/* Modal: Manage Images (POST / PATCH / DELETE /api/v1/listings/{id}/images) */}

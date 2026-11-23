@@ -815,6 +815,14 @@ export const propertiesApi = {
     });
   },
 
+  deleteProperty: async (id: number) => {
+    return apiRequest<void>(`/api/v1/properties/${id}`, { method: "DELETE" });
+  },
+
+  deleteRoom: async (propertyId: number, roomId: number) => {
+    return apiRequest<void>(`/api/v1/properties/${propertyId}/rooms/${roomId}`, { method: "DELETE" });
+  },
+
   getRooms: async (propertyId: number) => {
     return apiRequest<RoomDto[]>(`/api/v1/properties/${propertyId}/rooms`, {
       method: "GET",
@@ -895,6 +903,10 @@ export const catalogsApi = {
 // Listings Module API (/api/v1/listings)
 // ============================================================================
 export const listingsApi = {
+  deleteListing: async (id: number) => {
+    return apiRequest<void>(`/api/v1/listings/${id}`, { method: "DELETE" });
+  },
+
   searchListings: async (params?: SearchListingsParams) => {
     const search = new URLSearchParams();
     if (params?.minPrice !== undefined) search.set("minPrice", String(params.minPrice));

@@ -84,6 +84,13 @@ export default function LandlordPropertiesPage() {
   const [isPickerOpenForCreate, setIsPickerOpenForCreate] = useState(false);
   const [isPickerOpenForEdit, setIsPickerOpenForEdit] = useState(false);
   const [isShowPropertyMap, setIsShowPropertyMap] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    kind: "property" | "room";
+    id: number;
+    propertyId: number;
+    name: string;
+  } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Form: Create Property
   const [newPropName, setNewPropName] = useState("");
@@ -291,6 +298,33 @@ export default function LandlordPropertiesPage() {
       loadRooms(selectedPropertyId);
     }
   }, [selectedPropertyId, loadRooms]);
+
+  const handleDelete = async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    try {
+      const res = deleteTarget.kind === "property"
+        ? await propertiesApi.deleteProperty(deleteTarget.id)
+        : await propertiesApi.deleteRoom(deleteTarget.propertyId, deleteTarget.id);
+      if (!res.isSuccess) {
+        showToast(res.error?.message || "Không thể xóa. Vui lòng thử lại.", "error");
+        return;
+      }
+      showToast(`Đã xóa ${deleteTarget.name}.`, "success");
+      setDeleteTarget(null);
+      if (deleteTarget.kind === "property") {
+        setRooms([]);
+        setIsShowPropertyMap(false);
+        await loadProperties();
+      } else {
+        await loadRooms(deleteTarget.propertyId);
+      }
+    } catch {
+      showToast("Không thể kết nối máy chủ. Vui lòng thử lại.", "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   if (!user || role === "Tenant") {
     return (
@@ -684,6 +718,16 @@ export default function LandlordPropertiesPage() {
                   <span>Sửa tòa nhà</span>
                 </button>
                 <span>•</span>
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget({ kind: "property", id: selectedProperty.id, propertyId: selectedProperty.id, name: selectedProperty.name })}
+                  disabled={deleting || loading}
+                  className="text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Xóa tòa nhà</span>
+                </button>
+                <span>•</span>
                 <Link
                   href={`/landlord/utilities?propertyId=${selectedProperty.id}`}
                   className="text-blue-600 font-bold hover:underline flex items-center gap-1"
@@ -843,6 +887,15 @@ export default function LandlordPropertiesPage() {
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                             <span>Sửa phòng</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget({ kind: "room", id: room.id, propertyId: selectedPropertyId, name: `phòng ${room.roomNumber}` })}
+                            disabled={deleting}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold text-[11px] transition-colors disabled:opacity-50"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Xóa phòng</span>
                           </button>
                           <Link
                             href={`/landlord/listings?roomId=${room.id}`}
@@ -1564,6 +1617,32 @@ export default function LandlordPropertiesPage() {
             showToast(`Đã ghim tọa độ GPS: ${latitude}, ${longitude}`, "success");
           }}
         />
+      )}
+
+      {deleteTarget && (
+        <Modal
+          isOpen={true}
+          onClose={() => { if (!deleting) setDeleteTarget(null); }}
+          title={deleteTarget.kind === "property" ? "Xóa tòa nhà" : "Xóa phòng"}
+          maxWidth="sm"
+        >
+          <p className="text-sm text-slate-700 break-words">
+            Bạn muốn xóa <strong>{deleteTarget.name}</strong> khỏi danh sách quản lý?
+          </p>
+          <p className="text-xs text-slate-500 mt-2">
+            {deleteTarget.kind === "room"
+              ? "Tin đăng liên quan cũng sẽ bị xóa và lịch xem đang chờ hoặc đã xác nhận sẽ bị hủy. Lịch sử xem phòng và hội thoại vẫn được giữ lại."
+              : "Bạn cần xóa các phòng trước khi xóa tòa nhà."}
+          </p>
+          <div className="flex gap-3 mt-5">
+            <button type="button" disabled={deleting} onClick={() => setDeleteTarget(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+              Hủy
+            </button>
+            <button type="button" disabled={deleting} onClick={handleDelete} className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 disabled:opacity-50">
+              {deleting ? "Đang xóa..." : "Xác nhận xóa"}
+            </button>
+          </div>
+        </Modal>
       )}
 
       {/* Map Location Picker Modal for Edit Property */}

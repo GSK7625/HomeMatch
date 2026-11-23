@@ -2,6 +2,7 @@ using HomeMatch.Modules.Properties.Presentation.Endpoints.Responses;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetProvinces;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetWards;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetAmenities;
+using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetRoomTypes;
 using HomeMatch.Shared.Common;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -29,8 +30,13 @@ public static class CatalogsEndpoints
 
         group.MapGet("/amenities", GetAmenitiesAsync)
             .WithName("Catalogs.GetAmenities")
-            .WithSummary("Lấy danh sách tất cả tiện ích (amenity)")
+            .WithSummary("Lấy danh sách tất cả tiện ích đang hiển thị")
             .Produces<ApiResponse<IReadOnlyList<AmenityResponse>>>(StatusCodes.Status200OK);
+
+        group.MapGet("/room-types", GetRoomTypesAsync)
+            .WithName("Catalogs.GetRoomTypes")
+            .WithSummary("Lấy danh sách các loại phòng đang hiển thị")
+            .Produces<ApiResponse<IReadOnlyList<RoomTypeResponse>>>(StatusCodes.Status200OK);
     }
 
     private static async Task<IResult> GetProvincesAsync(
@@ -61,6 +67,16 @@ public static class CatalogsEndpoints
         var result = await handler.HandleAsync(new GetAmenitiesQuery(), cancellationToken);
         if (result.IsFailure) return PropertiesHttpErrors.Failure(result.Error);
         var response = result.Value.Select(AmenityResponse.From).ToArray();
+        return Results.Ok(ApiResponse.Success(response));
+    }
+
+    private static async Task<IResult> GetRoomTypesAsync(
+        GetRoomTypesHandler handler,
+        CancellationToken cancellationToken)
+    {
+        var result = await handler.HandleAsync(new GetRoomTypesQuery(), cancellationToken);
+        if (result.IsFailure) return PropertiesHttpErrors.Failure(result.Error);
+        var response = result.Value.Select(RoomTypeResponse.From).ToArray();
         return Results.Ok(ApiResponse.Success(response));
     }
 }

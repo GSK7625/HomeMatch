@@ -15,9 +15,18 @@ public sealed class WardResult(string code, string name, string fullName, string
     public string ProvinceCode { get; } = provinceCode;
 }
 
-public sealed class AmenityResult(long id, string code, string name)
+public sealed class AmenityResult(long id, string code, string name, bool isActive = true)
 {
     public long Id { get; } = id;
     public string Code { get; } = code;
     public string Name { get; } = name;
+    public bool IsActive { get; } = isActive;
+}
+
+public sealed class RoomTypeResult(long id, string code, string name, bool isActive = true)
+{
+    public long Id { get; } = id;
+    public string Code { get; } = code;
+    public string Name { get; } = name;
+    public bool IsActive { get; } = isActive;
 }

@@ -46,7 +46,13 @@ import {
   Mail,
   Search,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import {
+  cn,
+  dispatchNotificationRead,
+  NOTIFICATION_OPENED_EVENT,
+  NOTIFICATION_READ_EVENT,
+  resolveNotificationTarget,
+} from "@/lib/utils";
 
 type TenantDashboardTab = "overview" | "history" | "contracts" | "bills";
 
@@ -105,34 +111,64 @@ function TenantDashboardContent() {
     setUnpaidInvoicesCount(summary?.totalUnpaidInvoices ?? 0);
   }, []);
 
-  const loadData = useCallback(async () => {
-    if (!user) return;
-    setIsLoading(true);
+  const refreshDashboard = useCallback(
+    async (silent = false) => {
+      if (!user) return;
+      if (!silent) setIsLoading(true);
 
-    try {
-      const token = getStoredToken();
-      if (token) {
-        const [dashRes, viewedRes, viewingsRes, notifRes, contractsRes, debtSummaryRes] = await Promise.all([
-          tenantOverviewApi.getDashboard(),
-          tenantOverviewApi.getViewedListings(1, 6),
-          viewingsApi.getAppointments({ roleView: "TENANT", page: 1, pageSize: 6 }),
-          notificationsApi.getNotifications({ page: 1, pageSize: 5 }),
-          leasingApi.getContracts({ roleView: "TENANT", page: 1, pageSize: 20 }),
-          billingApi.getDebtSummary(),
-        ]);
+      try {
+        const token = getStoredToken();
+        if (token) {
+          const [dashRes, viewedRes, viewingsRes, notifRes, contractsRes, debtSummaryRes] = await Promise.all([
+            tenantOverviewApi.getDashboard(),
+            tenantOverviewApi.getViewedListings(1, 6),
+            viewingsApi.getAppointments({ roleView: "TENANT", page: 1, pageSize: 6 }),
+            notificationsApi.getNotifications({ page: 1, pageSize: 5 }),
+            leasingApi.getContracts({ roleView: "TENANT", page: 1, pageSize: 20 }),
+            billingApi.getDebtSummary(),
+          ]);
 
-        if (dashRes.isSuccess && dashRes.data) {
-          setProfileSummary({
-            fullName: dashRes.data.fullName,
-            email: dashRes.data.email,
-            phoneNumber: dashRes.data.phoneNumber || "",
-          });
-          setStats({
-            viewedCount: dashRes.data.totalViewedListings,
-            favCount: dashRes.data.totalSavedListings,
-            viewingCount: dashRes.data.totalAppointments,
-            chatCount: dashRes.data.totalConversations,
-          });
+          if (dashRes.isSuccess && dashRes.data) {
+            setProfileSummary({
+              fullName: dashRes.data.fullName,
+              email: dashRes.data.email,
+              phoneNumber: dashRes.data.phoneNumber || "",
+            });
+            setStats({
+              viewedCount: dashRes.data.totalViewedListings,
+              favCount: dashRes.data.totalSavedListings,
+              viewingCount: dashRes.data.totalAppointments,
+              chatCount: dashRes.data.totalConversations,
+            });
+          } else {
+            // When no token: clean empty states, absolutely no mock listings or mock viewings
+            setProfileSummary({
+              fullName: user.displayName || user.fullName || "Người thuê",
+              email: user.email,
+              phoneNumber: user.phoneNumber || "",
+            });
+            setStats({
+              viewedCount: 0,
+              favCount: 0,
+              viewingCount: 0,
+              chatCount: 0,
+            });
+            setViewedListings([]);
+            setUpcomingViewings([]);
+            setRecentNotifications([]);
+            setUnreadNotificationsCount(0);
+          }
+
+          setViewedListings(viewedRes.isSuccess && viewedRes.data ? viewedRes.data.items : []);
+          setUpcomingViewings(viewingsRes.isSuccess && viewingsRes.data ? viewingsRes.data.items : []);
+          setRecentNotifications(notifRes.isSuccess && notifRes.data ? notifRes.data.items : []);
+          setUnreadNotificationsCount(notifRes.isSuccess && notifRes.data ? notifRes.data.unreadCount : 0);
+          setContracts(contractsRes.isSuccess && contractsRes.data ? contractsRes.data.items : []);
+          setUnpaidInvoicesCount(
+            debtSummaryRes.isSuccess && debtSummaryRes.data
+              ? debtSummaryRes.data.totalUnpaidInvoices
+              : 0
+          );
         } else {
           setProfileSummary({
             fullName: user.displayName || user.fullName || "Người thuê",
@@ -145,48 +181,55 @@ function TenantDashboardContent() {
             viewingCount: 0,
             chatCount: 0,
           });
+          setViewedListings([]);
+          setUpcomingViewings([]);
+          setRecentNotifications([]);
+          setUnreadNotificationsCount(0);
+          setContracts([]);
+          setUnpaidInvoicesCount(0);
         }
-
-        setViewedListings(viewedRes.isSuccess && viewedRes.data ? viewedRes.data.items : []);
-        setUpcomingViewings(viewingsRes.isSuccess && viewingsRes.data ? viewingsRes.data.items : []);
-        setRecentNotifications(notifRes.isSuccess && notifRes.data ? notifRes.data.items : []);
-        setUnreadNotificationsCount(notifRes.isSuccess && notifRes.data ? notifRes.data.unreadCount : 0);
-        setContracts(contractsRes.isSuccess && contractsRes.data ? contractsRes.data.items : []);
-        setUnpaidInvoicesCount(
-          debtSummaryRes.isSuccess && debtSummaryRes.data
-            ? debtSummaryRes.data.totalUnpaidInvoices
-            : 0
-        );
-      } else {
-        setProfileSummary({
-          fullName: user.displayName || user.fullName || "Người thuê",
-          email: user.email,
-          phoneNumber: user.phoneNumber || "",
-        });
-        setStats({
-          viewedCount: 0,
-          favCount: 0,
-          viewingCount: 0,
-          chatCount: 0,
-        });
-        setViewedListings([]);
-        setUpcomingViewings([]);
-        setRecentNotifications([]);
-        setUnreadNotificationsCount(0);
-        setContracts([]);
-        setUnpaidInvoicesCount(0);
+      } catch {
+        showToast("Không thể tải thông tin Dashboard. Vui lòng tải lại trang.", "error");
+      } finally {
+        if (!silent) setIsLoading(false);
       }
-    } catch {
-      showToast("Không thể tải thông tin Dashboard. Vui lòng tải lại trang.", "error");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, showToast]);
+    },
+    [user, showToast]
+  );
+
+  const loadData = useCallback(() => refreshDashboard(false), [refreshDashboard]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    const handleNotificationOpened = () => {
+      refreshDashboard(true);
+    };
+    const handleNotificationReadSync = (event: Event) => {
+      const customEvent = event as CustomEvent<{ id?: number }>;
+      const readId = customEvent.detail?.id;
+      if (readId) {
+        setRecentNotifications((prev) => {
+          const existedUnread = prev.some((n) => n.id === readId && !n.isRead);
+          if (existedUnread) {
+            setUnreadNotificationsCount((count) => Math.max(0, count - 1));
+          }
+          return prev.map((n) => (n.id === readId ? { ...n, isRead: true } : n));
+        });
+      } else {
+        setRecentNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+        setUnreadNotificationsCount(0);
+      }
+    };
+    window.addEventListener(NOTIFICATION_OPENED_EVENT, handleNotificationOpened);
+    window.addEventListener(NOTIFICATION_READ_EVENT, handleNotificationReadSync);
+    return () => {
+      window.removeEventListener(NOTIFICATION_OPENED_EVENT, handleNotificationOpened);
+      window.removeEventListener(NOTIFICATION_READ_EVENT, handleNotificationReadSync);
+    };
+  }, [refreshDashboard]);
   const handleMarkNotificationRead = async (notif: NotificationDto) => {
     if (notif.isRead) return;
     const token = getStoredToken();
@@ -197,6 +240,12 @@ function TenantDashboardContent() {
       prev.map((n) => (n.id === notif.id ? { ...n, isRead: true } : n))
     );
     setUnreadNotificationsCount((prev) => Math.max(0, prev - 1));
+    dispatchNotificationRead(notif.id);
+  };
+
+  const handleOpenNotification = async (notif: NotificationDto) => {
+    await handleMarkNotificationRead(notif);
+    router.push(resolveNotificationTarget(notif, role));
   };
 
   if (!user) {
@@ -406,7 +455,7 @@ function TenantDashboardContent() {
           )}
         >
           <Eye className="w-4 h-4" />
-          <span>Danh Sách Phòng Đã Xem ({viewedListings.length})</span>
+          <span>Danh Sách Phòng Đã Xem ({stats.viewedCount})</span>
         </button>
 
         <button
@@ -589,8 +638,17 @@ function TenantDashboardContent() {
                 {recentNotifications.map((notif) => (
                   <div
                     key={notif.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleOpenNotification(notif)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleOpenNotification(notif);
+                      }
+                    }}
                     className={cn(
-                      "p-3.5 rounded-xl border transition-all flex items-start justify-between gap-3",
+                      "p-3.5 rounded-xl border transition-all flex items-start justify-between gap-3 cursor-pointer hover:border-blue-300 hover:shadow-xs",
                       notif.isRead
                         ? "bg-white border-slate-200/70"
                         : "bg-blue-50/40 border-blue-200"
@@ -616,7 +674,10 @@ function TenantDashboardContent() {
                     {!notif.isRead && (
                       <button
                         type="button"
-                        onClick={() => handleMarkNotificationRead(notif)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMarkNotificationRead(notif);
+                        }}
                         className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-emerald-600 shrink-0"
                         title="Đánh dấu đã đọc"
                       >

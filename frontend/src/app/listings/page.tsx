@@ -6,19 +6,23 @@ import { useSearchParams } from "next/navigation";
 import { compareSelection } from "@/lib/compare-selection";
 import { listingsApi, catalogsApi, getStoredToken } from "@/lib/api-client";
 import { useAuth } from "@/features/auth/AuthContext";
-import { PropertyListing, ProvinceDto, WardDto, AmenityDto } from "@/types";
+import { PropertyListing, ProvinceDto, WardDto, AmenityDto, RoomTypeDto } from "@/types";
 import { ListingCard } from "@/features/listings/ListingCard";
+import { useToast } from "@/components/Toast";
 import {
   Search,
   SlidersHorizontal,
   Grid,
   List,
+  Map as MapIcon,
   Scale,
   X,
   ArrowRight,
   Loader2,
+  Navigation,
 } from "lucide-react";
-import { cn, mapListingSummaryToCard } from "@/lib/utils";
+import { cn, mapListingSummaryToCard, normalizeLocationName } from "@/lib/utils";
+import { ListingsInteractiveMap } from "@/components/ListingsInteractiveMap";
 
 const ROOM_TYPE_OPTIONS = [
   { code: "", label: "Tất cả loại phòng" },
@@ -46,6 +50,7 @@ function normalizeRoomTypeParam(raw: string | null): string {
 function ListingsContent() {
   const searchParams = useSearchParams();
   const { user, role } = useAuth();
+  const { showToast } = useToast();
 
   const [listings, setListings] = useState<PropertyListing[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -55,13 +60,18 @@ function ListingsContent() {
   const [provinces, setProvinces] = useState<ProvinceDto[]>([]);
   const [wards, setWards] = useState<WardDto[]>([]);
   const [catalogAmenities, setCatalogAmenities] = useState<AmenityDto[]>([]);
+  const [catalogRoomTypes, setCatalogRoomTypes] = useState<RoomTypeDto[]>([]);
 
-  const [keyword, setKeyword] = useState(
-    searchParams.get("keyword") || searchParams.get("q") || ""
-  );
-  const [debouncedKeyword, setDebouncedKeyword] = useState(
-    searchParams.get("keyword") || searchParams.get("q") || ""
-  );
+  const initialQueryKeyword =
+    searchParams.get("keyword") ||
+    searchParams.get("q") ||
+    (searchParams.get("district") && searchParams.get("district") !== "Tất cả"
+      ? searchParams.get("district")!
+      : "");
+
+  const [keyword, setKeyword] = useState(initialQueryKeyword);
+  const [debouncedKeyword, setDebouncedKeyword] = useState(initialQueryKeyword.trim());
+  const [cityParam, setCityParam] = useState(searchParams.get("city") || "Tất cả");
   const [provinceCode, setProvinceCode] = useState(searchParams.get("provinceCode") || "");
   const [wardCode, setWardCode] = useState(searchParams.get("wardCode") || "");
   const [occupants, setOccupants] = useState<number>(0);
@@ -72,6 +82,8 @@ function ListingsContent() {
   const [areaRange, setAreaRange] = useState("all");
   const [selectedAmenityIds, setSelectedAmenityIds] = useState<number[]>([]);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [showMap, setShowMap] = useState(false);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -99,13 +111,50 @@ function ListingsContent() {
   }, [keyword]);
 
   useEffect(() => {
+    const nextKw = searchParams.get("keyword") ?? searchParams.get("q") ?? "";
+    const nextCity = searchParams.get("city") || "Tất cả";
+    const nextDistrict = searchParams.get("district") || "";
+    const effectiveKw =
+      nextKw || (nextDistrict && nextDistrict !== "Tất cả" ? nextDistrict : "");
+    const nextProvinceCode = searchParams.get("provinceCode") || "";
+    const nextWardCode = searchParams.get("wardCode") || "";
+    const nextRoomType = normalizeRoomTypeParam(searchParams.get("roomType"));
+    const nextPrice = searchParams.get("price") || "all";
+
+    setKeyword(effectiveKw);
+    setDebouncedKeyword(effectiveKw.trim());
+    setCityParam(nextCity);
+    setProvinceCode(nextProvinceCode);
+    setWardCode(nextWardCode);
+    setSelectedRoomType(nextRoomType);
+    setPriceRange(nextPrice);
+    setPage(1);
+  }, [searchParams]);
+
+  useEffect(() => {
     catalogsApi.getProvinces().then((res) => {
       if (res.isSuccess && res.data) setProvinces(res.data);
     }).catch(() => null);
     catalogsApi.getAmenities().then((res) => {
       if (res.isSuccess && res.data) setCatalogAmenities(res.data);
     }).catch(() => null);
+    catalogsApi.getRoomTypes().then((res) => {
+      if (res.isSuccess && res.data) setCatalogRoomTypes(res.data);
+    }).catch(() => null);
   }, []);
+
+  useEffect(() => {
+    if (provinces.length === 0 || cityParam === "Tất cả" || provinceCode) return;
+    const matched = provinces.find(
+      (p) =>
+        normalizeLocationName(p.name) === normalizeLocationName(cityParam) ||
+        normalizeLocationName(p.fullName) === normalizeLocationName(cityParam)
+    );
+    if (matched) {
+      setProvinceCode(matched.code);
+      setCityParam("Tất cả");
+    }
+  }, [provinces, cityParam, provinceCode]);
 
   useEffect(() => {
     if (!provinceCode) {
@@ -152,6 +201,27 @@ function ListingsContent() {
       isMounted = false;
     };
   }, [user, role]);
+
+  const handleNearMe = () => {
+    setShowMap(true);
+    showToast("Đang định vị vị trí của bạn qua GPS...", "info");
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          showToast("Đã định vị thành công! Đang hiển thị vị trí của bạn trên bản đồ.", "success");
+          setUserCoords({
+            lat: Number(pos.coords.latitude.toFixed(6)),
+            lng: Number(pos.coords.longitude.toFixed(6)),
+          });
+        },
+        () => {
+          showToast("Không thể lấy vị trí GPS. Đang hiển thị bản đồ mặc định.", "info");
+          setUserCoords({ lat: 21.0285, lng: 105.8542 });
+        },
+        { timeout: 8000, enableHighAccuracy: true }
+      );
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -239,6 +309,7 @@ function ListingsContent() {
   const resetFilters = () => {
     setKeyword("");
     setDebouncedKeyword("");
+    setCityParam("Tất cả");
     setProvinceCode("");
     setWardCode("");
     setOccupants(0);
@@ -332,13 +403,19 @@ function ListingsContent() {
         </select>
       </div>
 
-      {/* Room Type (aligned with Backend enum) */}
+      {/* Room Type (aligned with Backend Catalog / enum) */}
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
           Loại hình phòng
         </label>
         <div className="space-y-2 text-xs">
-          {ROOM_TYPE_OPTIONS.map((opt) => (
+          {(catalogRoomTypes.length > 0
+            ? [
+                { code: "", label: "Tất cả loại phòng" },
+                ...catalogRoomTypes.map((rt) => ({ code: rt.code, label: rt.name })),
+              ]
+            : ROOM_TYPE_OPTIONS
+          ).map((opt) => (
             <label key={opt.code || "ALL"} className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="radio"
@@ -448,6 +525,36 @@ function ListingsContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 w-full flex-1">
+      {/* Search Results Header Banner when filtering */}
+      {(keyword.trim() || activeFilterCount > 0) && (
+        <div className="mb-4 bg-blue-50/70 border border-blue-200/80 rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Search className="w-4 h-4 text-blue-600 shrink-0" />
+            <h1 className="text-sm font-black text-slate-900">
+              {keyword.trim() ? (
+                <>
+                  Kết quả tìm kiếm cho{" "}
+                  <span className="text-blue-700">&ldquo;{keyword.trim()}&rdquo;</span>
+                </>
+              ) : (
+                "Kết quả lọc phòng phù hợp"
+              )}
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full bg-white text-blue-700 border border-blue-200 text-xs font-bold">
+              {totalCount} phòng
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="text-xs font-bold text-blue-700 hover:text-blue-900 inline-flex items-center gap-1"
+          >
+            <X className="w-3.5 h-3.5" />
+            <span>Xóa điều kiện tìm kiếm</span>
+          </button>
+        </div>
+      )}
+
       {/* Top Search & Actions bar */}
       <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-6 sm:mb-8 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4">
         <div className="relative w-full md:max-w-md">
@@ -477,6 +584,42 @@ function ListingsContent() {
                 {activeFilterCount}
               </span>
             )}
+          </button>
+
+          {/* Near me button */}
+          <button
+            onClick={handleNearMe}
+            className="h-10 flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200/80 transition-colors whitespace-nowrap shrink-0"
+          >
+            <Navigation className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <span className="hidden sm:inline">Tìm phòng gần tôi</span>
+            <span className="sm:hidden">Gần tôi</span>
+          </button>
+
+          {/* Map toggle */}
+          <button
+            onClick={() => {
+              const next = !showMap;
+              setShowMap(next);
+              if (next) {
+                setTimeout(() => {
+                  document.getElementById("listings-map-section")?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                }, 100);
+              }
+            }}
+            className={cn(
+              "h-10 flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 rounded-xl text-xs font-bold border transition-colors whitespace-nowrap shrink-0",
+              showMap
+                ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                : "bg-white text-slate-700 border-slate-200/80 hover:bg-slate-50"
+            )}
+          >
+            <MapIcon className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">{showMap ? "Ẩn bản đồ" : "Xem trên bản đồ"}</span>
+            <span className="sm:hidden">{showMap ? "Ẩn map" : "Bản đồ"}</span>
           </button>
 
           {/* View Mode */}
@@ -580,6 +723,17 @@ function ListingsContent() {
 
         {/* Listings Result View */}
         <div className="lg:col-span-3 space-y-6">
+          {/* Real Interactive PostGIS Leaflet Map */}
+          {showMap && (
+            <div id="listings-map-section" className="scroll-mt-24 animate-in fade-in duration-200">
+              <ListingsInteractiveMap
+                listings={listings}
+                userLocation={userCoords}
+                onLocateMe={handleNearMe}
+              />
+            </div>
+          )}
+
           {/* Quick Filter Chips */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
             <span className="text-slate-400 font-semibold text-[11px] whitespace-nowrap">Lọc nhanh:</span>

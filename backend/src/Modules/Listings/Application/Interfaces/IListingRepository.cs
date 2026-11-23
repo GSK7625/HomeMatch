@@ -15,6 +15,8 @@ public interface IListingRepository
     Task<Listing?> GetOwnedAsync(long landlordId, long listingId, CancellationToken cancellationToken);
     Task<IReadOnlyList<Listing>> GetMineAsync(long landlordId, CancellationToken cancellationToken);
     Task<(IReadOnlyList<Listing> Items, int TotalCount)> GetPendingAsync(int page, int pageSize, CancellationToken cancellationToken);
+    Task<(IReadOnlyList<Listing> Items, int TotalCount)> GetAdminListingsAsync(string? status, string? keyword, int page, int pageSize, CancellationToken cancellationToken);
+    Task<AdminListingStatsSnapshot> GetAdminStatsAsync(DateTimeOffset? fromUtc, CancellationToken cancellationToken);
     Task<IReadOnlyList<Listing>> GetPublicCandidatesAsync(int offset, int limit, CancellationToken cancellationToken);
     Task<bool> SlugExistsAsync(string slug, long? exceptId, CancellationToken cancellationToken);
     Task<bool> HasOtherPublishedAsync(long roomId, long listingId, CancellationToken cancellationToken);
@@ -22,6 +24,18 @@ public interface IListingRepository
     Task<ListingCoordinates?> GetCoordinatesAsync(long listingId, CancellationToken cancellationToken);
     Task<IReadOnlyDictionary<long, ListingCoordinates>> GetCoordinatesBatchAsync(IReadOnlyCollection<long> listingIds, CancellationToken cancellationToken);
     Task SetCoordinatesAsync(Listing listing, double longitude, double latitude, CancellationToken cancellationToken);
+    Task<bool> RecordViewAsync(long listingId, long? userId, string? ipAddress, DateTimeOffset viewedAt, CancellationToken cancellationToken);
     void Add(Listing listing);
     Task<Result> SaveChangesAsync(CancellationToken cancellationToken);
 }
+
+public sealed record AdminListingStatsSnapshot(
+    int TotalListings,
+    int PublishedListings,
+    int PendingApprovalListings,
+    int HiddenListings,
+    int RejectedListings,
+    int DraftListings,
+    int ExpiredListings,
+    long TotalViews,
+    int NewListingsInPeriod);

@@ -26,7 +26,7 @@ import {
   ArrowRight,
   Eye,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, NOTIFICATION_OPENED_EVENT } from "@/lib/utils";
 
 const STATUS_BADGES: Record<
   string,
@@ -78,35 +78,50 @@ export default function LandlordViewingsPage() {
   const [confirmTarget, setConfirmTarget] = useState<ViewingAppointmentDto | null>(null);
   const [virtualRoomUrl, setVirtualRoomUrl] = useState("");
 
-  const loadAppointments = useCallback(async () => {
-    if (!user) return;
-    setIsLoading(true);
-    try {
-      const token = getStoredToken();
-      if (token) {
-        const res = await viewingsApi.getAppointments({
-          status: statusFilter,
-          roleView: "LANDLORD",
-          page: 1,
-          pageSize: 50,
-        });
-        if (res.isSuccess && res.data) {
-          setAppointments(res.data.items);
-          setTotalCount(res.data.totalCount);
-          return;
+  const refreshAppointments = useCallback(
+    async (silent = false) => {
+      if (!user) return;
+      if (!silent) setIsLoading(true);
+      try {
+        const token = getStoredToken();
+        if (token) {
+          const res = await viewingsApi.getAppointments({
+            status: statusFilter,
+            roleView: "LANDLORD",
+            page: 1,
+            pageSize: 50,
+          });
+          if (res.isSuccess && res.data) {
+            setAppointments(res.data.items);
+            setTotalCount(res.data.totalCount);
+            return;
+          }
         }
-      }
 
-      setAppointments([]);
-      setTotalCount(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, statusFilter]);
+        setAppointments([]);
+        setTotalCount(0);
+      } finally {
+        if (!silent) setIsLoading(false);
+      }
+    },
+    [user, statusFilter]
+  );
+
+  const loadAppointments = useCallback(() => refreshAppointments(false), [refreshAppointments]);
 
   useEffect(() => {
     loadAppointments();
   }, [loadAppointments]);
+
+  useEffect(() => {
+    const handleNotificationOpened = () => {
+      refreshAppointments(true);
+    };
+    window.addEventListener(NOTIFICATION_OPENED_EVENT, handleNotificationOpened);
+    return () => {
+      window.removeEventListener(NOTIFICATION_OPENED_EVENT, handleNotificationOpened);
+    };
+  }, [refreshAppointments]);
 
   const handleConfirmViewing = async (item: ViewingAppointmentDto, customVirtualUrl?: string) => {
     setActionLoadingId(item.id);

@@ -473,6 +473,14 @@ export interface AmenityDto {
   id: number;
   code: string;
   name: string;
+  isActive?: boolean;
+}
+
+export interface RoomTypeDto {
+  id: number;
+  code: string;
+  name: string;
+  isActive: boolean;
 }
 
 export interface ProvinceDto {
@@ -801,6 +809,147 @@ export interface LandlordDashboardData {
   viewingsToday: LandlordViewingItem[];
 }
 
+// ============================================================================
+// Admin Management DTOs (/api/v1/admin/* & /api/v1/reports)
+// ============================================================================
+export interface AdminDashboardSummaryDto {
+  period: string;
+  fromUtc?: string | null;
+  users: {
+    totalUsers: number;
+    totalTenants: number;
+    totalLandlords: number;
+    suspendedUsers: number;
+    newUsersInPeriod: number;
+  };
+  properties: {
+    totalProperties: number;
+    totalRooms: number;
+    availableRooms: number;
+    rentedRooms: number;
+    suspendedRooms: number;
+    newRoomsInPeriod: number;
+  };
+  listings: {
+    totalListings: number;
+    publishedListings: number;
+    pendingApprovalListings: number;
+    hiddenListings: number;
+    rejectedListings: number;
+    draftListings: number;
+    expiredListings: number;
+    totalViews: number;
+    newListingsInPeriod: number;
+  };
+  reports: {
+    totalReports: number;
+    pendingReports: number;
+    resolvedReports: number;
+    dismissedReports: number;
+    newReportsInPeriod: number;
+  };
+}
+
+export interface AdminUserItemDto {
+  id: number;
+  fullName: string;
+  email: string;
+  phoneNumber?: string | null;
+  role: string;
+  status: string;
+  emailConfirmed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PagedAdminUsersDto {
+  items: AdminUserItemDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface AdminListingItemDto {
+  id: number;
+  roomId: number;
+  landlordId: number;
+  landlordName: string;
+  title: string;
+  slug: string;
+  price: number;
+  depositAmount: number;
+  status: string;
+  coverImageUrl?: string | null;
+  areaSqm?: number | null;
+  roomType?: string | null;
+  addressDetail?: string | null;
+  viewCount: number;
+  rejectionReason?: string | null;
+  publishedAt?: string | null;
+  expiresAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PagedAdminListingsDto {
+  items: AdminListingItemDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface ViolationReportDto {
+  id: number;
+  targetType: "LISTING" | "LANDLORD" | string;
+  targetId: number;
+  listingId?: number | null;
+  targetTitle: string;
+  reporterUserId: number;
+  reporterName: string;
+  reporterEmail: string;
+  reason: string;
+  description?: string | null;
+  evidenceUrl?: string | null;
+  status: "PENDING" | "RESOLVED" | "DISMISSED" | string;
+  adminNote?: string | null;
+  resolvedBy?: number | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+}
+
+export interface PagedViolationReportsDto {
+  items: ViolationReportDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface CreateViolationReportBody {
+  targetType: "LISTING" | "LANDLORD";
+  targetId: number;
+  listingId?: number | null;
+  reason: string;
+  description?: string;
+  evidenceUrl?: string;
+}
+
+export interface ResolveViolationReportBody {
+  resolution: "RESOLVED" | "DISMISSED";
+  adminNote?: string;
+  hideListing?: boolean;
+}
+
+export interface CreateCatalogItemBody {
+  code: string;
+  name: string;
+  isActive?: boolean;
+}
+
+export interface UpdateCatalogItemBody {
+  code?: string;
+  name?: string;
+  isActive?: boolean;
+}
 
 // ============================================================================
 // Leasing Module DTOs (/api/v1/leasing/contracts)

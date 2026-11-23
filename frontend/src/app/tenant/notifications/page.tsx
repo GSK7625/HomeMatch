@@ -18,7 +18,12 @@ import {
   Sparkles,
   Home,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import {
+  cn,
+  dispatchNotificationRead,
+  NOTIFICATION_OPENED_EVENT,
+  resolveNotificationTarget,
+} from "@/lib/utils";
 
 
 function getNotificationMeta(type: string) {
@@ -67,41 +72,56 @@ export default function TenantNotificationsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [markingAll, setMarkingAll] = useState(false);
 
-  const loadNotifications = useCallback(async () => {
-    if (!user) return;
-    setIsLoading(true);
-    try {
-      const token = getStoredToken();
-      if (token) {
-        const isReadParam =
-          filter === "UNREAD" ? false : filter === "READ" ? true : undefined;
-        const res = await notificationsApi.getNotifications({
-          isRead: isReadParam,
-          page: 1,
-          pageSize: 30,
-        });
-        if (res.isSuccess && res.data) {
-          setNotifications(res.data.items);
-          setUnreadCount(res.data.unreadCount);
-          setTotalCount(res.data.totalCount);
+  const refreshNotifications = useCallback(
+    async (silent = false) => {
+      if (!user) return;
+      if (!silent) setIsLoading(true);
+      try {
+        const token = getStoredToken();
+        if (token) {
+          const isReadParam =
+            filter === "UNREAD" ? false : filter === "READ" ? true : undefined;
+          const res = await notificationsApi.getNotifications({
+            isRead: isReadParam,
+            page: 1,
+            pageSize: 30,
+          });
+          if (res.isSuccess && res.data) {
+            setNotifications(res.data.items);
+            setUnreadCount(res.data.unreadCount);
+            setTotalCount(res.data.totalCount);
+            return;
+          }
+          setNotifications([]);
+          setUnreadCount(0);
+          setTotalCount(0);
           return;
         }
         setNotifications([]);
         setUnreadCount(0);
         setTotalCount(0);
-        return;
+      } finally {
+        if (!silent) setIsLoading(false);
       }
-      setNotifications([]);
-      setUnreadCount(0);
-      setTotalCount(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, filter]);
+    },
+    [user, filter]
+  );
+
+  const loadNotifications = useCallback(() => refreshNotifications(false), [refreshNotifications]);
 
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
+
+  useEffect(() => {
+    const handleNotificationOpened = () => {
+      refreshNotifications(true);
+    };
+    window.addEventListener(NOTIFICATION_OPENED_EVENT, handleNotificationOpened);
+    return () => {
+      window.removeEventListener(NOTIFICATION_OPENED_EVENT, handleNotificationOpened);
+    };
+  }, [refreshNotifications]);
 
   const handleMarkAsRead = async (item: NotificationDto) => {
     if (item.isRead) return;
@@ -113,12 +133,14 @@ export default function TenantNotificationsPage() {
           prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
         );
         setUnreadCount((prev) => Math.max(0, prev - 1));
+        dispatchNotificationRead(item.id);
       }
     } else {
       setNotifications((prev) =>
         prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
+      dispatchNotificationRead(item.id);
     }
   };
 
@@ -134,12 +156,14 @@ export default function TenantNotificationsPage() {
             `Đã đánh dấu ${res.data?.markedReadCount ?? unreadCount} thông báo là đã đọc.`,
             "success"
           );
+          dispatchNotificationRead();
           await loadNotifications();
           return;
         }
       }
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
+      dispatchNotificationRead();
       showToast("Đã đánh dấu tất cả thông báo là đã đọc!", "success");
     } finally {
       setMarkingAll(false);
@@ -148,22 +172,7 @@ export default function TenantNotificationsPage() {
 
   const handleOpenNotificationTarget = async (item: NotificationDto) => {
     await handleMarkAsRead(item);
-    const refType = (item.referenceType || "").toUpperCase();
-    const typeUpper = (item.type || "").toUpperCase();
-
-    if (refType.includes("VIEWING") || typeUpper.includes("VIEWING")) {
-      router.push(role === "Landlord" ? "/landlord/viewings" : "/tenant/viewings");
-      return;
-    }
-    if (refType.includes("CONVERSATION") || typeUpper.includes("MESSAGE")) {
-      router.push(
-        item.referenceId
-          ? `/messages?conversationId=${item.referenceId}`
-          : "/messages"
-      );
-      return;
-    }
-    router.push("/tenant/dashboard");
+    router.push(resolveNotificationTarget(item, role));
   };
 
   if (!user) {
@@ -193,10 +202,6 @@ export default function TenantNotificationsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
         <div>
-          <div className="flex items-center gap-2 text-blue-600 text-xs font-bold uppercase tracking-wider mb-1">
-            <Bell className="w-4 h-4" />
-            <span>Mục 3.4.3 • Xem thông báo tài khoản</span>
-          </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
             <span>Trung Tâm Thông Báo</span>
             {unreadCount > 0 && (

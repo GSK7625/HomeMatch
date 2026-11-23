@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { Suspense, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
 import { leasingApi } from "@/lib/leasing-api";
+import { billingApi } from "@/lib/billing-api";
 import {
   getStoredToken,
   notificationsApi,
@@ -17,7 +18,9 @@ import {
   getStatusMeta,
 } from "@/features/leasing/leasing-helpers";
 import { parseContractSnapshot } from "@/features/leasing/contract-snapshot";
+import { TenantBillingTab } from "@/features/billing/TenantBillingTab";
 import {
+  BillingDebtSummaryDto,
   LeasingContractDto,
   NotificationDto,
   ViewedListingContractItem,
@@ -32,7 +35,6 @@ import {
   Eye,
   MessageSquare,
   Clock,
-  CreditCard,
   Bell,
   ArrowRight,
   MapPin,
@@ -52,14 +54,24 @@ import {
   resolveNotificationTarget,
 } from "@/lib/utils";
 
-export default function TenantDashboardPage() {
+type TenantDashboardTab = "overview" | "history" | "contracts" | "bills";
+
+function parseInitialTab(tabParam: string | null): TenantDashboardTab {
+  if (tabParam === "history" || tabParam === "contracts" || tabParam === "bills") {
+    return tabParam;
+  }
+  return "overview";
+}
+
+function TenantDashboardContent() {
   const { user, role } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<
-    "overview" | "history" | "contracts" | "bills"
-  >("overview");
+  const [activeTab, setActiveTab] = useState<TenantDashboardTab>(() =>
+    parseInitialTab(searchParams.get("tab"))
+  );
   const [isLoading, setIsLoading] = useState(true);
 
   const [contracts, setContracts] = useState<LeasingContractDto[]>([]);
@@ -67,6 +79,7 @@ export default function TenantDashboardPage() {
   const [upcomingViewings, setUpcomingViewings] = useState<ViewingAppointmentDto[]>([]);
   const [recentNotifications, setRecentNotifications] = useState<NotificationDto[]>([]);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [unpaidInvoicesCount, setUnpaidInvoicesCount] = useState(0);
 
   const [profileSummary, setProfileSummary] = useState({
     fullName: "",
@@ -82,10 +95,21 @@ export default function TenantDashboardPage() {
   });
 
   useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "overview" || tabParam === "history" || tabParam === "contracts" || tabParam === "bills") {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     if (role === "Landlord") {
       router.replace("/landlord/dashboard");
     }
   }, [role, router]);
+
+  const handleDebtSummaryChange = useCallback((summary: BillingDebtSummaryDto | null) => {
+    setUnpaidInvoicesCount(summary?.totalUnpaidInvoices ?? 0);
+  }, []);
 
   const refreshDashboard = useCallback(
     async (silent = false) => {
@@ -95,12 +119,13 @@ export default function TenantDashboardPage() {
       try {
         const token = getStoredToken();
         if (token) {
-          const [dashRes, viewedRes, viewingsRes, notifRes, contractsRes] = await Promise.all([
+          const [dashRes, viewedRes, viewingsRes, notifRes, contractsRes, debtSummaryRes] = await Promise.all([
             tenantOverviewApi.getDashboard(),
             tenantOverviewApi.getViewedListings(1, 6),
             viewingsApi.getAppointments({ roleView: "TENANT", page: 1, pageSize: 6 }),
             notificationsApi.getNotifications({ page: 1, pageSize: 5 }),
             leasingApi.getContracts({ roleView: "TENANT", page: 1, pageSize: 20 }),
+            billingApi.getDebtSummary(),
           ]);
 
           if (dashRes.isSuccess && dashRes.data) {
@@ -139,6 +164,11 @@ export default function TenantDashboardPage() {
           setRecentNotifications(notifRes.isSuccess && notifRes.data ? notifRes.data.items : []);
           setUnreadNotificationsCount(notifRes.isSuccess && notifRes.data ? notifRes.data.unreadCount : 0);
           setContracts(contractsRes.isSuccess && contractsRes.data ? contractsRes.data.items : []);
+          setUnpaidInvoicesCount(
+            debtSummaryRes.isSuccess && debtSummaryRes.data
+              ? debtSummaryRes.data.totalUnpaidInvoices
+              : 0
+          );
         } else {
           setProfileSummary({
             fullName: user.displayName || user.fullName || "Người thuê",
@@ -156,6 +186,7 @@ export default function TenantDashboardPage() {
           setRecentNotifications([]);
           setUnreadNotificationsCount(0);
           setContracts([]);
+          setUnpaidInvoicesCount(0);
         }
       } catch {
         showToast("Không thể tải thông tin Dashboard. Vui lòng tải lại trang.", "error");
@@ -453,6 +484,11 @@ export default function TenantDashboardPage() {
         >
           <DollarSign className="w-4 h-4" />
           <span>Hóa Đơn & Điện Nước</span>
+          {unpaidInvoicesCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">
+              {unpaidInvoicesCount}
+            </span>
+          )}
         </button>
       </div>
 
@@ -832,14 +868,25 @@ export default function TenantDashboardPage() {
 
       {/* TAB 4: Monthly Bills */}
       {activeTab === "bills" && (
-        <div className="p-12 text-center space-y-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
-          <CreditCard className="w-10 h-10 text-slate-300 mx-auto" />
-          <h4 className="text-sm font-bold text-slate-800">Hóa Đơn & Thanh Toán Đang Chờ Đồng Bộ Backend</h4>
-          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-            Dữ liệu hóa đơn tiền phòng và điện nước sẽ được hiển thị trực tiếp từ hệ thống Backend Billing API sau khi hoàn tất tích hợp.
-          </p>
-        </div>
+        <TenantBillingTab
+          contracts={contracts}
+          onDebtSummaryChange={handleDebtSummaryChange}
+        />
       )}
     </div>
+  );
+}
+
+export default function TenantDashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center text-xs text-slate-500">
+          Đang tải Dashboard Người thuê...
+        </div>
+      }
+    >
+      <TenantDashboardContent />
+    </Suspense>
   );
 }

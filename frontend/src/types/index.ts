@@ -1067,3 +1067,111 @@ export interface CreateLeasingContractPayload {
   signatureExpiresAt?: string;
   handoverDueAt?: string;
 }
+
+// ============================================================================
+// Billing Module DTOs (/api/v1/billing)
+// ============================================================================
+export type BillingInvoiceStatus = "UNPAID" | "OVERDUE" | "PAID" | "CANCELLED" | string;
+export type BillingPaymentStatus = "PENDING" | "SUCCESS" | "FAILED" | "EXPIRED" | string;
+export type BillingPaymentMethod = "VNPAY" | "BANK_TRANSFER" | "CASH" | "MOMO" | string;
+
+export interface BillingInvoiceDto {
+  id: number;
+  invoiceCode: string;
+  contractId: number;
+  landlordId: number;
+  tenantId: number;
+  roomId: number;
+  propertyId: number;
+  billingMonth: number;
+  billingYear: number;
+  rentAmount: number;
+  electricityAmount: number;
+  waterAmount: number;
+  serviceAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  paidAmount: number;
+  dueDate: string;
+  paidAt?: string | null;
+  status: BillingInvoiceStatus;
+  cancelReason?: string | null;
+  cancelledAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BillingPaymentDto {
+  id: number;
+  paymentCode: string;
+  invoiceId: number;
+  amount: number;
+  paymentMethod: BillingPaymentMethod;
+  gatewayTransactionNo?: string | null;
+  bankCode?: string | null;
+  cardType?: string | null;
+  gatewayResponseCode?: string | null;
+  paymentUrl?: string | null;
+  status: BillingPaymentStatus;
+  expiredAt: string;
+  completedAt?: string | null;
+  createdAt: string;
+}
+
+export interface BillingInvoiceDetailDto extends BillingInvoiceDto {
+  contractCode?: string | null;
+  payments: BillingPaymentDto[];
+}
+
+export interface BillingPagedInvoicesDto {
+  items: BillingInvoiceDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface BillingDebtAgingGroupDto {
+  groupCode: string;
+  groupName: string;
+  invoiceCount: number;
+  totalAmount: number;
+}
+
+export interface BillingDebtSummaryDto {
+  totalUnpaidDebt: number;
+  totalOverdueDebt: number;
+  totalUnpaidInvoices: number;
+  totalOverdueInvoices: number;
+  agingGroups: BillingDebtAgingGroupDto[];
+}
+
+export interface BillingDebtInvoiceDto {
+  id: number;
+  invoiceCode: string;
+  contractId: number;
+  landlordId: number;
+  tenantId: number;
+  roomId: number;
+  propertyId: number;
+  billingMonth: number;
+  billingYear: number;
+  totalAmount: number;
+  dueDate: string;
+  daysOverdue: number;
+  agingGroup: string;
+  status: BillingInvoiceStatus;
+  createdAt: string;
+}
+
+export interface BillingPagedDebtInvoicesDto {
+  items: BillingDebtInvoiceDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface VNPayIpnResult {
+  rspCode: string;
+  message: string;
+}
+

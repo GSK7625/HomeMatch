@@ -1166,3 +1166,6 @@ export const landlordDashboardApi = {
     );
   },
 };
+
+export { billingApi } from "@/lib/billing-api";
+

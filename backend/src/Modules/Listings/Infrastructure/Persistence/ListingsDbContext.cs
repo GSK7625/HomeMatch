@@ -23,6 +23,9 @@ public sealed class ListingsDbContext(DbContextOptions<ListingsDbContext> option
     /// <summary>Bảng quản lý tọa độ không gian PostGIS phục vụ tìm kiếm theo bán kính</summary>
     public DbSet<ListingLocation> ListingLocations => Set<ListingLocation>();
 
+    /// <summary>Bảng quản lý báo cáo vi phạm đối với tin đăng hoặc chủ nhà</summary>
+    public DbSet<ViolationReport> ViolationReports => Set<ViolationReport>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("postgis");
@@ -120,6 +123,26 @@ public sealed class ListingsDbContext(DbContextOptions<ListingsDbContext> option
             location.HasIndex(x => x.Coordinates).HasMethod("gist").HasDatabaseName("ix_listing_locations_coordinates");
             location.HasOne(x => x.Listing).WithOne().HasForeignKey<ListingLocation>(x => x.ListingId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ViolationReport>(report =>
+        {
+            report.ToTable("violation_reports", "listings", table =>
+            {
+                table.HasCheckConstraint("ck_violation_reports_target_type", "target_type IN ('LISTING', 'LANDLORD')");
+                table.HasCheckConstraint("ck_violation_reports_status", "status IN ('PENDING', 'RESOLVED', 'DISMISSED')");
+            });
+            report.HasKey(x => x.Id);
+            report.Property(x => x.TargetType).HasMaxLength(20).IsRequired();
+            report.Property(x => x.Reason).HasMaxLength(255).IsRequired();
+            report.Property(x => x.Description).HasColumnType("text");
+            report.Property(x => x.EvidenceUrl).HasMaxLength(500);
+            report.Property(x => x.Status).HasMaxLength(20).HasDefaultValue("PENDING").IsRequired();
+            report.Property(x => x.AdminNote).HasMaxLength(1000);
+            report.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
+            report.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
+            report.HasIndex(x => new { x.Status, x.CreatedAt }).HasDatabaseName("ix_violation_reports_status_created");
+            report.HasIndex(x => new { x.TargetType, x.TargetId }).HasDatabaseName("ix_violation_reports_target");
         });
 
         UseSnakeCaseColumns(modelBuilder);

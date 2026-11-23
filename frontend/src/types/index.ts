@@ -473,6 +473,14 @@ export interface AmenityDto {
   id: number;
   code: string;
   name: string;
+  isActive?: boolean;
+}
+
+export interface RoomTypeDto {
+  id: number;
+  code: string;
+  name: string;
+  isActive: boolean;
 }
 
 export interface ProvinceDto {
@@ -801,6 +809,147 @@ export interface LandlordDashboardData {
   viewingsToday: LandlordViewingItem[];
 }
 
+// ============================================================================
+// Admin Management DTOs (/api/v1/admin/* & /api/v1/reports)
+// ============================================================================
+export interface AdminDashboardSummaryDto {
+  period: string;
+  fromUtc?: string | null;
+  users: {
+    totalUsers: number;
+    totalTenants: number;
+    totalLandlords: number;
+    suspendedUsers: number;
+    newUsersInPeriod: number;
+  };
+  properties: {
+    totalProperties: number;
+    totalRooms: number;
+    availableRooms: number;
+    rentedRooms: number;
+    suspendedRooms: number;
+    newRoomsInPeriod: number;
+  };
+  listings: {
+    totalListings: number;
+    publishedListings: number;
+    pendingApprovalListings: number;
+    hiddenListings: number;
+    rejectedListings: number;
+    draftListings: number;
+    expiredListings: number;
+    totalViews: number;
+    newListingsInPeriod: number;
+  };
+  reports: {
+    totalReports: number;
+    pendingReports: number;
+    resolvedReports: number;
+    dismissedReports: number;
+    newReportsInPeriod: number;
+  };
+}
+
+export interface AdminUserItemDto {
+  id: number;
+  fullName: string;
+  email: string;
+  phoneNumber?: string | null;
+  role: string;
+  status: string;
+  emailConfirmed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PagedAdminUsersDto {
+  items: AdminUserItemDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface AdminListingItemDto {
+  id: number;
+  roomId: number;
+  landlordId: number;
+  landlordName: string;
+  title: string;
+  slug: string;
+  price: number;
+  depositAmount: number;
+  status: string;
+  coverImageUrl?: string | null;
+  areaSqm?: number | null;
+  roomType?: string | null;
+  addressDetail?: string | null;
+  viewCount: number;
+  rejectionReason?: string | null;
+  publishedAt?: string | null;
+  expiresAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PagedAdminListingsDto {
+  items: AdminListingItemDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface ViolationReportDto {
+  id: number;
+  targetType: "LISTING" | "LANDLORD" | string;
+  targetId: number;
+  listingId?: number | null;
+  targetTitle: string;
+  reporterUserId: number;
+  reporterName: string;
+  reporterEmail: string;
+  reason: string;
+  description?: string | null;
+  evidenceUrl?: string | null;
+  status: "PENDING" | "RESOLVED" | "DISMISSED" | string;
+  adminNote?: string | null;
+  resolvedBy?: number | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+}
+
+export interface PagedViolationReportsDto {
+  items: ViolationReportDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface CreateViolationReportBody {
+  targetType: "LISTING" | "LANDLORD";
+  targetId: number;
+  listingId?: number | null;
+  reason: string;
+  description?: string;
+  evidenceUrl?: string;
+}
+
+export interface ResolveViolationReportBody {
+  resolution: "RESOLVED" | "DISMISSED";
+  adminNote?: string;
+  hideListing?: boolean;
+}
+
+export interface CreateCatalogItemBody {
+  code: string;
+  name: string;
+  isActive?: boolean;
+}
+
+export interface UpdateCatalogItemBody {
+  code?: string;
+  name?: string;
+  isActive?: boolean;
+}
 
 // ============================================================================
 // Leasing Module DTOs (/api/v1/leasing/contracts)
@@ -917,4 +1066,166 @@ export interface CreateLeasingContractPayload {
   documentSnapshot?: string;
   signatureExpiresAt?: string;
   handoverDueAt?: string;
+}
+
+// ============================================================================
+// Billing Module DTOs (/api/v1/billing)
+// ============================================================================
+export type BillingInvoiceStatus = "UNPAID" | "OVERDUE" | "PAID" | "CANCELLED" | string;
+export type BillingPaymentStatus = "PENDING" | "SUCCESS" | "FAILED" | "EXPIRED" | string;
+export type BillingPaymentMethod = "VNPAY" | "BANK_TRANSFER" | "CASH" | "MOMO" | string;
+
+export interface BillingInvoiceDto {
+  id: number;
+  invoiceCode: string;
+  contractId: number;
+  landlordId: number;
+  tenantId: number;
+  roomId: number;
+  propertyId: number;
+  billingMonth: number;
+  billingYear: number;
+  rentAmount: number;
+  electricityAmount: number;
+  waterAmount: number;
+  serviceAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  paidAmount: number;
+  dueDate: string;
+  paidAt?: string | null;
+  status: BillingInvoiceStatus;
+  cancelReason?: string | null;
+  cancelledAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BillingPaymentDto {
+  id: number;
+  paymentCode: string;
+  invoiceId: number;
+  amount: number;
+  paymentMethod: BillingPaymentMethod;
+  gatewayTransactionNo?: string | null;
+  bankCode?: string | null;
+  cardType?: string | null;
+  gatewayResponseCode?: string | null;
+  paymentUrl?: string | null;
+  status: BillingPaymentStatus;
+  expiredAt: string;
+  completedAt?: string | null;
+  createdAt: string;
+}
+
+export interface BillingInvoiceDetailDto extends BillingInvoiceDto {
+  contractCode?: string | null;
+  payments: BillingPaymentDto[];
+}
+
+export interface BillingPagedInvoicesDto {
+  items: BillingInvoiceDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface BillingDebtAgingGroupDto {
+  groupCode: string;
+  groupName: string;
+  invoiceCount: number;
+  totalAmount: number;
+}
+
+export interface BillingDebtSummaryDto {
+  totalUnpaidDebt: number;
+  totalOverdueDebt: number;
+  totalUnpaidInvoices: number;
+  totalOverdueInvoices: number;
+  agingGroups: BillingDebtAgingGroupDto[];
+}
+
+export interface BillingDebtInvoiceDto {
+  id: number;
+  invoiceCode: string;
+  contractId: number;
+  landlordId: number;
+  tenantId: number;
+  roomId: number;
+  propertyId: number;
+  billingMonth: number;
+  billingYear: number;
+  totalAmount: number;
+  dueDate: string;
+  daysOverdue: number;
+  agingGroup: string;
+  status: BillingInvoiceStatus;
+  createdAt: string;
+}
+
+export interface BillingPagedDebtInvoicesDto {
+  items: BillingDebtInvoiceDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface VNPayIpnResult {
+  rspCode: string;
+  message: string;
+}
+
+// ============================================================================
+// Messaging Leads DTOs (/api/v1/messaging/leads)
+// ============================================================================
+export type LeadStatus =
+  | "NEW"
+  | "CONTACTED"
+  | "VIEWING_SCHEDULED"
+  | "CONTRACT_SIGNED"
+  | "LOST";
+
+export interface LandlordLeadDto {
+  id: number;
+  tenantId: number;
+  tenantName: string;
+  tenantPhone?: string | null;
+  tenantEmail?: string | null;
+  listingId: number;
+  listingTitle: string;
+  roomId?: number | null;
+  roomNumber?: string | null;
+  propertyId?: number | null;
+  propertyName?: string | null;
+  status: LeadStatus;
+  source: string;
+  notes?: string | null;
+  conversationId?: number | null;
+  createdAt: string;
+}
+
+export interface LandlordLeadFilterOptionDto {
+  listingId: number;
+  listingTitle: string;
+  roomId?: number | null;
+  roomNumber?: string | null;
+  propertyName?: string | null;
+}
+
+export interface LandlordLeadStatusSummaryDto {
+  total: number;
+  newCount: number;
+  contactedCount: number;
+  viewingScheduledCount: number;
+  contractSignedCount: number;
+  lostCount: number;
+}
+
+export interface LandlordLeadsResponseDto {
+  items: LandlordLeadDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  summary: LandlordLeadStatusSummaryDto;
+  listingOptions: LandlordLeadFilterOptionDto[];
 }

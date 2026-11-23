@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using HomeMatch.Modules.Leasing.Application.Commands.ActivateContract;
 using HomeMatch.Modules.Leasing.Application.Commands.CancelContract;
 using HomeMatch.Modules.Leasing.Application.Commands.ConfirmHandover;
 using HomeMatch.Modules.Leasing.Application.Commands.CreateContract;
@@ -45,9 +44,12 @@ public static class ContractEndpoints
             var tenants = await userReader.GetTenantsAsync(cancellationToken);
             return Results.Ok(ApiResponse.Success(tenants));
         })
-        .RequireAuthorization()
+        .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Landlord", "Admin"))
         .WithName("GetLeasingTenants")
-        .WithSummary("Lấy danh sách tài khoản Người thuê (Tenant) để chọn khi soạn hợp đồng");
+        .WithSummary("Lấy danh sách tài khoản Người thuê (Tenant) để chọn khi soạn hợp đồng (Dành cho Chủ nhà / Quản trị viên)")
+        .Produces<ApiResponse<IReadOnlyList<IdentityUserInfo>>>(StatusCodes.Status200OK)
+        .Produces<ApiResponse<IReadOnlyList<IdentityUserInfo>>>(StatusCodes.Status401Unauthorized)
+        .Produces<ApiResponse<IReadOnlyList<IdentityUserInfo>>>(StatusCodes.Status403Forbidden);
 
         var group = endpoints.MapGroup("/contracts").RequireAuthorization();
 
@@ -115,6 +117,7 @@ public static class ContractEndpoints
                 ApiResponse.Success(ContractResponseMapper.ToResponse(result.Value)));
         })
         .DisableAntiforgery()
+        .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Landlord", "Admin"))
         .WithName("CreateContract")
         .WithSummary("Tạo hợp đồng thuê mới (Chủ nhà nhập form + gửi kèm file PDF xuất từ bản preview)")
         .Produces<ApiResponse<ContractResponse>>(StatusCodes.Status201Created)
@@ -693,38 +696,7 @@ public static class ContractEndpoints
         .WithName("RestoreContractToDraft")
         .WithSummary("Khôi phục hợp đồng Đã hủy / Bị từ chối / Quá hạn ký về lại Bản nháp (DRAFT)");
 
-        // 9. Kích hoạt hợp đồng thuê khi đã đến ngày bắt đầu - Dành cho Chủ nhà / Hệ thống
-        group.MapPost("/{id:long}/activate", async (
-            long id,
-            [FromServices] ActivateContractHandler handler,
-            HttpContext httpContext,
-            CancellationToken cancellationToken) =>
-        {
-            if (!TryGetUserId(httpContext, out var _))
-            {
-                return Results.Json(
-                    ApiResponse.Failure<ContractResponse>(LeasingErrors.AuthenticationRequired),
-                    statusCode: StatusCodes.Status401Unauthorized);
-            }
-
-            var command = new ActivateContractCommand(id);
-            var result = await handler.HandleAsync(command, cancellationToken);
-            if (result.IsFailure)
-            {
-                return MapFailureResult<ContractResponse>(result.Error);
-            }
-
-            return Results.Ok(ApiResponse.Success(ContractResponseMapper.ToResponse(result.Value)));
-        })
-        .WithName("ActivateContract")
-        .WithSummary("Kích hoạt hợp đồng thuê khi đã đủ điều kiện ngày bắt đầu")
-        .Produces<ApiResponse<ContractResponse>>(StatusCodes.Status200OK)
-        .Produces<ApiResponse<ContractResponse>>(StatusCodes.Status401Unauthorized)
-        .Produces<ApiResponse<ContractResponse>>(StatusCodes.Status403Forbidden)
-        .Produces<ApiResponse<ContractResponse>>(StatusCodes.Status404NotFound)
-        .Produces<ApiResponse<ContractResponse>>(StatusCodes.Status409Conflict);
-
-        // 10. Xác nhận bàn giao phòng khi hết hạn thuê hoặc chấm dứt trước hạn - Dành cho Chủ nhà
+        // 9. Xác nhận bàn giao phòng khi hết hạn thuê hoặc chấm dứt trước hạn - Dành cho Chủ nhà
         group.MapPost("/{id:long}/confirm-handover", async (
             long id,
             [FromBody] ConfirmHandoverRequest? request,

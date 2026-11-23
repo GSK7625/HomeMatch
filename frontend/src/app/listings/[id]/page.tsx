@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { compareSelection } from "@/lib/compare-selection";
-import { parseListingNumericId, viewingsApi, listingsApi, adminListingsApi, getStoredToken } from "@/lib/api-client";
+import { parseListingNumericId, viewingsApi, listingsApi, adminListingsApi, propertiesApi, reportsApi, getStoredToken } from "@/lib/api-client";
 import { PropertyListing, PublicListingDetailDto } from "@/types";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useToast } from "@/components/Toast";
@@ -30,6 +30,7 @@ import {
   Calculator,
   Flame,
   AlertTriangle,
+  Flag,
 } from "lucide-react";
 import { cn, mapPublicDetailToCard } from "@/lib/utils";
 
@@ -61,6 +62,54 @@ export default function ListingDetailPage() {
   const [tenantPhone, setTenantPhone] = useState(user?.phoneNumber || "");
   const [note, setNote] = useState("");
   const [bookingLoading, setBookingLoading] = useState(false);
+
+  // Violation Report Modal
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportTargetType, setReportTargetType] = useState<"LISTING" | "LANDLORD">("LISTING");
+  const [reportReason, setReportReason] = useState("");
+  const [reportDescription, setReportDescription] = useState("");
+  const [reportEvidenceUrl, setReportEvidenceUrl] = useState("");
+  const [reportLoading, setReportLoading] = useState(false);
+
+  const handleSubmitReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!listing) return;
+    if (!user || !getStoredToken()) {
+      showToast("Vui lòng đăng nhập để gửi báo cáo vi phạm.", "error");
+      router.push(`/auth/login?redirect=/listings/${id}`);
+      return;
+    }
+    if (reportReason.trim().length < 3) {
+      showToast("Vui lòng nhập lý do báo cáo (tối thiểu 3 ký tự).", "error");
+      return;
+    }
+    setReportLoading(true);
+    try {
+      const numericListingId = parseListingNumericId(listing.id);
+      const targetId = reportTargetType === "LISTING" ? numericListingId : Number(listing.landlordId);
+      const res = await reportsApi.create({
+        targetType: reportTargetType,
+        targetId,
+        listingId: numericListingId,
+        reason: reportReason.trim(),
+        description: reportDescription.trim() || undefined,
+        evidenceUrl: reportEvidenceUrl.trim() || undefined,
+      });
+      if (res.isSuccess) {
+        showToast("Đã gửi báo cáo vi phạm. Quản trị viên sẽ xem xét và xử lý.", "success");
+        setIsReportOpen(false);
+        setReportReason("");
+        setReportDescription("");
+        setReportEvidenceUrl("");
+      } else {
+        showToast(res.error?.message || "Không thể gửi báo cáo vi phạm.", "error");
+      }
+    } catch {
+      showToast("Lỗi kết nối máy chủ khi gửi báo cáo.", "error");
+    } finally {
+      setReportLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -105,6 +154,43 @@ export default function ListingDetailPage() {
           }
 
           if (isMounted && d) {
+            // In preview mode (d comes from getMyListingById or admin review, without property/room objects)
+            if (preview && d.roomId && (!d.property || !d.room)) {
+              try {
+                const propsRes = await propertiesApi.getMyProperties();
+                if (propsRes.isSuccess && propsRes.data) {
+                  for (const p of propsRes.data) {
+                    const roomsRes = await propertiesApi.getRooms(p.id);
+                    if (roomsRes.isSuccess && roomsRes.data) {
+                      const matchedRoom = roomsRes.data.find((r) => r.id === d.roomId);
+                      if (matchedRoom) {
+                        d.property = {
+                          id: p.id,
+                          name: p.name,
+                          propertyType: p.propertyType,
+                          addressDetail: p.addressDetail,
+                          wardName: p.wardCode,
+                          provinceName: p.provinceCode,
+                        };
+                        d.room = {
+                          id: matchedRoom.id,
+                          roomNumber: matchedRoom.roomNumber,
+                          floor: matchedRoom.floor,
+                          areaSqm: matchedRoom.areaSqm,
+                          roomType: matchedRoom.roomType,
+                          maxOccupants: matchedRoom.maxOccupants,
+                          amenities: matchedRoom.amenityIds?.map((id: number) => ({ id, code: String(id), name: `Tiện ích #${id}` })) || [],
+                        };
+                        break;
+                      }
+                    }
+                  }
+                }
+              } catch {
+                // Ignore enrichment error
+              }
+            }
+
             const mapped = mapPublicDetailToCard(d as PublicListingDetailDto);
             setRawDetail(d);
             setIsPreview(preview);
@@ -770,6 +856,17 @@ export default function ListingDetailPage() {
                 <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
                 <span>Chat với chủ trọ</span>
               </Link>
+
+              {!isPreview && (
+                <button
+                  type="button"
+                  onClick={() => setIsReportOpen(true)}
+                  className="w-full py-2 px-3 rounded-xl font-semibold text-[11px] text-rose-600 hover:bg-rose-50 border border-rose-200/80 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Flag className="w-3.5 h-3.5" />
+                  <span>Báo cáo tin đăng / chủ nhà vi phạm</span>
+                </button>
+              )}
             </div>
 
             {/* First Month Budget Estimator Widget */}
@@ -945,6 +1042,92 @@ export default function ListingDetailPage() {
               className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-500/20 disabled:opacity-50"
             >
               {bookingLoading ? "Đang gửi yêu cầu..." : "Xác nhận gửi lịch hẹn"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Violation Report Modal */}
+      <Modal
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+        title="Báo Cáo Vi Phạm"
+        description="Phản ánh tin đăng sai sự thật, lừa đảo hoặc hành vi vi phạm của chủ nhà để quản trị viên xử lý."
+        maxWidth="md"
+      >
+        <form onSubmit={handleSubmitReport} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Đối tượng báo cáo
+            </label>
+            <select
+              value={reportTargetType}
+              onChange={(e) => setReportTargetType(e.target.value as "LISTING" | "LANDLORD")}
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
+            >
+              <option value="LISTING">Tin đăng này</option>
+              <option value="LANDLORD">Chủ nhà của tin đăng</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Lý do vi phạm (bắt buộc)
+            </label>
+            <input
+              type="text"
+              required
+              minLength={3}
+              maxLength={255}
+              placeholder="VD: Tin đăng giả mạo giá / Yêu cầu đặt cọc trước khi xem..."
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Mô tả chi tiết
+            </label>
+            <textarea
+              rows={3}
+              maxLength={2000}
+              placeholder="Mô tả cụ thể sự việc bạn gặp phải..."
+              value={reportDescription}
+              onChange={(e) => setReportDescription(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Link ảnh / bằng chứng (nếu có)
+            </label>
+            <input
+              type="url"
+              maxLength={500}
+              placeholder="https://..."
+              value={reportEvidenceUrl}
+              onChange={(e) => setReportEvidenceUrl(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsReportOpen(false)}
+              className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={reportLoading}
+              className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 disabled:opacity-50"
+            >
+              {reportLoading ? "Đang gửi..." : "Gửi báo cáo"}
             </button>
           </div>
         </form>

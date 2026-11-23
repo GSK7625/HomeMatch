@@ -1,4 +1,3 @@
-using HomeMatch.Modules.Leasing.Application.Commands.ActivateContract;
 using HomeMatch.Modules.Leasing.Application.Commands.CancelContract;
 using HomeMatch.Modules.Leasing.Application.Commands.ConfirmHandover;
 using HomeMatch.Modules.Leasing.Application.Commands.CreateContract;
@@ -32,6 +31,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -63,6 +63,9 @@ public static class LeasingModuleExtensions
         services.Configure<R2Settings>(configuration.GetSection(R2Settings.SectionName));
         services.AddSingleton<IContractDocumentStorage, R2DocumentStorageService>();
 
+        // Cache (Rate Limiting & OTP Cooldown/Lockout)
+        services.AddMemoryCache();
+
         // Use Case Handlers (Commands)
         services.AddScoped<CreateContractHandler>();
         services.AddScoped<SendContractForSignatureHandler>();
@@ -70,7 +73,6 @@ public static class LeasingModuleExtensions
         services.AddScoped<SignContractHandler>();
         services.AddScoped<RejectContractHandler>();
         services.AddScoped<CancelContractHandler>();
-        services.AddScoped<ActivateContractHandler>();
         services.AddScoped<ConfirmHandoverHandler>();
         services.AddScoped<TerminateContractHandler>();
         services.AddScoped<RecordDepositTransactionHandler>();

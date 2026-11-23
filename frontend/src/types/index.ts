@@ -1175,3 +1175,57 @@ export interface VNPayIpnResult {
   message: string;
 }
 
+// ============================================================================
+// Messaging Leads DTOs (/api/v1/messaging/leads)
+// ============================================================================
+export type LeadStatus =
+  | "NEW"
+  | "CONTACTED"
+  | "VIEWING_SCHEDULED"
+  | "CONTRACT_SIGNED"
+  | "LOST";
+
+export interface LandlordLeadDto {
+  id: number;
+  tenantId: number;
+  tenantName: string;
+  tenantPhone?: string | null;
+  tenantEmail?: string | null;
+  listingId: number;
+  listingTitle: string;
+  roomId?: number | null;
+  roomNumber?: string | null;
+  propertyId?: number | null;
+  propertyName?: string | null;
+  status: LeadStatus;
+  source: string;
+  notes?: string | null;
+  conversationId?: number | null;
+  createdAt: string;
+}
+
+export interface LandlordLeadFilterOptionDto {
+  listingId: number;
+  listingTitle: string;
+  roomId?: number | null;
+  roomNumber?: string | null;
+  propertyName?: string | null;
+}
+
+export interface LandlordLeadStatusSummaryDto {
+  total: number;
+  newCount: number;
+  contactedCount: number;
+  viewingScheduledCount: number;
+  contractSignedCount: number;
+  lostCount: number;
+}
+
+export interface LandlordLeadsResponseDto {
+  items: LandlordLeadDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  summary: LandlordLeadStatusSummaryDto;
+  listingOptions: LandlordLeadFilterOptionDto[];
+}

@@ -52,6 +52,9 @@ import {
   ResolveViolationReportBody,
   CreateCatalogItemBody,
   UpdateCatalogItemBody,
+  LandlordLeadDto,
+  LandlordLeadsResponseDto,
+  LeadStatus,
 } from "@/types";
 
 export const API_BASE = (() => {
@@ -733,6 +736,38 @@ export const messagingApi = {
         }),
       }
     );
+  },
+
+  getLandlordLeads: async (params?: {
+    listingId?: number;
+    roomId?: number;
+    status?: string;
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.listingId) query.set("listingId", String(params.listingId));
+    if (params?.roomId) query.set("roomId", String(params.roomId));
+    if (params?.status && params.status !== "ALL") query.set("status", params.status);
+    if (params?.search?.trim()) query.set("search", params.search.trim());
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.pageSize) query.set("pageSize", String(params.pageSize));
+    const qs = query.toString();
+    return apiRequest<LandlordLeadsResponseDto>(
+      `/api/v1/messaging/leads${qs ? `?${qs}` : ""}`,
+      { method: "GET" }
+    );
+  },
+
+  updateLandlordLead: async (
+    leadId: number,
+    payload: { status?: LeadStatus; notes?: string }
+  ) => {
+    return apiRequest<LandlordLeadDto>(`/api/v1/messaging/leads/${leadId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
   },
 };
 

@@ -68,7 +68,6 @@ export default function LandlordPropertiesPage() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null);
   const [rooms, setRooms] = useState<RoomDto[]>([]);
   const [amenities, setAmenities] = useState<AmenityDto[]>([]);
-  const [roomTypes, setRoomTypes] = useState<{ value: string; label: string }[]>(ROOM_TYPES);
   const [provinces, setProvinces] = useState<ProvinceDto[]>([]);
   const [wards, setWards] = useState<WardDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -137,19 +136,15 @@ export default function LandlordPropertiesPage() {
   const loadCatalogs = useCallback(async () => {
     setLoadingCatalogs(true);
     try {
-      const [provRes, amenRes, rtRes] = await Promise.all([
+      const [provRes, amenRes] = await Promise.all([
         catalogsApi.getProvinces(),
         catalogsApi.getAmenities(),
-        catalogsApi.getRoomTypes(),
       ]);
       if (provRes.isSuccess && provRes.data && provRes.data.length > 0) {
         setProvinces(provRes.data);
       }
       if (amenRes.isSuccess && amenRes.data && amenRes.data.length > 0) {
         setAmenities(amenRes.data);
-      }
-      if (rtRes.isSuccess && rtRes.data && rtRes.data.length > 0) {
-        setRoomTypes(rtRes.data.map((rt) => ({ value: rt.code, label: rt.name })));
       }
     } catch (err) {
       console.warn("Could not load catalogs from backend", err);
@@ -762,7 +757,7 @@ export default function LandlordPropertiesPage() {
               ) : (
                 rooms.map((room) => {
                   const roomTypeLabel =
-                    roomTypes.find((t) => t.value === room.roomType)?.label || room.roomType;
+                    ROOM_TYPES.find((t) => t.value === room.roomType)?.label || room.roomType;
                   const roomAmenityNames = (room.amenityIds || [])
                     .map((id) => amenities.find((a) => a.id === id)?.name)
                     .filter(Boolean) as string[];
@@ -1111,7 +1106,7 @@ export default function LandlordPropertiesPage() {
                   onChange={(e) => setNewRoomType(e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
                 >
-                  {roomTypes.map((t) => (
+                  {ROOM_TYPES.map((t) => (
                     <option key={t.value} value={t.value}>
                       {t.label}
                     </option>
@@ -1441,7 +1436,7 @@ export default function LandlordPropertiesPage() {
                   onChange={(e) => setEditRoomType(e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
                 >
-                  {roomTypes.map((t) => (
+                  {ROOM_TYPES.map((t) => (
                     <option key={t.value} value={t.value}>
                       {t.label}
                     </option>

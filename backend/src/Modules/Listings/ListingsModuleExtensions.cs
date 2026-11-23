@@ -1,4 +1,3 @@
-using HomeMatch.Modules.Listings.Application.Features.AdminDashboard;
 using HomeMatch.Modules.Listings.Application.Features.ListingImages.AddListingImage;
 using HomeMatch.Modules.Listings.Application.Features.ListingImages.DeleteListingImage;
 using HomeMatch.Modules.Listings.Application.Features.ListingImages.UpdateListingImage;
@@ -11,19 +10,17 @@ using HomeMatch.Modules.Listings.Application.Features.Listings.GetPublicListings
 using HomeMatch.Modules.Listings.Application.Features.Listings.SearchListings;
 using HomeMatch.Modules.Listings.Application.Features.Listings.HideListing;
 using HomeMatch.Modules.Listings.Application.Features.Listings.SubmitListing;
-using HomeMatch.Modules.Listings.Application.Features.Moderation.AdminHideListing;
 using HomeMatch.Modules.Listings.Application.Features.Moderation.ApproveListing;
-using HomeMatch.Modules.Listings.Application.Features.Moderation.GetAdminListings;
 using HomeMatch.Modules.Listings.Application.Features.Moderation.RejectListing;
 using HomeMatch.Modules.Listings.Application.Features.Moderation.GetPendingListings;
 using HomeMatch.Modules.Listings.Application.Features.Moderation.GetReviewListing;
 using HomeMatch.Modules.Listings.Application.Features.Listings.UpdateListing;
-using HomeMatch.Modules.Listings.Application.Features.Reports;
 using HomeMatch.Modules.Listings.Application.Features.SavedListings.GetSavedListings;
 using HomeMatch.Modules.Listings.Application.Features.SavedListings.ToggleSaveListing;
 using HomeMatch.Modules.Listings.Application.Interfaces;
 using HomeMatch.Modules.Listings.Infrastructure.Persistence;
 using HomeMatch.Modules.Listings.Infrastructure.Persistence.Repositories;
+using HomeMatch.Modules.Listings.Infrastructure.Services;
 using HomeMatch.Modules.Listings.Infrastructure.BackgroundServices;
 using HomeMatch.Modules.Listings.Infrastructure.Services;
 using HomeMatch.Modules.Listings.Presentation.Endpoints;
@@ -56,7 +53,6 @@ public static class ListingsModuleExtensions
         });
 
         services.AddScoped<IListingRepository, ListingRepository>();
-        services.AddScoped<IViolationReportRepository, ViolationReportRepository>();
         services.AddHostedService<ListingExpirationService>();
         services.AddScoped<IListingImageRepository, ListingImageRepository>();
         services.AddScoped<ISavedListingRepository, SavedListingRepository>();
@@ -75,13 +71,7 @@ public static class ListingsModuleExtensions
         services.AddScoped<ApproveListingHandler>();
         services.AddScoped<RejectListingHandler>();
         services.AddScoped<GetPendingListingsHandler>();
-        services.AddScoped<GetAdminListingsHandler>();
         services.AddScoped<GetReviewListingHandler>();
-        services.AddScoped<AdminHideListingHandler>();
-        services.AddScoped<GetAdminDashboardHandler>();
-        services.AddScoped<CreateViolationReportHandler>();
-        services.AddScoped<GetViolationReportsHandler>();
-        services.AddScoped<ResolveViolationReportHandler>();
         services.AddScoped<HideListingHandler>();
         services.AddScoped<GetPublicListingsHandler>();
         services.AddScoped<SearchListingsHandler>();
@@ -111,7 +101,6 @@ public static class ListingsModuleExtensions
         group.MapListingEndpoints();
         group.MapListingImageEndpoints();
         endpoints.MapAdminListingEndpoints();
-        endpoints.MapViolationReportEndpoints();
 
         return endpoints;
     }

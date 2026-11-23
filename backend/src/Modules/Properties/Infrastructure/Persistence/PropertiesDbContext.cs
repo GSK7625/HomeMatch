@@ -20,9 +20,6 @@ public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> op
     /// <summary>Danh mục Tiện ích cơ sở vật chất (Điều hòa, Nóng lạnh, Máy giặt, Ban công...)</summary>
     public DbSet<Amenity> Amenities => Set<Amenity>();
 
-    /// <summary>Danh mục Loại phòng (RoomTypeCatalog)</summary>
-    public DbSet<RoomTypeCatalog> RoomTypes => Set<RoomTypeCatalog>();
-
     /// <summary>Bảng liên kết Nhiều - Nhiều giữa Phòng và các Tiện ích có sẵn</summary>
     public DbSet<RoomAmenity> RoomAmenities => Set<RoomAmenity>();
 
@@ -86,6 +83,7 @@ public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> op
                 table.HasCheckConstraint("ck_rooms_area", "area_sqm > 0");
                 table.HasCheckConstraint("ck_rooms_max_occupants", "max_occupants > 0");
                 table.HasCheckConstraint("ck_rooms_status", "status IN ('AVAILABLE', 'RENTED', 'SUSPENDED')");
+                table.HasCheckConstraint("ck_rooms_type", "room_type IN ('SINGLE', 'STUDIO', '1B1B', '2B1B', 'DORMITORY')");
             });
             room.HasKey(x => x.Id);
             room.HasAlternateKey(x => new { x.PropertyId, x.Id })
@@ -113,22 +111,8 @@ public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> op
             amenity.HasKey(x => x.Id);
             amenity.Property(x => x.Name).HasMaxLength(100).IsRequired();
             amenity.Property(x => x.Code).HasMaxLength(50).IsRequired();
-            amenity.Property(x => x.IsActive).HasDefaultValue(true);
             amenity.HasIndex(x => x.Name).IsUnique().HasDatabaseName("ux_amenities_name");
             amenity.HasIndex(x => x.Code).IsUnique().HasDatabaseName("ux_amenities_code");
-        });
-
-        modelBuilder.Entity<RoomTypeCatalog>(roomType =>
-        {
-            roomType.ToTable("room_types", "properties");
-            roomType.HasKey(x => x.Id);
-            roomType.Property(x => x.Code).HasMaxLength(50).IsRequired();
-            roomType.Property(x => x.Name).HasMaxLength(100).IsRequired();
-            roomType.Property(x => x.IsActive).HasDefaultValue(true);
-            roomType.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
-            roomType.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
-            roomType.HasIndex(x => x.Code).IsUnique().HasDatabaseName("ux_room_types_code");
-            roomType.HasIndex(x => x.Name).IsUnique().HasDatabaseName("ux_room_types_name");
         });
 
         modelBuilder.Entity<RoomAmenity>(roomAmenity =>

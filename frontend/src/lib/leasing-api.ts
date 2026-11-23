@@ -125,6 +125,9 @@ export const leasingApi = {
   restoreContract: (id: number) =>
     apiRequest<LeasingContractDto>(`${BASE}/${id}/restore`, { method: "POST" }),
 
+  activateContract: (id: number) =>
+    apiRequest<LeasingContractDto>(`${BASE}/${id}/activate`, { method: "POST" }),
+
   terminateContract: (id: number, reason: string) =>
     apiRequest<LeasingContractDto>(`${BASE}/${id}/terminate`, {
       method: "POST",

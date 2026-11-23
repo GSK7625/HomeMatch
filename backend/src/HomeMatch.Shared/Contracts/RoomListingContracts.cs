@@ -23,7 +23,6 @@ public interface IRoomListingReader
         IReadOnlyCollection<long> roomIds, CancellationToken cancellationToken);
     Task<bool> HasElectricityAndWaterRatesAsync(
         long roomId, DateOnly date, CancellationToken cancellationToken);
-    Task<bool> RoomTypeExistsAsync(string code, CancellationToken cancellationToken);
 }
 
 public sealed record RoomCardSummary(
@@ -35,9 +34,7 @@ public sealed record RoomCardSummary(
     string? AddressDetail,
     long? ElectricityPrice,
     long? WaterPrice,
-    IReadOnlyList<string> Amenities,
-    double? Latitude = null,
-    double? Longitude = null);
+    IReadOnlyList<string> Amenities);
 
 public sealed record RoomListingSearchFilter(
     string? ProvinceCode, string? WardCode, string? RoomType, int? Occupants,

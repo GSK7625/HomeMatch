@@ -51,8 +51,7 @@ public sealed class ListingSummaryDto(
     decimal? areaSqm = null, string? roomType = null,
     string? districtName = null, string? provinceName = null, string? addressDetail = null,
     long? electricityPrice = null, long? waterPrice = null,
-    IReadOnlyList<string>? amenities = null,
-    double? latitude = null, double? longitude = null)
+    IReadOnlyList<string>? amenities = null)
 {
     public long Id { get; } = id;
     public long RoomId { get; } = roomId;
@@ -70,8 +69,6 @@ public sealed class ListingSummaryDto(
     public long? ElectricityPrice { get; } = electricityPrice;
     public long? WaterPrice { get; } = waterPrice;
     public IReadOnlyList<string> Amenities { get; } = amenities ?? [];
-    public double? Latitude { get; } = latitude;
-    public double? Longitude { get; } = longitude;
 }
 
 

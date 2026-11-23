@@ -23,20 +23,7 @@ public sealed class CatalogReader(PropertiesDbContext db) : ICatalogReader
     public async Task<IReadOnlyList<AmenityResult>> GetAmenitiesAsync(
         CancellationToken cancellationToken) =>
         await db.Amenities.AsNoTracking()
-            .Where(amenity => amenity.IsActive)
             .OrderBy(amenity => amenity.Id)
-            .Select(amenity => new AmenityResult(amenity.Id, amenity.Code, amenity.Name, amenity.IsActive))
+            .Select(amenity => new AmenityResult(amenity.Id, amenity.Code, amenity.Name))
             .ToListAsync(cancellationToken);
-
-    public async Task<IReadOnlyList<RoomTypeResult>> GetRoomTypesAsync(
-        CancellationToken cancellationToken) =>
-        await db.RoomTypes.AsNoTracking()
-            .Where(roomType => roomType.IsActive)
-            .OrderBy(roomType => roomType.Id)
-            .Select(roomType => new RoomTypeResult(roomType.Id, roomType.Code, roomType.Name, roomType.IsActive))
-            .ToListAsync(cancellationToken);
-
-    public Task<bool> RoomTypeExistsAsync(string code, bool activeOnly, CancellationToken cancellationToken) =>
-        db.RoomTypes.AsNoTracking()
-            .AnyAsync(roomType => roomType.Code == code && (!activeOnly || roomType.IsActive), cancellationToken);
 }

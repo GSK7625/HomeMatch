@@ -4,7 +4,7 @@ using HomeMatch.Shared.Common;
 
 namespace HomeMatch.Modules.Identity.Application.Features.Profile.UpdateProfile;
 
-public static class UpdateProfileValidator
+public static partial class UpdateProfileValidator
 {
     private static readonly HashSet<string> AllowedGenders = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -13,7 +13,8 @@ public static class UpdateProfileValidator
         "OTHER"
     };
 
-    private static readonly Regex VietnamPhoneRegex = new(@"^(0|\+84)[0-9]{9,10}$", RegexOptions.Compiled);
+    [GeneratedRegex(@"^(0|\+84)[0-9]{9,10}$", RegexOptions.Compiled)]
+    private static partial Regex VietnamPhoneRegex();
 
     public static Error? Validate(UpdateProfileCommand command)
     {
@@ -37,7 +38,7 @@ public static class UpdateProfileValidator
         if (!string.IsNullOrWhiteSpace(command.PhoneNumber))
         {
             var normalizedPhone = command.PhoneNumber.Trim().Replace(" ", "").Replace("-", "");
-            if (!VietnamPhoneRegex.IsMatch(normalizedPhone))
+            if (!VietnamPhoneRegex().IsMatch(normalizedPhone))
             {
                 details.Add(new ErrorDetail("phoneNumber", "Số điện thoại không hợp lệ (ví dụ: 0912345678 hoặc +84912345678)."));
             }

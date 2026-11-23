@@ -98,9 +98,7 @@ public static class BillingModuleExtensions
             .RequireAuthorization()
             .WithName("GetLandlordDashboard")
             .WithSummary("Lấy dữ liệu tổng quan Dashboard và Báo cáo tài chính cho Chủ nhà")
-            .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status200OK)
-            .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status401Unauthorized)
-            .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status403Forbidden);
+            .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status200OK);
 
         // Alias route: /api/v1/landlord/dashboard for direct semantic access
         endpoints.MapGet("/api/v1/landlord/dashboard", HandleGetLandlordDashboardAsync)
@@ -108,9 +106,7 @@ public static class BillingModuleExtensions
             .WithTags("Landlord")
             .WithName("GetLandlordDashboardDirect")
             .WithSummary("Lấy dữ liệu tổng quan Dashboard Chủ nhà")
-            .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status200OK)
-            .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status401Unauthorized)
-            .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status403Forbidden);
+            .Produces<ApiResponse<LandlordDashboardDto>>(StatusCodes.Status200OK);
 
         return endpoints;
     }

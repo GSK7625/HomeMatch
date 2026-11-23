@@ -336,29 +336,10 @@ body {
   html,
   body {
     width: 210mm;
-    min-height: 0 !important;
     background: #ffffff !important;
     margin: 0 !important;
     padding: 0 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-  }
-
-  html:has(.contract-a4-sheet),
-  body:has(.contract-a4-sheet) {
-    height: 297mm !important;
-    max-height: 297mm !important;
-    overflow: hidden !important;
-  }
-
-  .contract-a4-sheet {
-    width: 210mm !important;
-    height: calc(297mm / var(--contract-print-zoom, 1)) !important;
-    max-width: none !important;
-    margin: 0 !important;
-    box-sizing: border-box !important;
-    display: flex !important;
-    flex-direction: column !important;
-    zoom: var(--contract-print-zoom, 1);
   }
 }

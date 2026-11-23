@@ -1,11 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import {
-  ListingSummaryDto,
-  NotificationDto,
-  PropertyListing,
-  PublicListingDetailDto,
-} from "@/types";
+import { ListingSummaryDto, PropertyListing, PublicListingDetailDto } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -172,86 +167,4 @@ export function formatAmenityName(name?: string | null): string {
   if (!trimmed) return "";
   if (trimmed.toLowerCase() === "wifi") return "Wifi";
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-}
-
-export const NOTIFICATION_OPENED_EVENT = "homematch:notification-opened";
-export const NOTIFICATION_READ_EVENT = "homematch:notification-read";
-
-export function dispatchNotificationOpened(notification: NotificationDto): void {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(
-    new CustomEvent<NotificationDto>(NOTIFICATION_OPENED_EVENT, { detail: notification })
-  );
-}
-
-export function dispatchNotificationRead(notificationId?: number): void {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(
-    new CustomEvent<{ id?: number }>(NOTIFICATION_READ_EVENT, {
-      detail: { id: notificationId },
-    })
-  );
-}
-
-/**
- * Chuẩn hóa đường dẫn đích khi người dùng bấm vào một thông báo ở bất kỳ đâu
- * (Toast realtime, chuông Navbar, Trang Thông báo, Dashboard).
- */
-export function resolveNotificationTarget(
-  notification: Pick<NotificationDto, "type" | "referenceType" | "referenceId">,
-  role?: string | null
-): string {
-  const refType = (notification.referenceType || "").toUpperCase();
-  const typeUpper = (notification.type || "").toUpperCase();
-  const normalizedRole = (role || "").toLowerCase();
-
-  if (refType.includes("VIEWING") || typeUpper.includes("VIEWING")) {
-    const base = normalizedRole === "landlord" ? "/landlord/viewings" : "/tenant/viewings";
-    return notification.referenceId ? `${base}?appointmentId=${notification.referenceId}` : base;
-  }
-
-  if (refType.includes("CONVERSATION") || typeUpper.includes("MESSAGE")) {
-    return notification.referenceId
-      ? `/messages?conversationId=${notification.referenceId}`
-      : "/messages";
-  }
-
-  if (refType.includes("CONTRACT") || typeUpper.includes("CONTRACT")) {
-    return normalizedRole === "landlord" ? "/landlord/contracts" : "/tenant/dashboard";
-  }
-
-  if (refType.includes("LISTING") || typeUpper.includes("LISTING")) {
-    if (normalizedRole === "landlord") return "/landlord/listings";
-    if (normalizedRole === "admin") return "/admin/dashboard";
-    return notification.referenceId ? `/listings/${notification.referenceId}` : "/listings";
-  }
-
-  if (normalizedRole === "landlord") return "/landlord/dashboard";
-  if (normalizedRole === "admin") return "/admin/dashboard";
-  return "/tenant/notifications";
-}
-
-export function normalizeLocationName(value?: string | null): string {
-  if (!value) return "";
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/^(thành phố|tp\.|tp|tỉnh|quận|huyện|thị xã|phường|xã|thị trấn)\s+/i, "")
-    .trim();
-}
-
-export function matchesLocationFilter(
-  candidate?: string | null,
-  filterValue?: string | null
-): boolean {
-  if (!filterValue || filterValue === "Tất cả") return true;
-  if (!candidate) return false;
-  const normCandidate = normalizeLocationName(candidate);
-  const normFilter = normalizeLocationName(filterValue);
-  if (!normFilter) return true;
-  return (
-    normCandidate === normFilter ||
-    normCandidate.includes(normFilter) ||
-    normFilter.includes(normCandidate)
-  );
 }

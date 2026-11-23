@@ -25,10 +25,8 @@ public sealed class SearchListingsHandler(IListingRepository listings, IRoomList
             || query.MinArea <= 0 || query.MaxArea <= 0 || query.MinArea > query.MaxArea
             || query.Occupants <= 0 || query.Keyword?.Length > 200
             || query.ProvinceCode?.Length > 20 || query.WardCode?.Length > 20
-            || query.AmenityIds.Length > 50 || query.AmenityIds.Any(id => id <= 0))
-            return Result.Failure<SearchListingsDto>(ListingsErrors.InvalidSearch);
-
-        if (query.RoomType is not null && !await rooms.RoomTypeExistsAsync(query.RoomType, cancellationToken))
+            || query.AmenityIds.Length > 50 || query.AmenityIds.Any(id => id <= 0)
+            || query.RoomType is not (null or "SINGLE" or "STUDIO" or "1B1B" or "2B1B" or "DORMITORY"))
             return Result.Failure<SearchListingsDto>(ListingsErrors.InvalidSearch);
 
         var matches = await rooms.SearchAvailableRoomsAsync(new(
@@ -45,15 +43,12 @@ public sealed class SearchListingsHandler(IListingRepository listings, IRoomList
             return Result.Success(new SearchListingsDto([], query.Page, query.PageSize, total));
 
         var pagedRoomIds = items.Select(x => x.RoomId).Distinct().ToArray();
-        var pagedListingIds = items.Select(x => x.Id).Distinct().ToArray();
         var roomCards = await rooms.GetRoomCardSummariesAsync(pagedRoomIds, cancellationToken);
-        var coordsByListing = await listings.GetCoordinatesBatchAsync(pagedListingIds, cancellationToken);
 
         var summaries = items.Select(listing =>
         {
             roomCards.TryGetValue(listing.RoomId, out var roomCard);
-            coordsByListing.TryGetValue(listing.Id, out var coords);
-            return ListingMapping.ToCardSummary(listing, roomCard, coords);
+            return ListingMapping.ToCardSummary(listing, roomCard);
         }).ToArray();
 
         return Result.Success(new SearchListingsDto(summaries, query.Page, query.PageSize, total));

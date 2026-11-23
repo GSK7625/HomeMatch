@@ -1,11 +1,10 @@
 "use client";
 
-import React, { Suspense, useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
 import { leasingApi } from "@/lib/leasing-api";
-import { billingApi } from "@/lib/billing-api";
 import {
   getStoredToken,
   notificationsApi,
@@ -18,9 +17,7 @@ import {
   getStatusMeta,
 } from "@/features/leasing/leasing-helpers";
 import { parseContractSnapshot } from "@/features/leasing/contract-snapshot";
-import { TenantBillingTab } from "@/features/billing/TenantBillingTab";
 import {
-  BillingDebtSummaryDto,
   LeasingContractDto,
   NotificationDto,
   ViewedListingContractItem,
@@ -35,6 +32,7 @@ import {
   Eye,
   MessageSquare,
   Clock,
+  CreditCard,
   Bell,
   ArrowRight,
   MapPin,
@@ -46,32 +44,16 @@ import {
   Mail,
   Search,
 } from "lucide-react";
-import {
-  cn,
-  dispatchNotificationRead,
-  NOTIFICATION_OPENED_EVENT,
-  NOTIFICATION_READ_EVENT,
-  resolveNotificationTarget,
-} from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
-type TenantDashboardTab = "overview" | "history" | "contracts" | "bills";
-
-function parseInitialTab(tabParam: string | null): TenantDashboardTab {
-  if (tabParam === "history" || tabParam === "contracts" || tabParam === "bills") {
-    return tabParam;
-  }
-  return "overview";
-}
-
-function TenantDashboardContent() {
+export default function TenantDashboardPage() {
   const { user, role } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<TenantDashboardTab>(() =>
-    parseInitialTab(searchParams.get("tab"))
-  );
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "history" | "contracts" | "bills"
+  >("overview");
   const [isLoading, setIsLoading] = useState(true);
 
   const [contracts, setContracts] = useState<LeasingContractDto[]>([]);
@@ -79,7 +61,6 @@ function TenantDashboardContent() {
   const [upcomingViewings, setUpcomingViewings] = useState<ViewingAppointmentDto[]>([]);
   const [recentNotifications, setRecentNotifications] = useState<NotificationDto[]>([]);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
-  const [unpaidInvoicesCount, setUnpaidInvoicesCount] = useState(0);
 
   const [profileSummary, setProfileSummary] = useState({
     fullName: "",
@@ -95,80 +76,38 @@ function TenantDashboardContent() {
   });
 
   useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    if (tabParam === "overview" || tabParam === "history" || tabParam === "contracts" || tabParam === "bills") {
-      setActiveTab(tabParam);
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
     if (role === "Landlord") {
       router.replace("/landlord/dashboard");
     }
   }, [role, router]);
 
-  const handleDebtSummaryChange = useCallback((summary: BillingDebtSummaryDto | null) => {
-    setUnpaidInvoicesCount(summary?.totalUnpaidInvoices ?? 0);
-  }, []);
+  const loadData = useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
 
-  const refreshDashboard = useCallback(
-    async (silent = false) => {
-      if (!user) return;
-      if (!silent) setIsLoading(true);
+    try {
+      const token = getStoredToken();
+      if (token) {
+        const [dashRes, viewedRes, viewingsRes, notifRes, contractsRes] = await Promise.all([
+          tenantOverviewApi.getDashboard(),
+          tenantOverviewApi.getViewedListings(1, 6),
+          viewingsApi.getAppointments({ roleView: "TENANT", page: 1, pageSize: 6 }),
+          notificationsApi.getNotifications({ page: 1, pageSize: 5 }),
+          leasingApi.getContracts({ roleView: "TENANT", page: 1, pageSize: 20 }),
+        ]);
 
-      try {
-        const token = getStoredToken();
-        if (token) {
-          const [dashRes, viewedRes, viewingsRes, notifRes, contractsRes, debtSummaryRes] = await Promise.all([
-            tenantOverviewApi.getDashboard(),
-            tenantOverviewApi.getViewedListings(1, 6),
-            viewingsApi.getAppointments({ roleView: "TENANT", page: 1, pageSize: 6 }),
-            notificationsApi.getNotifications({ page: 1, pageSize: 5 }),
-            leasingApi.getContracts({ roleView: "TENANT", page: 1, pageSize: 20 }),
-            billingApi.getDebtSummary(),
-          ]);
-
-          if (dashRes.isSuccess && dashRes.data) {
-            setProfileSummary({
-              fullName: dashRes.data.fullName,
-              email: dashRes.data.email,
-              phoneNumber: dashRes.data.phoneNumber || "",
-            });
-            setStats({
-              viewedCount: dashRes.data.totalViewedListings,
-              favCount: dashRes.data.totalSavedListings,
-              viewingCount: dashRes.data.totalAppointments,
-              chatCount: dashRes.data.totalConversations,
-            });
-          } else {
-            // When no token: clean empty states, absolutely no mock listings or mock viewings
-            setProfileSummary({
-              fullName: user.displayName || user.fullName || "Người thuê",
-              email: user.email,
-              phoneNumber: user.phoneNumber || "",
-            });
-            setStats({
-              viewedCount: 0,
-              favCount: 0,
-              viewingCount: 0,
-              chatCount: 0,
-            });
-            setViewedListings([]);
-            setUpcomingViewings([]);
-            setRecentNotifications([]);
-            setUnreadNotificationsCount(0);
-          }
-
-          setViewedListings(viewedRes.isSuccess && viewedRes.data ? viewedRes.data.items : []);
-          setUpcomingViewings(viewingsRes.isSuccess && viewingsRes.data ? viewingsRes.data.items : []);
-          setRecentNotifications(notifRes.isSuccess && notifRes.data ? notifRes.data.items : []);
-          setUnreadNotificationsCount(notifRes.isSuccess && notifRes.data ? notifRes.data.unreadCount : 0);
-          setContracts(contractsRes.isSuccess && contractsRes.data ? contractsRes.data.items : []);
-          setUnpaidInvoicesCount(
-            debtSummaryRes.isSuccess && debtSummaryRes.data
-              ? debtSummaryRes.data.totalUnpaidInvoices
-              : 0
-          );
+        if (dashRes.isSuccess && dashRes.data) {
+          setProfileSummary({
+            fullName: dashRes.data.fullName,
+            email: dashRes.data.email,
+            phoneNumber: dashRes.data.phoneNumber || "",
+          });
+          setStats({
+            viewedCount: dashRes.data.totalViewedListings,
+            favCount: dashRes.data.totalSavedListings,
+            viewingCount: dashRes.data.totalAppointments,
+            chatCount: dashRes.data.totalConversations,
+          });
         } else {
           setProfileSummary({
             fullName: user.displayName || user.fullName || "Người thuê",
@@ -181,55 +120,42 @@ function TenantDashboardContent() {
             viewingCount: 0,
             chatCount: 0,
           });
-          setViewedListings([]);
-          setUpcomingViewings([]);
-          setRecentNotifications([]);
-          setUnreadNotificationsCount(0);
-          setContracts([]);
-          setUnpaidInvoicesCount(0);
         }
-      } catch {
-        showToast("Không thể tải thông tin Dashboard. Vui lòng tải lại trang.", "error");
-      } finally {
-        if (!silent) setIsLoading(false);
-      }
-    },
-    [user, showToast]
-  );
 
-  const loadData = useCallback(() => refreshDashboard(false), [refreshDashboard]);
+        setViewedListings(viewedRes.isSuccess && viewedRes.data ? viewedRes.data.items : []);
+        setUpcomingViewings(viewingsRes.isSuccess && viewingsRes.data ? viewingsRes.data.items : []);
+        setRecentNotifications(notifRes.isSuccess && notifRes.data ? notifRes.data.items : []);
+        setUnreadNotificationsCount(notifRes.isSuccess && notifRes.data ? notifRes.data.unreadCount : 0);
+        setContracts(contractsRes.isSuccess && contractsRes.data ? contractsRes.data.items : []);
+      } else {
+        setProfileSummary({
+          fullName: user.displayName || user.fullName || "Người thuê",
+          email: user.email,
+          phoneNumber: user.phoneNumber || "",
+        });
+        setStats({
+          viewedCount: 0,
+          favCount: 0,
+          viewingCount: 0,
+          chatCount: 0,
+        });
+        setViewedListings([]);
+        setUpcomingViewings([]);
+        setRecentNotifications([]);
+        setUnreadNotificationsCount(0);
+        setContracts([]);
+      }
+    } catch {
+      showToast("Không thể tải thông tin Dashboard. Vui lòng tải lại trang.", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, showToast]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  useEffect(() => {
-    const handleNotificationOpened = () => {
-      refreshDashboard(true);
-    };
-    const handleNotificationReadSync = (event: Event) => {
-      const customEvent = event as CustomEvent<{ id?: number }>;
-      const readId = customEvent.detail?.id;
-      if (readId) {
-        setRecentNotifications((prev) => {
-          const existedUnread = prev.some((n) => n.id === readId && !n.isRead);
-          if (existedUnread) {
-            setUnreadNotificationsCount((count) => Math.max(0, count - 1));
-          }
-          return prev.map((n) => (n.id === readId ? { ...n, isRead: true } : n));
-        });
-      } else {
-        setRecentNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-        setUnreadNotificationsCount(0);
-      }
-    };
-    window.addEventListener(NOTIFICATION_OPENED_EVENT, handleNotificationOpened);
-    window.addEventListener(NOTIFICATION_READ_EVENT, handleNotificationReadSync);
-    return () => {
-      window.removeEventListener(NOTIFICATION_OPENED_EVENT, handleNotificationOpened);
-      window.removeEventListener(NOTIFICATION_READ_EVENT, handleNotificationReadSync);
-    };
-  }, [refreshDashboard]);
   const handleMarkNotificationRead = async (notif: NotificationDto) => {
     if (notif.isRead) return;
     const token = getStoredToken();
@@ -240,12 +166,6 @@ function TenantDashboardContent() {
       prev.map((n) => (n.id === notif.id ? { ...n, isRead: true } : n))
     );
     setUnreadNotificationsCount((prev) => Math.max(0, prev - 1));
-    dispatchNotificationRead(notif.id);
-  };
-
-  const handleOpenNotification = async (notif: NotificationDto) => {
-    await handleMarkNotificationRead(notif);
-    router.push(resolveNotificationTarget(notif, role));
   };
 
   if (!user) {
@@ -455,7 +375,7 @@ function TenantDashboardContent() {
           )}
         >
           <Eye className="w-4 h-4" />
-          <span>Danh Sách Phòng Đã Xem ({stats.viewedCount})</span>
+          <span>Danh Sách Phòng Đã Xem ({viewedListings.length})</span>
         </button>
 
         <button
@@ -484,11 +404,6 @@ function TenantDashboardContent() {
         >
           <DollarSign className="w-4 h-4" />
           <span>Hóa Đơn & Điện Nước</span>
-          {unpaidInvoicesCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">
-              {unpaidInvoicesCount}
-            </span>
-          )}
         </button>
       </div>
 
@@ -638,17 +553,8 @@ function TenantDashboardContent() {
                 {recentNotifications.map((notif) => (
                   <div
                     key={notif.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleOpenNotification(notif)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleOpenNotification(notif);
-                      }
-                    }}
                     className={cn(
-                      "p-3.5 rounded-xl border transition-all flex items-start justify-between gap-3 cursor-pointer hover:border-blue-300 hover:shadow-xs",
+                      "p-3.5 rounded-xl border transition-all flex items-start justify-between gap-3",
                       notif.isRead
                         ? "bg-white border-slate-200/70"
                         : "bg-blue-50/40 border-blue-200"
@@ -674,10 +580,7 @@ function TenantDashboardContent() {
                     {!notif.isRead && (
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMarkNotificationRead(notif);
-                        }}
+                        onClick={() => handleMarkNotificationRead(notif)}
                         className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-emerald-600 shrink-0"
                         title="Đánh dấu đã đọc"
                       >
@@ -868,25 +771,14 @@ function TenantDashboardContent() {
 
       {/* TAB 4: Monthly Bills */}
       {activeTab === "bills" && (
-        <TenantBillingTab
-          contracts={contracts}
-          onDebtSummaryChange={handleDebtSummaryChange}
-        />
+        <div className="p-12 text-center space-y-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+          <CreditCard className="w-10 h-10 text-slate-300 mx-auto" />
+          <h4 className="text-sm font-bold text-slate-800">Hóa Đơn & Thanh Toán Đang Chờ Đồng Bộ Backend</h4>
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            Dữ liệu hóa đơn tiền phòng và điện nước sẽ được hiển thị trực tiếp từ hệ thống Backend Billing API sau khi hoàn tất tích hợp.
+          </p>
+        </div>
       )}
     </div>
-  );
-}
-
-export default function TenantDashboardPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center text-xs text-slate-500">
-          Đang tải Dashboard Người thuê...
-        </div>
-      }
-    >
-      <TenantDashboardContent />
-    </Suspense>
   );
 }

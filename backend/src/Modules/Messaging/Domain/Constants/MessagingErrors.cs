@@ -35,16 +35,4 @@ public static class MessagingErrors
     public static readonly Error InvalidMessageType = new(
         "Messaging.InvalidMessageType",
         "Loại tin nhắn không hợp lệ (chỉ hỗ trợ TEXT hoặc IMAGE).");
-
-    public static readonly Error LeadNotFound = new(
-        "Messaging.LeadNotFound",
-        "Không tìm thấy thông tin khách quan tâm yêu cầu.");
-
-    public static readonly Error LeadForbidden = new(
-        "Messaging.LeadForbidden",
-        "Bạn không có quyền truy cập hoặc cập nhật khách quan tâm này.");
-
-    public static readonly Error InvalidLeadStatus = new(
-        "Messaging.InvalidLeadStatus",
-        "Trạng thái khách quan tâm không hợp lệ (chỉ hỗ trợ NEW, CONTACTED, VIEWING_SCHEDULED, CONTRACT_SIGNED, LOST).");
 }

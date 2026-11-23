@@ -27,8 +27,5 @@ public static class ListingsErrors
     public static readonly Error LastImage = new("Listing.LastImage", "Ẩn tin trước khi xóa ảnh cuối cùng.");
     public static readonly Error ImageUploadUnavailable = new("Listing.ImageUploadUnavailable", "Cần tích hợp dịch vụ lưu ảnh trước khi thêm ảnh ở môi trường này.");
     public static readonly Error InvalidLimit = new("Listing.InvalidLimit", "Giới hạn phải từ 1 đến 50.");
-    public static readonly Error ReportNotFound = new("Report.NotFound", "Không tìm thấy báo cáo vi phạm.");
-    public static readonly Error InvalidReport = new("Report.InvalidInput", "Thông tin báo cáo vi phạm không hợp lệ.");
-    public static readonly Error ReportAlreadyResolved = new("Report.AlreadyResolved", "Báo cáo vi phạm đã được xử lý trước đó.");
 }
 

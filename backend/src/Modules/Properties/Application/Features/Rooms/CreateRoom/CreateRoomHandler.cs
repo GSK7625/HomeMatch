@@ -9,25 +9,20 @@ public sealed class CreateRoomHandler
 {
     private readonly IPropertyRepository _properties;
     private readonly IRoomRepository _rooms;
-    private readonly ICatalogReader _catalogs;
 
-    public CreateRoomHandler(IPropertyRepository properties, IRoomRepository rooms, ICatalogReader catalogs)
+    public CreateRoomHandler(IPropertyRepository properties, IRoomRepository rooms)
     {
         _properties = properties;
         _rooms = rooms;
-        _catalogs = catalogs;
     }
 
     public async Task<Result<RoomResult>> HandleAsync(CreateRoomCommand command, CancellationToken cancellationToken = default)
     {
         if (!await _properties.IsOwnedAsync(command.LandlordId, command.PropertyId, cancellationToken))
             return Result.Failure<RoomResult>(PropertiesErrors.PropertyNotFound);
-        var normalizedType = (command.RoomType ?? string.Empty).Trim().ToUpperInvariant();
         var error = RoomValidation.Validate(command.RoomNumber, command.Floor, command.AreaSqm,
-            normalizedType, command.MaxOccupants);
+            command.RoomType, command.MaxOccupants);
         if (error is not null) return Result.Failure<RoomResult>(error);
-        if (!await _catalogs.RoomTypeExistsAsync(normalizedType, activeOnly: true, cancellationToken))
-            return Result.Failure<RoomResult>(PropertiesErrors.InvalidRoom);
         var number = command.RoomNumber.Trim();
         if (await _rooms.NumberExistsAsync(command.PropertyId, number, null, cancellationToken))
             return Result.Failure<RoomResult>(PropertiesErrors.DuplicateRoomNumber);
@@ -47,7 +42,7 @@ public sealed class CreateRoomHandler
             RoomNumber = number,
             Floor = command.Floor,
             AreaSqm = command.AreaSqm,
-            RoomType = normalizedType,
+            RoomType = command.RoomType,
             MaxOccupants = command.MaxOccupants,
             Status = "AVAILABLE",
             AvailableFrom = command.AvailableFrom ?? BusinessDate.Today(),

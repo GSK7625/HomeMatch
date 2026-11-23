@@ -106,12 +106,6 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("code");
 
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true)
-                        .HasColumnName("is_active");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -297,6 +291,8 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_rooms_max_occupants", "max_occupants > 0");
 
                             t.HasCheckConstraint("ck_rooms_status", "status IN ('AVAILABLE', 'RENTED', 'SUSPENDED')");
+
+                            t.HasCheckConstraint("ck_rooms_type", "room_type IN ('SINGLE', 'STUDIO', '1B1B', '2B1B', 'DORMITORY')");
                         });
                 });
 
@@ -315,58 +311,6 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
                     b.HasIndex("AmenityId");
 
                     b.ToTable("room_amenities", "properties");
-                });
-
-            modelBuilder.Entity("HomeMatch.Modules.Properties.Domain.Entities.RoomTypeCatalog", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("code");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true)
-                        .HasColumnName("is_active");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("name");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ux_room_types_code");
-
-                    b.HasIndex("Name")
-                        .IsUnique()
-                        .HasDatabaseName("ux_room_types_name");
-
-                    b.ToTable("room_types", "properties");
                 });
 
             modelBuilder.Entity("HomeMatch.Modules.Properties.Domain.Entities.UtilityTariff", b =>

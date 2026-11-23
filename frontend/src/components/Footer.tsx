@@ -118,12 +118,7 @@ export function Footer() {
             <ul className="space-y-2 text-xs">
               <li>
                 <Link href="/landlord/dashboard" className="hover:text-white transition-colors">
-                  Dashboard tổng quan chủ nhà
-                </Link>
-              </li>
-              <li>
-                <Link href="/landlord/reports" className="hover:text-white transition-colors">
-                  Báo cáo tài chính &amp; Công nợ
+                  Dashboard tài chính & Công nợ
                 </Link>
               </li>
               <li>

@@ -118,9 +118,7 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
                 room.AreaSqm,
                 ward.DistrictName,
                 ProvinceName = province.FullName,
-                room.Property.AddressDetail,
-                room.Property.Latitude,
-                room.Property.Longitude
+                room.Property.AddressDetail
             }).ToListAsync(cancellationToken);
 
         if (baseData.Count == 0)
@@ -169,9 +167,7 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
                 b.AddressDetail,
                 tariff?.Electricity,
                 tariff?.Water,
-                roomAmenities ?? [],
-                b.Latitude.HasValue ? (double)b.Latitude.Value : null,
-                b.Longitude.HasValue ? (double)b.Longitude.Value : null);
+                roomAmenities ?? []);
         }
 
         return result;
@@ -192,7 +188,4 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
             .Select(rate => rate.TariffType).Distinct().ToListAsync(cancellationToken);
         return types.Count == 2;
     }
-
-    public Task<bool> RoomTypeExistsAsync(string code, CancellationToken cancellationToken) =>
-        db.RoomTypes.AsNoTracking().AnyAsync(rt => rt.Code == code, cancellationToken);
 }

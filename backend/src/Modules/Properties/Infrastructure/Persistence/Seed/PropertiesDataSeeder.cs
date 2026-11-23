@@ -17,7 +17,6 @@ public static class PropertiesDataSeeder
         await SeedProvincesAsync(db, logger);
         await SeedWardsAsync(db, logger);
         await SeedAmenitiesAsync(db, logger);
-        await SeedRoomTypesAsync(db, logger);
     }
 
     private static async Task SeedProvincesAsync(PropertiesDbContext db, ILogger? logger)
@@ -98,45 +97,49 @@ public static class PropertiesDataSeeder
             new() { Name = "khép kín", Code = "PRIVATE_BATHROOM" }
         };
 
+        var validCodes = officialAmenities.Select(a => a.Code).ToHashSet();
         var existing = await db.Amenities.ToListAsync();
+        
+        // Xóa những tiện ích không nằm trong danh mục 19 tiện ích chuẩn nếu chưa có phòng nào dùng
+        var obsolete = existing.Where(a => !validCodes.Contains(a.Code)).ToList();
+        if (obsolete.Count > 0)
+        {
+            var obsoleteIds = obsolete.Select(a => a.Id).ToList();
+            var usedIds = await db.RoomAmenities.Where(ra => obsoleteIds.Contains(ra.AmenityId)).Select(ra => ra.AmenityId).ToHashSetAsync();
+            var canDelete = obsolete.Where(a => !usedIds.Contains(a.Id)).ToList();
+            if (canDelete.Count > 0)
+            {
+                db.Amenities.RemoveRange(canDelete);
+                await db.SaveChangesAsync();
+                existing = await db.Amenities.ToListAsync();
+            }
+        }
+
         var existingByCode = existing.ToDictionary(a => a.Code);
         var added = 0;
+        var updated = 0;
 
         foreach (var item in officialAmenities)
         {
-            if (!existingByCode.ContainsKey(item.Code))
+            if (existingByCode.TryGetValue(item.Code, out var current))
+            {
+                if (current.Name != item.Name)
+                {
+                    current.Name = item.Name;
+                    updated++;
+                }
+            }
+            else
             {
                 db.Amenities.Add(item);
                 added++;
             }
         }
 
-        if (added > 0)
+        if (added > 0 || updated > 0)
         {
             await db.SaveChangesAsync();
-            logger?.LogInformation("Đã bổ sung {Added} tiện ích mặc định.", added);
-        }
-    }
-
-    private static async Task SeedRoomTypesAsync(PropertiesDbContext db, ILogger? logger)
-    {
-        var now = DateTimeOffset.UtcNow;
-        var defaults = new List<RoomTypeCatalog>
-        {
-            new() { Code = "SINGLE", Name = "Phòng đơn khép kín", IsActive = true, CreatedAt = now, UpdatedAt = now },
-            new() { Code = "STUDIO", Name = "Studio", IsActive = true, CreatedAt = now, UpdatedAt = now },
-            new() { Code = "1B1B", Name = "1 Phòng ngủ + 1 Khách", IsActive = true, CreatedAt = now, UpdatedAt = now },
-            new() { Code = "2B1B", Name = "2 Phòng ngủ", IsActive = true, CreatedAt = now, UpdatedAt = now },
-            new() { Code = "DORMITORY", Name = "Ký túc xá / Ở ghép", IsActive = true, CreatedAt = now, UpdatedAt = now }
-        };
-
-        var existingCodes = await db.RoomTypes.Select(r => r.Code).ToHashSetAsync();
-        var toAdd = defaults.Where(d => !existingCodes.Contains(d.Code)).ToList();
-        if (toAdd.Count > 0)
-        {
-            await db.RoomTypes.AddRangeAsync(toAdd);
-            await db.SaveChangesAsync();
-            logger?.LogInformation("Đã khởi tạo {Count} danh mục loại phòng mặc định.", toAdd.Count);
+            logger?.LogInformation("Đã đồng bộ tiện ích: thêm mới {Added}, cập nhật {Updated}", added, updated);
         }
     }
 

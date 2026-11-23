@@ -9,18 +9,12 @@ public sealed class UpdateRoomHandler
 {
     private readonly IPropertyRepository _properties;
     private readonly IRoomRepository _rooms;
-    private readonly ICatalogReader _catalogs;
     private readonly IRoomListingEditReader _listingEditReader;
 
-    public UpdateRoomHandler(
-        IPropertyRepository properties,
-        IRoomRepository rooms,
-        ICatalogReader catalogs,
-        IRoomListingEditReader listingEditReader)
+    public UpdateRoomHandler(IPropertyRepository properties, IRoomRepository rooms, IRoomListingEditReader listingEditReader)
     {
         _properties = properties;
         _rooms = rooms;
-        _catalogs = catalogs;
         _listingEditReader = listingEditReader;
     }
 
@@ -36,12 +30,10 @@ public sealed class UpdateRoomHandler
         var number = (command.RoomNumber ?? room.RoomNumber).Trim();
         var floor = command.Floor ?? room.Floor;
         var area = command.AreaSqm ?? room.AreaSqm;
-        var type = (command.RoomType ?? room.RoomType).Trim().ToUpperInvariant();
+        var type = command.RoomType ?? room.RoomType;
         var occupants = command.MaxOccupants ?? room.MaxOccupants;
         var error = RoomValidation.Validate(number, floor, area, type, occupants);
         if (error is not null) return Result.Failure<RoomResult>(error);
-        if (type != room.RoomType && !await _catalogs.RoomTypeExistsAsync(type, activeOnly: true, cancellationToken))
-            return Result.Failure<RoomResult>(PropertiesErrors.InvalidRoom);
         if (number != room.RoomNumber && await _rooms.NumberExistsAsync(command.PropertyId, number, room.Id, cancellationToken))
             return Result.Failure<RoomResult>(PropertiesErrors.DuplicateRoomNumber);
         var amenityIds = command.AmenityIds;

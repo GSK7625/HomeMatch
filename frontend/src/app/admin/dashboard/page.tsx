@@ -3,23 +3,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/AuthContext";
-import {
-  adminDashboardApi,
-  adminListingsApi,
-  adminUsersApi,
-  adminReportsApi,
-  adminCatalogsApi,
-  getStoredToken,
-} from "@/lib/api-client";
-import {
-  AdminDashboardSummaryDto,
-  AdminListingItemDto,
-  AdminUserItemDto,
-  ListingDetailDto,
-  ViolationReportDto,
-  AmenityDto,
-  RoomTypeDto,
-} from "@/types";
+import { adminListingsApi, listingsApi, getStoredToken } from "@/lib/api-client";
+import { PropertyListing, ListingSummaryDto, ListingDetailDto } from "@/types";
 import { useToast } from "@/components/Toast";
 import { Modal } from "@/components/Modal";
 import {
@@ -27,284 +12,149 @@ import {
   Users,
   FileText,
   AlertTriangle,
+  XCircle,
   Eye,
-  EyeOff,
-  Building,
   RefreshCw,
-  Search,
-  Lock,
-  Unlock,
-  Plus,
-  Pencil,
-  Tags,
-  ExternalLink,
-  CheckCircle2,
-  Ban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type AdminTab = "listings" | "users" | "reports" | "catalogs";
 
 export default function AdminDashboardPage() {
   const { user, role } = useAuth();
   const { showToast } = useToast();
+  const [activeTab, setActiveTab] = useState<"listings" | "users" | "reports">("listings");
+  const [listings, setListings] = useState<PropertyListing[]>([]);
 
-  const [activeTab, setActiveTab] = useState<AdminTab>("listings");
-  const [period, setPeriod] = useState<"all" | "today" | "week" | "month" | "year">("all");
-  const [dashboard, setDashboard] = useState<AdminDashboardSummaryDto | null>(null);
-  const [loadingDashboard, setLoadingDashboard] = useState(false);
+  // Real backend listings
+  const [backendListings, setBackendListings] = useState<ListingSummaryDto[]>([]);
+  const [pendingListings, setPendingListings] = useState<ListingSummaryDto[]>([]);
+  const [loadingPending, setLoadingPending] = useState(false);
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
 
-  // Tab 1: Listings
-  const [listings, setListings] = useState<AdminListingItemDto[]>([]);
-  const [listingsTotal, setListingsTotal] = useState(0);
-  const [listingStatusFilter, setListingStatusFilter] = useState("");
-  const [listingKeyword, setListingKeyword] = useState("");
-  const [loadingListings, setLoadingListings] = useState(false);
-
-  // Reject & Hide & Review Modals
+  // Reject Modal State
   const [rejectingListingId, setRejectingListingId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectLoading, setRejectLoading] = useState(false);
 
-  const [hidingListing, setHidingListing] = useState<AdminListingItemDto | null>(null);
-  const [hideReason, setHideReason] = useState("");
-  const [hideLoading, setHideLoading] = useState(false);
-
+  // Admin Review Detail Modal State (GET /api/v1/admin/listings/{listingId})
   const [reviewDetailListing, setReviewDetailListing] = useState<ListingDetailDto | null>(null);
+  const [loadingReviewDetail, setLoadingReviewDetail] = useState(false);
 
-  // Tab 2: Users
-  const [users, setUsers] = useState<AdminUserItemDto[]>([]);
-  const [usersTotal, setUsersTotal] = useState(0);
-  const [userSearch, setUserSearch] = useState("");
-  const [userRoleFilter, setUserRoleFilter] = useState("");
-  const [userStatusFilter, setUserStatusFilter] = useState("");
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [togglingUserId, setTogglingUserId] = useState<number | null>(null);
-
-  // Tab 3: Reports
-  const [reports, setReports] = useState<ViolationReportDto[]>([]);
-  const [reportsTotal, setReportsTotal] = useState(0);
-  const [reportStatusFilter, setReportStatusFilter] = useState("");
-  const [reportTargetFilter, setReportTargetFilter] = useState("");
-  const [loadingReports, setLoadingReports] = useState(false);
-  const [resolvingReport, setResolvingReport] = useState<ViolationReportDto | null>(null);
-  const [resolutionChoice, setResolutionChoice] = useState<"RESOLVED" | "DISMISSED">("RESOLVED");
-  const [resolutionNote, setResolutionNote] = useState("");
-  const [resolutionHideListing, setResolutionHideListing] = useState(true);
-  const [resolveLoading, setResolveLoading] = useState(false);
-
-  // Tab 4: Catalogs
-  const [catalogSubTab, setCatalogSubTab] = useState<"roomTypes" | "amenities">("roomTypes");
-  const [roomTypes, setRoomTypes] = useState<RoomTypeDto[]>([]);
-  const [amenities, setAmenities] = useState<AmenityDto[]>([]);
-  const [loadingCatalogs, setLoadingCatalogs] = useState(false);
-  const [catalogModalOpen, setCatalogModalOpen] = useState(false);
-  const [editingCatalogId, setEditingCatalogId] = useState<number | null>(null);
-  const [catalogCode, setCatalogCode] = useState("");
-  const [catalogName, setCatalogName] = useState("");
-  const [catalogIsActive, setCatalogIsActive] = useState(true);
-  const [savingCatalog, setSavingCatalog] = useState(false);
-
-  const loadDashboard = useCallback(async () => {
-    if (!getStoredToken()) return;
-    setLoadingDashboard(true);
+  const handleOpenReviewDetail = async (listingId: number) => {
+    setLoadingReviewDetail(true);
     try {
-      const res = await adminDashboardApi.getSummary(period);
+      const res = await adminListingsApi.getReviewListing(listingId);
       if (res.isSuccess && res.data) {
-        setDashboard(res.data);
-      }
-    } catch {
-      // keep previous state
-    } finally {
-      setLoadingDashboard(false);
-    }
-  }, [period]);
-
-  const loadListings = useCallback(async () => {
-    if (!getStoredToken()) return;
-    setLoadingListings(true);
-    try {
-      const res = await adminListingsApi.getAll({
-        status: listingStatusFilter || undefined,
-        keyword: listingKeyword.trim() || undefined,
-        page: 1,
-        pageSize: 50,
-      });
-      if (res.isSuccess && res.data) {
-        setListings(res.data.items);
-        setListingsTotal(res.data.totalCount);
+        setReviewDetailListing(res.data);
       } else {
-        setListings([]);
-        setListingsTotal(0);
+        showToast(res.error?.message || "Không thể tải chi tiết tin chờ duyệt", "error");
       }
     } catch {
+      showToast("Lỗi kết nối máy chủ", "error");
+    } finally {
+      setLoadingReviewDetail(false);
+    }
+  };
+
+  const loadData = useCallback(async () => {
+    // Load backend pending listings and public listings
+    const token = getStoredToken();
+    setLoadingPending(true);
+    try {
+      const [pendingRes, publicRes] = await Promise.all([
+        token
+          ? adminListingsApi.getPending(1, 50)
+          : Promise.resolve({ isSuccess: false, data: null as any }),
+        listingsApi.getPublicListings(50),
+      ]);
+
+      if (pendingRes.isSuccess && pendingRes.data?.items) {
+        setPendingListings(pendingRes.data.items);
+      } else {
+        setPendingListings([]);
+      }
+
+      if (publicRes.isSuccess && publicRes.data) {
+        setBackendListings(publicRes.data);
+      } else {
+        setBackendListings([]);
+      }
+
+      setIsBackendConnected(true);
+      setListings([]);
+    } catch {
+      setIsBackendConnected(false);
       setListings([]);
     } finally {
-      setLoadingListings(false);
-    }
-  }, [listingStatusFilter, listingKeyword]);
-
-  const loadUsers = useCallback(async () => {
-    if (!getStoredToken()) return;
-    setLoadingUsers(true);
-    try {
-      const res = await adminUsersApi.getUsers({
-        search: userSearch.trim() || undefined,
-        role: userRoleFilter || undefined,
-        status: userStatusFilter || undefined,
-        page: 1,
-        pageSize: 50,
-      });
-      if (res.isSuccess && res.data) {
-        setUsers(res.data.items);
-        setUsersTotal(res.data.totalCount);
-      } else {
-        setUsers([]);
-        setUsersTotal(0);
-      }
-    } catch {
-      setUsers([]);
-    } finally {
-      setLoadingUsers(false);
-    }
-  }, [userSearch, userRoleFilter, userStatusFilter]);
-
-  const loadReports = useCallback(async () => {
-    if (!getStoredToken()) return;
-    setLoadingReports(true);
-    try {
-      const res = await adminReportsApi.getReports({
-        status: reportStatusFilter || undefined,
-        targetType: reportTargetFilter || undefined,
-        page: 1,
-        pageSize: 50,
-      });
-      if (res.isSuccess && res.data) {
-        setReports(res.data.items);
-        setReportsTotal(res.data.totalCount);
-      } else {
-        setReports([]);
-        setReportsTotal(0);
-      }
-    } catch {
-      setReports([]);
-    } finally {
-      setLoadingReports(false);
-    }
-  }, [reportStatusFilter, reportTargetFilter]);
-
-  const loadCatalogs = useCallback(async () => {
-    if (!getStoredToken()) return;
-    setLoadingCatalogs(true);
-    try {
-      const [rtRes, amRes] = await Promise.all([
-        adminCatalogsApi.getRoomTypes(),
-        adminCatalogsApi.getAmenities(),
-      ]);
-      if (rtRes.isSuccess && rtRes.data) setRoomTypes(rtRes.data);
-      if (amRes.isSuccess && amRes.data) setAmenities(amRes.data);
-    } finally {
-      setLoadingCatalogs(false);
+      setLoadingPending(false);
     }
   }, []);
 
-  const refreshAll = useCallback(async () => {
-    await Promise.all([loadDashboard(), loadListings(), loadUsers(), loadReports(), loadCatalogs()]);
-  }, [loadDashboard, loadListings, loadUsers, loadReports, loadCatalogs]);
-
-  useEffect(() => {
-    if (user && role === "Admin") {
-      loadDashboard();
-    }
-  }, [user, role, loadDashboard]);
-
-  useEffect(() => {
-    if (user && role === "Admin") {
-      loadListings();
-    }
-  }, [user, role, loadListings]);
-
-  useEffect(() => {
-    if (user && role === "Admin") {
-      loadUsers();
-    }
-  }, [user, role, loadUsers]);
-
-  useEffect(() => {
-    if (user && role === "Admin") {
-      loadReports();
-    }
-  }, [user, role, loadReports]);
-
-  useEffect(() => {
-    if (user && role === "Admin") {
-      loadCatalogs();
-    }
-  }, [user, role, loadCatalogs]);
-
   const getStatusBadge = (status: string) => {
-    const norm = (status || "").toUpperCase();
-    if (norm === "PUBLISHED") {
+    const norm = (status || "").toLowerCase();
+    if (norm === "published" || norm === "còn trống" || norm === "active") {
       return {
         label: "Đã duyệt công khai",
         badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200/90",
         dotClass: "bg-emerald-500",
       };
     }
-    if (norm === "PENDING_APPROVAL") {
+    if (
+      norm === "pending_approval" ||
+      norm === "pendingapproval" ||
+      norm === "pendingreview" ||
+      norm === "chờ duyệt" ||
+      norm === "pending"
+    ) {
       return {
         label: "Chờ phê duyệt",
         badgeClass: "bg-amber-50 text-amber-800 border-amber-200/90",
         dotClass: "bg-amber-500",
       };
     }
-    if (norm === "DRAFT") {
+    if (norm === "draft" || norm === "nháp") {
       return {
         label: "Bản nháp",
         badgeClass: "bg-slate-100 text-slate-700 border-slate-200/90",
         dotClass: "bg-slate-400",
       };
     }
-    if (norm === "REJECTED") {
+    if (norm === "rejected" || norm === "từ chối") {
       return {
         label: "Đã từ chối",
         badgeClass: "bg-red-50 text-red-700 border-red-200/90",
         dotClass: "bg-red-500",
       };
     }
-    if (norm === "EXPIRED") {
-      return {
-        label: "Hết hạn",
-        badgeClass: "bg-slate-100 text-slate-600 border-slate-200/90",
-        dotClass: "bg-slate-500",
-      };
-    }
     return {
-      label: "Đã ẩn / Khóa",
+      label: "Tạm khóa / Ẩn",
       badgeClass: "bg-rose-50 text-rose-700 border-rose-200/90",
       dotClass: "bg-rose-500",
     };
   };
 
-  const handleOpenReviewDetail = async (listingId: number) => {
-    try {
-      const res = await adminListingsApi.getReviewListing(listingId);
-      if (res.isSuccess && res.data) {
-        setReviewDetailListing(res.data);
-      } else {
-        showToast(res.error?.message || "Không thể tải chi tiết tin đăng", "error");
-      }
-    } catch {
-      showToast("Lỗi kết nối máy chủ", "error");
+  const displayListings = React.useMemo(() => {
+    if (backendListings.length > 0 || pendingListings.length > 0) {
+      const map = new Map<number, any>();
+      pendingListings.forEach((p) => map.set(p.id, p));
+      backendListings.forEach((b) => {
+        if (!map.has(b.id)) map.set(b.id, b);
+      });
+      return Array.from(map.values());
     }
-  };
+    return [];
+  }, [backendListings, pendingListings, listings]);
 
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Backend Approve
   const handleApproveBackend = async (listingId: number) => {
     try {
       const res = await adminListingsApi.approve(listingId);
       if (res.isSuccess) {
-        showToast(`Đã duyệt tin #${listingId} thành công!`, "success");
-        await Promise.all([loadListings(), loadDashboard()]);
+        showToast(`Đã duyệt tin #${listingId} thành công! Tin đã được công khai.`, "success");
+        loadData();
       } else {
         showToast(res.error?.message || "Duyệt tin thất bại", "error");
       }
@@ -313,6 +163,7 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Backend Reject
   const handleRejectBackend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rejectingListingId || !rejectReason.trim()) {
@@ -326,7 +177,7 @@ export default function AdminDashboardPage() {
         showToast(`Đã từ chối tin #${rejectingListingId} kèm lý do.`, "info");
         setRejectingListingId(null);
         setRejectReason("");
-        await Promise.all([loadListings(), loadDashboard()]);
+        loadData();
       } else {
         showToast(res.error?.message || "Từ chối thất bại", "error");
       }
@@ -337,156 +188,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleHideListing = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!hidingListing) return;
-    setHideLoading(true);
-    try {
-      const res = await adminListingsApi.hide(hidingListing.id, hideReason.trim() || undefined);
-      if (res.isSuccess) {
-        showToast(`Đã ẩn tin #${hidingListing.id} khỏi sàn.`, "success");
-        setHidingListing(null);
-        setHideReason("");
-        await Promise.all([loadListings(), loadDashboard()]);
-      } else {
-        showToast(res.error?.message || "Không thể ẩn tin đăng", "error");
-      }
-    } catch {
-      showToast("Lỗi kết nối", "error");
-    } finally {
-      setHideLoading(false);
-    }
-  };
 
-  const handleToggleLockUser = async (acc: AdminUserItemDto) => {
-    setTogglingUserId(acc.id);
-    const isLocked = acc.status === "Suspended";
-    try {
-      const res = isLocked
-        ? await adminUsersApi.unlock(acc.id)
-        : await adminUsersApi.lock(acc.id);
-      if (res.isSuccess && res.data) {
-        showToast(
-          isLocked
-            ? `Đã mở khóa tài khoản ${acc.fullName}!`
-            : `Đã khóa tài khoản ${acc.fullName}.`,
-          isLocked ? "success" : "info"
-        );
-        await Promise.all([loadUsers(), loadDashboard()]);
-      } else {
-        showToast(res.error?.message || "Thao tác thất bại", "error");
-      }
-    } catch {
-      showToast("Lỗi kết nối máy chủ", "error");
-    } finally {
-      setTogglingUserId(null);
-    }
-  };
-
-  const handleResolveReport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!resolvingReport) return;
-    setResolveLoading(true);
-    try {
-      const res = await adminReportsApi.resolve(resolvingReport.id, {
-        resolution: resolutionChoice,
-        adminNote: resolutionNote.trim() || undefined,
-        hideListing: resolutionChoice === "RESOLVED" ? resolutionHideListing : false,
-      });
-      if (res.isSuccess) {
-        showToast(
-          resolutionChoice === "RESOLVED"
-            ? "Đã xác nhận vi phạm và cập nhật báo cáo."
-            : "Đã bác bỏ báo cáo vi phạm.",
-          "success"
-        );
-        setResolvingReport(null);
-        setResolutionNote("");
-        await Promise.all([loadReports(), loadListings(), loadDashboard()]);
-      } else {
-        showToast(res.error?.message || "Không thể xử lý báo cáo", "error");
-      }
-    } catch {
-      showToast("Lỗi kết nối", "error");
-    } finally {
-      setResolveLoading(false);
-    }
-  };
-
-  const openCreateCatalogModal = () => {
-    setEditingCatalogId(null);
-    setCatalogCode("");
-    setCatalogName("");
-    setCatalogIsActive(true);
-    setCatalogModalOpen(true);
-  };
-
-  const openEditCatalogModal = (item: RoomTypeDto | AmenityDto) => {
-    setEditingCatalogId(item.id);
-    setCatalogCode(item.code);
-    setCatalogName(item.name);
-    setCatalogIsActive(item.isActive ?? true);
-    setCatalogModalOpen(true);
-  };
-
-  const handleSaveCatalog = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const code = catalogCode.trim().toUpperCase();
-    const name = catalogName.trim();
-    if (!code || !name) {
-      showToast("Vui lòng nhập đầy đủ mã code và tên hiển thị.", "error");
-      return;
-    }
-    setSavingCatalog(true);
-    try {
-      const res =
-        catalogSubTab === "roomTypes"
-          ? editingCatalogId
-            ? await adminCatalogsApi.updateRoomType(editingCatalogId, {
-                code,
-                name,
-                isActive: catalogIsActive,
-              })
-            : await adminCatalogsApi.createRoomType({ code, name, isActive: catalogIsActive })
-          : editingCatalogId
-          ? await adminCatalogsApi.updateAmenity(editingCatalogId, {
-              code,
-              name,
-              isActive: catalogIsActive,
-            })
-          : await adminCatalogsApi.createAmenity({ code, name, isActive: catalogIsActive });
-
-      if (res.isSuccess) {
-        showToast(editingCatalogId ? "Đã cập nhật danh mục." : "Đã thêm mới danh mục.", "success");
-        setCatalogModalOpen(false);
-        await loadCatalogs();
-      } else {
-        showToast(res.error?.message || "Lưu danh mục thất bại.", "error");
-      }
-    } catch {
-      showToast("Lỗi kết nối máy chủ", "error");
-    } finally {
-      setSavingCatalog(false);
-    }
-  };
-
-  const handleToggleCatalogActive = async (item: RoomTypeDto | AmenityDto) => {
-    const nextActive = !(item.isActive ?? true);
-    try {
-      const res =
-        catalogSubTab === "roomTypes"
-          ? await adminCatalogsApi.updateRoomType(item.id, { isActive: nextActive })
-          : await adminCatalogsApi.updateAmenity(item.id, { isActive: nextActive });
-      if (res.isSuccess) {
-        showToast(nextActive ? `Đã bật hiển thị "${item.name}".` : `Đã ẩn "${item.name}".`, "success");
-        await loadCatalogs();
-      } else {
-        showToast(res.error?.message || "Cập nhật thất bại", "error");
-      }
-    } catch {
-      showToast("Lỗi kết nối", "error");
-    }
-  };
 
   if (!user || role !== "Admin") {
     return (
@@ -510,9 +212,6 @@ export default function AdminDashboardPage() {
     );
   }
 
-  const pendingListingsCount = dashboard?.listings.pendingApprovalListings ?? 0;
-  const pendingReportsCount = dashboard?.reports.pendingReports ?? 0;
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-6">
       {/* Header */}
@@ -526,146 +225,25 @@ export default function AdminDashboardPage() {
             Bảng Điều Khiển Quản Trị Viên (Admin)
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Thống kê tổng quan, kiểm duyệt tin đăng, quản lý tài khoản, xử lý vi phạm và danh mục tìm kiếm.
+            Kiểm duyệt tin đăng, giám sát tài khoản người dùng và giải quyết khiếu nại báo cáo vi phạm.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <select
-            value={period}
-            onChange={(e) => setPeriod(e.target.value as typeof period)}
-            aria-label="Kỳ thống kê"
-            className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700"
-          >
-            <option value="all">Kỳ: Toàn thời gian</option>
-            <option value="today">Kỳ: Hôm nay</option>
-            <option value="week">Kỳ: 7 ngày qua</option>
-            <option value="month">Kỳ: 30 ngày qua</option>
-            <option value="year">Kỳ: 1 năm qua</option>
-          </select>
-
-          <button
-            type="button"
-            onClick={() => refreshAll()}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors"
-          >
-            <RefreshCw
-              className={cn(
-                "w-4 h-4",
-                (loadingDashboard || loadingListings || loadingUsers || loadingReports) && "animate-spin"
-              )}
-            />
-            <span>Làm mới</span>
-          </button>
-        </div>
-      </div>
-
-      {/* KPI Summary Cards (Dashboard quản trị) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">Người dùng</span>
-            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Users className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">
-              {dashboard?.users.totalUsers ?? 0}
-            </span>
-            {period !== "all" && (
-              <span className="text-[11px] font-bold text-emerald-600">
-                +{dashboard?.users.newUsersInPeriod ?? 0} trong kỳ
-              </span>
-            )}
-          </div>
-          <p className="text-[11px] text-slate-500">
-            {dashboard?.users.totalTenants ?? 0} người thuê • {dashboard?.users.totalLandlords ?? 0} chủ nhà •{" "}
-            <span className="text-rose-600 font-semibold">
-              {dashboard?.users.suspendedUsers ?? 0} bị khóa
-            </span>
-          </p>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">Tin đăng</span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <FileText className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">
-              {dashboard?.listings.totalListings ?? 0}
-            </span>
-            {period !== "all" && (
-              <span className="text-[11px] font-bold text-emerald-600">
-                +{dashboard?.listings.newListingsInPeriod ?? 0} trong kỳ
-              </span>
-            )}
-          </div>
-          <p className="text-[11px] text-slate-500">
-            {dashboard?.listings.publishedListings ?? 0} công khai •{" "}
-            <span className="text-amber-700 font-semibold">
-              {pendingListingsCount} chờ duyệt
-            </span>{" "}
-            • {dashboard?.listings.hiddenListings ?? 0} đã ẩn
-          </p>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">Phòng & Tòa nhà</span>
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <Building className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">
-              {dashboard?.properties.totalRooms ?? 0} phòng
-            </span>
-            {period !== "all" && (
-              <span className="text-[11px] font-bold text-emerald-600">
-                +{dashboard?.properties.newRoomsInPeriod ?? 0} mới
-              </span>
-            )}
-          </div>
-          <p className="text-[11px] text-slate-500">
-            {dashboard?.properties.totalProperties ?? 0} tòa nhà •{" "}
-            {dashboard?.properties.availableRooms ?? 0} trống •{" "}
-            {dashboard?.properties.rentedRooms ?? 0} đã thuê
-          </p>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">Báo cáo & Lượt xem</span>
-            <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">
-              {pendingReportsCount} chờ xử lý
-            </span>
-            <span className="text-[11px] text-slate-500">
-              / {dashboard?.reports.totalReports ?? 0} báo cáo
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-500">
-            {dashboard?.reports.resolvedReports ?? 0} đã xác nhận •{" "}
-            {(dashboard?.listings.totalViews ?? 0).toLocaleString("vi-VN")} lượt xem tin
-          </p>
-        </div>
+        <button
+          onClick={() => loadData()}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors"
+        >
+          <RefreshCw className={cn("w-4 h-4", loadingPending && "animate-spin")} />
+          <span>Làm mới hàng đợi</span>
+        </button>
       </div>
 
       {/* Tabs Header */}
-      <div className="flex items-center gap-6 border-b border-slate-200 overflow-x-auto">
+      <div className="flex items-center gap-6 border-b border-slate-200">
         <button
-          type="button"
           onClick={() => setActiveTab("listings")}
           className={cn(
-            "pb-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center gap-2 whitespace-nowrap",
+            "pb-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center gap-2",
             activeTab === "listings"
               ? "border-blue-600 text-blue-600"
               : "border-transparent text-slate-500 hover:text-slate-800"
@@ -673,119 +251,93 @@ export default function AdminDashboardPage() {
         >
           <FileText className="w-4 h-4" />
           <span>
-            Quản Lý & Duyệt Tin ({listingsTotal})
-            {pendingListingsCount > 0 ? ` • ${pendingListingsCount} chờ` : ""}
+            Kiểm Duyệt Tin Đăng{" "}
+            {pendingListings.length > 0
+              ? `(${pendingListings.length} chờ duyệt)`
+              : `(${listings.length})`}
           </span>
         </button>
 
         <button
-          type="button"
           onClick={() => setActiveTab("users")}
           className={cn(
-            "pb-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center gap-2 whitespace-nowrap",
+            "pb-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center gap-2",
             activeTab === "users"
               ? "border-blue-600 text-blue-600"
               : "border-transparent text-slate-500 hover:text-slate-800"
           )}
         >
           <Users className="w-4 h-4" />
-          <span>Quản Lý Tài Khoản ({usersTotal})</span>
+          <span>Quản Lý Tài Khoản</span>
         </button>
 
         <button
-          type="button"
           onClick={() => setActiveTab("reports")}
           className={cn(
-            "pb-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center gap-2 whitespace-nowrap",
+            "pb-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center gap-2",
             activeTab === "reports"
               ? "border-blue-600 text-blue-600"
               : "border-transparent text-slate-500 hover:text-slate-800"
           )}
         >
           <AlertTriangle className="w-4 h-4" />
-          <span>
-            Báo Cáo Vi Phạm ({reportsTotal})
-            {pendingReportsCount > 0 ? ` • ${pendingReportsCount} mới` : ""}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("catalogs")}
-          className={cn(
-            "pb-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center gap-2 whitespace-nowrap",
-            activeTab === "catalogs"
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent text-slate-500 hover:text-slate-800"
-          )}
-        >
-          <Tags className="w-4 h-4" />
-          <span>Quản Lý Danh Mục ({roomTypes.length + amenities.length})</span>
+          <span>Báo Cáo Vi Phạm</span>
         </button>
       </div>
 
-      {/* TAB 1: Listings Moderation & Management */}
+      {/* Tab 1: Listings Review */}
       {activeTab === "listings" && (
         <div className="space-y-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Tìm theo tiêu đề tin, mô tả hoặc ID tin / phòng / chủ nhà..."
-                value={listingKeyword}
-                onChange={(e) => setListingKeyword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-slate-200"
-              />
+          {/* General Listings Table / Cards */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-slate-900 text-sm">Toàn Bộ Danh Sách Tin Đăng</h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  {isBackendConnected
+                    ? `Dữ liệu đồng bộ trực tiếp từ hệ thống (${displayListings.length} tin)`
+                    : `Danh sách tin đăng hệ thống (${displayListings.length} tin)`}
+                </p>
+              </div>
             </div>
 
-            <select
-              value={listingStatusFilter}
-              onChange={(e) => setListingStatusFilter(e.target.value)}
-              className="px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-semibold text-slate-700"
-            >
-              <option value="">Tất cả trạng thái</option>
-              <option value="PENDING_APPROVAL">Chờ phê duyệt</option>
-              <option value="PUBLISHED">Đã duyệt công khai</option>
-              <option value="HIDDEN">Đã ẩn</option>
-              <option value="REJECTED">Đã từ chối</option>
-              <option value="DRAFT">Bản nháp</option>
-              <option value="EXPIRED">Hết hạn</option>
-            </select>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            {/* Desktop View: Multi-column Table */}
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-xs text-left border-collapse min-w-[960px]">
+              <table className="w-full text-xs text-left border-collapse min-w-[940px]">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500 uppercase tracking-wider">
-                    <th className="p-4">Tin đăng</th>
-                    <th className="p-4">Chủ nhà</th>
-                    <th className="p-4">Giá & Lượt xem</th>
-                    <th className="p-4">Trạng thái</th>
-                    <th className="p-4 text-right">Hành động</th>
+                    <th className="p-4 whitespace-nowrap">Tin đăng</th>
+                    <th className="p-4 whitespace-nowrap">Chủ nhà đăng</th>
+                    <th className="p-4 whitespace-nowrap">Mức giá & Diện tích</th>
+                    <th className="p-4 whitespace-nowrap">Trạng thái duyệt</th>
+                    <th className="p-4 text-right whitespace-nowrap">Hành động quyết định</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {listings.length === 0 ? (
+                  {displayListings.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="p-8 text-center text-slate-400 text-xs">
-                        {loadingListings ? "Đang tải danh sách tin đăng..." : "Không tìm thấy tin đăng phù hợp."}
+                        Chưa có tin đăng nào trong cơ sở dữ liệu.
                       </td>
                     </tr>
                   ) : (
-                    listings.map((item) => {
+                    displayListings.map((item: any) => {
                       const badge = getStatusBadge(item.status);
-                      const isPending = item.status === "PENDING_APPROVAL";
-                      const canHide = item.status === "PUBLISHED" || item.status === "PENDING_APPROVAL";
+                      const isPending =
+                        (item.status || "").toLowerCase() === "pending_approval" ||
+                        (item.status || "").toLowerCase() === "pendingapproval" ||
+                        (item.status || "").toLowerCase() === "pendingreview" ||
+                        (item.status || "").toLowerCase() === "chờ duyệt";
+                      const isBackendItem = typeof item.id === "number";
 
                       return (
                         <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="p-4">
+                          <td className="p-4 whitespace-nowrap">
                             <div className="flex items-center gap-3">
                               <img
                                 src={
                                   item.coverImageUrl ||
+                                  (item.images && item.images[0]) ||
                                   "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=400&q=80"
                                 }
                                 alt=""
@@ -796,34 +348,31 @@ export default function AdminDashboardPage() {
                                   {item.title}
                                 </h4>
                                 <span className="text-[11px] text-slate-400 block truncate">
-                                  #{item.id} • Phòng #{item.roomId}
-                                  {item.addressDetail ? ` • ${item.addressDetail}` : ""}
+                                  {item.address || `Mã tin: #${item.id} • Phòng #${item.roomId || item.id}`}
                                 </span>
-                                {item.rejectionReason && (
-                                  <span className="text-[10px] text-rose-600 block truncate">
-                                    Ghi chú: {item.rejectionReason}
-                                  </span>
-                                )}
                               </div>
                             </div>
                           </td>
                           <td className="p-4 whitespace-nowrap">
-                            <span className="font-bold text-slate-800 block">{item.landlordName}</span>
-                            <span className="text-[11px] text-slate-400 block">ID #{item.landlordId}</span>
+                            <span className="font-bold text-slate-800 block">
+                              {item.landlordName || `Chủ nhà (ID #${item.landlordId || 2})`}
+                            </span>
+                            <span className="text-[11px] text-slate-400 block">
+                              {item.landlordPhone || `Phòng: P.${item.roomId || 201}`}
+                            </span>
                           </td>
                           <td className="p-4 whitespace-nowrap">
                             <span className="font-bold text-blue-600 block">
-                              {item.price.toLocaleString("vi-VN")} đ/tháng
+                              {item.price ? item.price.toLocaleString("vi-VN") : "0"} đ/tháng
                             </span>
                             <span className="text-slate-500 text-[11px] block">
-                              {item.areaSqm ? `${item.areaSqm} m² • ` : ""}
-                              {item.viewCount} lượt xem
+                              {item.area ? `${item.area} m²` : "Phòng khép kín"}
                             </span>
                           </td>
                           <td className="p-4 whitespace-nowrap">
                             <span
                               className={cn(
-                                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border",
+                                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap border shadow-2xs",
                                 badge.badgeClass
                               )}
                             >
@@ -832,61 +381,55 @@ export default function AdminDashboardPage() {
                             </span>
                           </td>
                           <td className="p-4 text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenReviewDetail(item.id)}
-                                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs inline-flex items-center gap-1"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                                <span>Chi tiết</span>
-                              </button>
-
-                              {item.status === "PUBLISHED" && (
-                                <Link
-                                  href={`/listings/${item.id}`}
-                                  target="_blank"
-                                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs inline-flex items-center gap-1"
-                                >
-                                  <ExternalLink className="w-3.5 h-3.5" />
-                                  <span>Mở tin</span>
-                                </Link>
-                              )}
-
-                              {isPending && (
+                            <div className="flex items-center justify-end gap-2 shrink-0">
+                              {isPending ? (
                                 <>
                                   <button
                                     type="button"
-                                    onClick={() => handleApproveBackend(item.id)}
-                                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
+                                    onClick={() => handleOpenReviewDetail(item.id)}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs whitespace-nowrap shrink-0 transition-colors inline-flex items-center gap-1"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                    <span>Chi tiết</span>
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleApproveBackend(item.id)
+                                    }
+                                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs whitespace-nowrap shrink-0 transition-colors shadow-2xs"
                                   >
                                     Phê duyệt
                                   </button>
                                   <button
-                                    type="button"
                                     onClick={() => {
                                       setRejectingListingId(item.id);
                                       setRejectReason("");
                                     }}
-                                    className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs"
+                                    className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs whitespace-nowrap shrink-0 transition-colors"
                                   >
                                     Từ chối
                                   </button>
                                 </>
-                              )}
-
-                              {canHide && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setHidingListing(item);
-                                    setHideReason("");
-                                  }}
-                                  className="px-3 py-1.5 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 font-bold text-xs inline-flex items-center gap-1"
-                                >
-                                  <EyeOff className="w-3.5 h-3.5" />
-                                  <span>Ẩn vi phạm</span>
-                                </button>
+                              ) : (
+                                <>
+                                  <Link
+                                    href={`/listings/${item.id}`}
+                                    target="_blank"
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs whitespace-nowrap shrink-0 transition-colors inline-flex items-center gap-1"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                    <span>Xem tin</span>
+                                  </Link>
+                                  <button
+                                    onClick={() => {
+                                      setRejectingListingId(item.id);
+                                      setRejectReason("");
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs whitespace-nowrap shrink-0 transition-colors"
+                                  >
+                                    Khóa / Ẩn
+                                  </button>
+                                </>
                               )}
                             </div>
                           </td>
@@ -898,494 +441,157 @@ export default function AdminDashboardPage() {
               </table>
             </div>
 
-            {/* Mobile Cards */}
+            {/* Mobile View: Responsive Cards (100% width, no horizontal scroll) */}
             <div className="block md:hidden divide-y divide-slate-100">
-              {listings.map((item) => {
-                const badge = getStatusBadge(item.status);
-                const isPending = item.status === "PENDING_APPROVAL";
-                const canHide = item.status === "PUBLISHED" || item.status === "PENDING_APPROVAL";
-                return (
-                  <div key={item.id} className="p-4 space-y-2.5 text-xs">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <h4 className="font-bold text-slate-900 line-clamp-2">{item.title}</h4>
-                        <p className="text-[11px] text-slate-500">
-                          #{item.id} • {item.landlordName} • {item.price.toLocaleString("vi-VN")} đ/tháng
-                        </p>
+              {displayListings.length === 0 ? (
+                <div className="p-6 text-center text-slate-400 text-xs">
+                  Chưa có tin đăng nào trong cơ sở dữ liệu.
+                </div>
+              ) : (
+                displayListings.map((item: any) => {
+                  const badge = getStatusBadge(item.status);
+                  const isPending =
+                    (item.status || "").toLowerCase() === "pending_approval" ||
+                    (item.status || "").toLowerCase() === "pendingapproval" ||
+                    (item.status || "").toLowerCase() === "pendingreview" ||
+                    (item.status || "").toLowerCase() === "chờ duyệt";
+                  const isBackendItem = typeof item.id === "number";
+
+                  return (
+                    <div key={item.id} className="p-4 space-y-3">
+                      <div className="flex gap-3">
+                        <img
+                          src={
+                            item.coverImageUrl ||
+                            (item.images && item.images[0]) ||
+                            "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=400&q=80"
+                          }
+                          alt=""
+                          className="w-16 h-16 rounded-xl object-cover shrink-0 border border-slate-100"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-slate-900 text-xs line-clamp-2" title={item.title}>
+                            {item.title}
+                          </h4>
+                          <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                            {item.address || `Mã tin: #${item.id} • Phòng #${item.roomId || item.id}`}
+                          </p>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="font-bold text-blue-600 text-xs">
+                              {item.price ? item.price.toLocaleString("vi-VN") : "0"} đ/tháng
+                            </span>
+                            <span className="text-[11px] text-slate-500">
+                              {item.area ? `${item.area} m²` : "Phòng khép kín"}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0", badge.badgeClass)}>
-                        {badge.label}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenReviewDetail(item.id)}
-                        className="px-3 py-1.5 rounded-lg border border-slate-200 font-bold text-slate-700"
-                      >
-                        Chi tiết
-                      </button>
-                      {isPending && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => handleApproveBackend(item.id)}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold"
-                          >
-                            Phê duyệt
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRejectingListingId(item.id);
-                              setRejectReason("");
-                            }}
-                            className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 font-bold"
-                          >
-                            Từ chối
-                          </button>
-                        </>
-                      )}
-                      {canHide && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setHidingListing(item);
-                            setHideReason("");
-                          }}
-                          className="px-3 py-1.5 rounded-lg border border-amber-200 text-amber-700 font-bold"
+
+                      {/* Meta & Status Row */}
+                      <div className="flex items-center justify-between text-[11px] pt-1">
+                        <span className="text-slate-600 font-medium truncate max-w-[160px]">
+                          {item.landlordName || `Chủ nhà (ID #${item.landlordId || 2})`}
+                        </span>
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap border shadow-2xs",
+                            badge.badgeClass
+                          )}
                         >
-                          Ẩn vi phạm
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+                          <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", badge.dotClass)} />
+                          <span>{badge.label}</span>
+                        </span>
+                      </div>
 
-      {/* TAB 2: Users Management */}
-      {activeTab === "users" && (
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Tìm theo họ tên, email hoặc số điện thoại..."
-                value={userSearch}
-                onChange={(e) => setUserSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-slate-200"
-              />
-            </div>
-
-            <select
-              value={userRoleFilter}
-              onChange={(e) => setUserRoleFilter(e.target.value)}
-              className="px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-semibold text-slate-700"
-            >
-              <option value="">Tất cả vai trò</option>
-              <option value="Tenant">Khách thuê (Tenant)</option>
-              <option value="Landlord">Chủ nhà (Landlord)</option>
-              <option value="Admin">Quản trị viên (Admin)</option>
-            </select>
-
-            <select
-              value={userStatusFilter}
-              onChange={(e) => setUserStatusFilter(e.target.value)}
-              className="px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-semibold text-slate-700"
-            >
-              <option value="">Tất cả trạng thái</option>
-              <option value="Active">Đang hoạt động</option>
-              <option value="Suspended">Đang bị khóa</option>
-            </select>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left border-collapse min-w-[760px]">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500 uppercase tracking-wider">
-                    <th className="p-4">Tài khoản</th>
-                    <th className="p-4">Email & SĐT</th>
-                    <th className="p-4">Vai trò</th>
-                    <th className="p-4">Ngày tham gia</th>
-                    <th className="p-4">Trạng thái</th>
-                    <th className="p-4 text-right">Hành động</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {users.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="p-8 text-center text-slate-400">
-                        {loadingUsers ? "Đang tải danh sách tài khoản..." : "Không tìm thấy tài khoản nào."}
-                      </td>
-                    </tr>
-                  ) : (
-                    users.map((acc) => {
-                      const isLocked = acc.status === "Suspended";
-                      const isAdminAcc = acc.role === "Admin";
-                      return (
-                        <tr key={acc.id} className="hover:bg-slate-50/60">
-                          <td className="p-4">
-                            <span className="font-bold text-slate-900 block">{acc.fullName}</span>
-                            <span className="text-[11px] text-slate-400">ID #{acc.id}</span>
-                          </td>
-                          <td className="p-4">
-                            <span className="font-medium text-slate-700 block">{acc.email}</span>
-                            <span className="text-[11px] text-slate-400">
-                              {acc.phoneNumber || "Chưa cập nhật SĐT"} •{" "}
-                              {acc.emailConfirmed ? "Đã xác thực email" : "Chưa xác thực"}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <span
-                              className={cn(
-                                "px-2.5 py-1 rounded-full text-xs font-bold border",
-                                acc.role === "Landlord"
-                                  ? "bg-purple-50 text-purple-700 border-purple-200"
-                                  : acc.role === "Admin"
-                                  ? "bg-rose-50 text-rose-700 border-rose-200"
-                                  : "bg-blue-50 text-blue-700 border-blue-200"
-                              )}
-                            >
-                              {acc.role === "Landlord"
-                                ? "Chủ nhà"
-                                : acc.role === "Admin"
-                                ? "Admin"
-                                : "Khách thuê"}
-                            </span>
-                          </td>
-                          <td className="p-4 text-slate-500">
-                            {new Date(acc.createdAt).toLocaleDateString("vi-VN")}
-                          </td>
-                          <td className="p-4 whitespace-nowrap">
-                            <span
-                              className={cn(
-                                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border",
-                                !isLocked
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200/90"
-                                  : "bg-rose-50 text-rose-700 border-rose-200/90"
-                              )}
-                            >
-                              <span
-                                className={cn(
-                                  "w-1.5 h-1.5 rounded-full shrink-0",
-                                  !isLocked ? "bg-emerald-500" : "bg-rose-500"
-                                )}
-                              />
-                              <span>{!isLocked ? "Hoạt động" : "Bị khóa"}</span>
-                            </span>
-                          </td>
-                          <td className="p-4 text-right whitespace-nowrap">
-                            {!isAdminAcc ? (
-                              <button
-                                type="button"
-                                disabled={togglingUserId === acc.id}
-                                onClick={() => handleToggleLockUser(acc)}
-                                className={cn(
-                                  "px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors inline-flex items-center gap-1.5 disabled:opacity-50",
-                                  !isLocked
-                                    ? "border-rose-200 text-rose-600 hover:bg-rose-50"
-                                    : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                                )}
-                              >
-                                {!isLocked ? (
-                                  <>
-                                    <Lock className="w-3.5 h-3.5" />
-                                    <span>Khóa tài khoản</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Unlock className="w-3.5 h-3.5" />
-                                    <span>Mở khóa</span>
-                                  </>
-                                )}
-                              </button>
-                            ) : (
-                              <span className="text-[11px] text-slate-400 italic">Quản trị viên</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: Violation Reports */}
-      {activeTab === "reports" && (
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row gap-3">
-            <select
-              value={reportStatusFilter}
-              onChange={(e) => setReportStatusFilter(e.target.value)}
-              className="px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-semibold text-slate-700"
-            >
-              <option value="">Tất cả trạng thái xử lý</option>
-              <option value="PENDING">Chờ xử lý</option>
-              <option value="RESOLVED">Đã xác nhận vi phạm</option>
-              <option value="DISMISSED">Đã bác bỏ</option>
-            </select>
-
-            <select
-              value={reportTargetFilter}
-              onChange={(e) => setReportTargetFilter(e.target.value)}
-              className="px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-semibold text-slate-700"
-            >
-              <option value="">Tất cả đối tượng</option>
-              <option value="LISTING">Tin đăng</option>
-              <option value="LANDLORD">Chủ nhà</option>
-            </select>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left border-collapse min-w-[860px]">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500 uppercase tracking-wider">
-                    <th className="p-4">Đối tượng bị báo cáo</th>
-                    <th className="p-4">Người báo cáo</th>
-                    <th className="p-4">Lý do & Bằng chứng</th>
-                    <th className="p-4">Thời gian</th>
-                    <th className="p-4">Trạng thái</th>
-                    <th className="p-4 text-right">Phán quyết</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {reports.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="p-8 text-center text-slate-400">
-                        {loadingReports ? "Đang tải danh sách báo cáo..." : "Chưa có báo cáo vi phạm nào."}
-                      </td>
-                    </tr>
-                  ) : (
-                    reports.map((rep) => (
-                      <tr key={rep.id} className="hover:bg-slate-50/60">
-                        <td className="p-4">
-                          <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold mb-1">
-                            {rep.targetType === "LISTING" ? "Tin đăng" : "Chủ nhà"} #{rep.targetId}
-                          </span>
-                          <span className="font-bold text-slate-900 block max-w-[240px] truncate" title={rep.targetTitle}>
-                            {rep.targetTitle}
-                          </span>
-                          {rep.listingId && (
-                            <Link
-                              href={`/listings/${rep.listingId}`}
-                              target="_blank"
-                              className="text-[11px] text-blue-600 hover:underline inline-flex items-center gap-1 mt-0.5"
-                            >
-                              <span>Xem tin #{rep.listingId}</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </Link>
-                          )}
-                        </td>
-                        <td className="p-4">
-                          <span className="font-bold text-slate-800 block">{rep.reporterName}</span>
-                          <span className="text-[11px] text-slate-400">{rep.reporterEmail}</span>
-                        </td>
-                        <td className="p-4 max-w-[280px]">
-                          <span className="text-rose-600 font-bold block">{rep.reason}</span>
-                          {rep.description && (
-                            <p className="text-[11px] text-slate-600 line-clamp-2 mt-0.5">{rep.description}</p>
-                          )}
-                          {rep.evidenceUrl && (
-                            <a
-                              href={rep.evidenceUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-[11px] text-blue-600 hover:underline inline-flex items-center gap-1 mt-1"
-                            >
-                              <span>Xem bằng chứng</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          )}
-                          {rep.adminNote && (
-                            <p className="text-[11px] text-slate-500 italic mt-1">
-                              Ghi chú Admin: {rep.adminNote}
-                            </p>
-                          )}
-                        </td>
-                        <td className="p-4 text-slate-500 whitespace-nowrap">
-                          {new Date(rep.createdAt).toLocaleString("vi-VN")}
-                        </td>
-                        <td className="p-4 whitespace-nowrap">
-                          <span
-                            className={cn(
-                              "px-2.5 py-1 rounded-full text-xs font-bold border",
-                              rep.status === "PENDING"
-                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                : rep.status === "RESOLVED"
-                                ? "bg-rose-50 text-rose-700 border-rose-200"
-                                : "bg-slate-100 text-slate-600 border-slate-200"
-                            )}
-                          >
-                            {rep.status === "PENDING"
-                              ? "Chờ xử lý"
-                              : rep.status === "RESOLVED"
-                              ? "Đã xác nhận vi phạm"
-                              : "Đã bác bỏ"}
-                          </span>
-                        </td>
-                        <td className="p-4 text-right whitespace-nowrap">
-                          {rep.status === "PENDING" ? (
+                      {/* Action Buttons Row */}
+                      <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                        {isPending ? (
+                          <>
                             <button
-                              type="button"
-                              onClick={() => {
-                                setResolvingReport(rep);
-                                setResolutionChoice("RESOLVED");
-                                setResolutionNote("");
-                                setResolutionHideListing(true);
-                              }}
-                              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs"
+                              onClick={() =>
+                                handleApproveBackend(item.id)
+                              }
+                              className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shadow-2xs text-center"
                             >
-                              Xem xét & Xử lý
+                              Phê duyệt
                             </button>
-                          ) : (
-                            <span className="text-[11px] text-slate-400">Đã đóng</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: System Catalogs Management (RoomTypes & Amenities) */}
-      {activeTab === "catalogs" && (
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setCatalogSubTab("roomTypes")}
-                className={cn(
-                  "px-4 py-2 rounded-xl text-xs font-bold transition-colors",
-                  catalogSubTab === "roomTypes"
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                )}
-              >
-                Loại phòng ({roomTypes.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setCatalogSubTab("amenities")}
-                className={cn(
-                  "px-4 py-2 rounded-xl text-xs font-bold transition-colors",
-                  catalogSubTab === "amenities"
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                )}
-              >
-                Tiện ích ({amenities.length})
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={openCreateCatalogModal}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
-            >
-              <Plus className="w-4 h-4" />
-              <span>
-                {catalogSubTab === "roomTypes" ? "Thêm loại phòng" : "Thêm tiện ích"}
-              </span>
-            </button>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500 uppercase tracking-wider">
-                    <th className="p-4">ID</th>
-                    <th className="p-4">Mã định danh (Code)</th>
-                    <th className="p-4">Tên hiển thị</th>
-                    <th className="p-4">Trạng thái</th>
-                    <th className="p-4 text-right">Hành động</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {loadingCatalogs ? (
-                    <tr>
-                      <td colSpan={5} className="p-8 text-center text-slate-400">
-                        Đang tải danh mục...
-                      </td>
-                    </tr>
-                  ) : (
-                    (catalogSubTab === "roomTypes" ? roomTypes : amenities).map((item) => {
-                      const active = item.isActive ?? true;
-                      return (
-                        <tr key={item.id} className="hover:bg-slate-50/60">
-                          <td className="p-4 font-mono text-slate-500">#{item.id}</td>
-                          <td className="p-4 font-mono font-bold text-slate-800">{item.code}</td>
-                          <td className="p-4 font-bold text-slate-900">{item.name}</td>
-                          <td className="p-4">
-                            <span
-                              className={cn(
-                                "px-2.5 py-1 rounded-full text-xs font-bold border",
-                                active
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                  : "bg-slate-100 text-slate-500 border-slate-200"
-                              )}
+                            <button
+                              onClick={() => {
+                                setRejectingListingId(item.id);
+                                setRejectReason("");
+                              }}
+                              className="flex-1 py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs transition-colors text-center"
                             >
-                              {active ? "Đang hiển thị" : "Đang ẩn"}
-                            </span>
-                          </td>
-                          <td className="p-4 text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => openEditCatalogModal(item)}
-                                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs inline-flex items-center gap-1"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                                <span>Sửa</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleCatalogActive(item)}
-                                className={cn(
-                                  "px-3 py-1.5 rounded-lg border font-bold text-xs inline-flex items-center gap-1",
-                                  active
-                                    ? "border-amber-200 text-amber-700 hover:bg-amber-50"
-                                    : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                                )}
-                              >
-                                {active ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                <span>{active ? "Ẩn" : "Hiện"}</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                              Từ chối
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <Link
+                              href={`/listings/${item.id}`}
+                              target="_blank"
+                              className="flex-1 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs transition-colors inline-flex items-center justify-center gap-1 text-center"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Xem tin</span>
+                            </Link>
+                            <button
+                              onClick={() => {
+                                setRejectingListingId(item.id);
+                                setRejectReason("");
+                              }}
+                              className="flex-1 py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs transition-colors text-center"
+                            >
+                              Khóa / Ẩn
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal: Review Listing Detail */}
+      {/* Tab 2: Users Management */}
+      {activeTab === "users" && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto">
+            <Users className="w-6 h-6" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-900">
+            Quản Lý Tài Khoản Đang Chờ API Backend
+          </h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            Dữ liệu tài khoản người dùng và thao tác khóa/mở khóa sẽ được kết nối trực tiếp với Backend Identity Admin API sau khi hoàn tất.
+          </p>
+        </div>
+      )}
+
+      {/* Tab 3: Reports */}
+      {activeTab === "reports" && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-900">
+            Quản Lý Báo Cáo Vi Phạm Đang Chờ API Backend
+          </h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            Danh sách khiếu nại và thao tác xử lý vi phạm sẽ được đồng bộ từ Backend Moderation API khi sẵn sàng.
+          </p>
+        </div>
+      )}
+
+      {/* Modal: Review Listing Detail (GET /api/v1/admin/listings/{listingId}) */}
       {reviewDetailListing && (
         <Modal
           isOpen={true}
           onClose={() => setReviewDetailListing(null)}
-          title={`Chi Tiết Tin Đăng #${reviewDetailListing.id}`}
+          title={`Kiểm Duyệt Chi Tiết Tin Đăng #${reviewDetailListing.id}`}
           maxWidth="2xl"
         >
           <div className="space-y-4 text-xs">
@@ -1403,8 +609,10 @@ export default function AdminDashboardPage() {
                 </span>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Trạng thái</span>
-                <span className="font-bold text-slate-800">{reviewDetailListing.status}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Hợp đồng tối thiểu</span>
+                <span className="font-bold text-slate-800">
+                  {reviewDetailListing.minLeaseMonths} tháng
+                </span>
               </div>
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Chủ nhà & Phòng</span>
@@ -1414,9 +622,17 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            {reviewDetailListing.review?.rejectionReason && (
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-rose-700 font-semibold">
-                Lý do / Ghi chú gần nhất: {reviewDetailListing.review.rejectionReason}
+            {reviewDetailListing.review && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between">
+                <span>
+                  Lần gửi kiểm duyệt (Revision):{" "}
+                  <strong>#{reviewDetailListing.review.revision}</strong>
+                </span>
+                {reviewDetailListing.review.rejectionReason && (
+                  <span className="text-rose-700 font-semibold">
+                    Lý do từ chối trước: {reviewDetailListing.review.rejectionReason}
+                  </span>
+                )}
               </div>
             )}
 
@@ -1433,6 +649,17 @@ export default function AdminDashboardPage() {
                 {reviewDetailListing.description}
               </p>
             </div>
+
+            {reviewDetailListing.houseRules && (
+              <div>
+                <span className="font-bold text-slate-700 uppercase block mb-1">
+                  Nội quy phòng / tòa nhà (House Rules)
+                </span>
+                <p className="p-2.5 rounded-xl border border-slate-200 text-slate-700 bg-white">
+                  {reviewDetailListing.houseRules}
+                </p>
+              </div>
+            )}
 
             {reviewDetailListing.images && reviewDetailListing.images.length > 0 && (
               <div>
@@ -1465,39 +692,35 @@ export default function AdminDashboardPage() {
               >
                 Đóng
               </button>
-              {reviewDetailListing.status === "PENDING_APPROVAL" && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const id = reviewDetailListing.id;
-                      setReviewDetailListing(null);
-                      setRejectingListingId(id);
-                      setRejectReason("");
-                    }}
-                    className="flex-1 py-2.5 rounded-xl border border-rose-200 text-rose-600 font-bold hover:bg-rose-50"
-                  >
-                    Từ chối tin này
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const id = reviewDetailListing.id;
-                      setReviewDetailListing(null);
-                      await handleApproveBackend(id);
-                    }}
-                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700"
-                  >
-                    Phê duyệt công khai
-                  </button>
-                </>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  const id = reviewDetailListing.id;
+                  setReviewDetailListing(null);
+                  setRejectingListingId(id);
+                  setRejectReason("");
+                }}
+                className="flex-1 py-2.5 rounded-xl border border-rose-200 text-rose-600 font-bold hover:bg-rose-50"
+              >
+                Từ chối tin này
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const id = reviewDetailListing.id;
+                  setReviewDetailListing(null);
+                  await handleApproveBackend(id);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-md shadow-emerald-500/20"
+              >
+                Phê duyệt công khai
+              </button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* Modal: Reject Pending Listing */}
+      {/* Modal: Reject Listing with Reason */}
       {rejectingListingId && (
         <Modal
           isOpen={true}
@@ -1533,220 +756,6 @@ export default function AdminDashboardPage() {
                 className="flex-1 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 disabled:opacity-50"
               >
                 {rejectLoading ? "Đang xử lý..." : "Xác nhận từ chối"}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* Modal: Hide Violating Listing */}
-      {hidingListing && (
-        <Modal
-          isOpen={true}
-          onClose={() => setHidingListing(null)}
-          title={`Ẩn Tin Đăng Vi Phạm #${hidingListing.id}`}
-          maxWidth="md"
-        >
-          <form onSubmit={handleHideListing} className="space-y-4">
-            <p className="text-xs text-slate-600">
-              Tin đăng <strong>{hidingListing.title}</strong> sẽ bị ẩn khỏi kết quả tìm kiếm công khai.
-            </p>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                Lý do ẩn tin vi phạm (tùy chọn)
-              </label>
-              <textarea
-                rows={3}
-                maxLength={500}
-                placeholder="VD: Vi phạm quy định nội dung / Thông tin sai sự thật..."
-                value={hideReason}
-                onChange={(e) => setHideReason(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
-              />
-            </div>
-            <div className="flex gap-3 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setHidingListing(null)}
-                className="flex-1 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700"
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                disabled={hideLoading}
-                className="flex-1 py-2 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 disabled:opacity-50"
-              >
-                {hideLoading ? "Đang ẩn..." : "Xác nhận ẩn tin"}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* Modal: Resolve Violation Report */}
-      {resolvingReport && (
-        <Modal
-          isOpen={true}
-          onClose={() => setResolvingReport(null)}
-          title={`Xử Lý Báo Cáo Vi Phạm #${resolvingReport.id}`}
-          maxWidth="md"
-        >
-          <form onSubmit={handleResolveReport} className="space-y-4 text-xs">
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-              <span className="font-bold text-slate-900 block">{resolvingReport.targetTitle}</span>
-              <span className="text-rose-600 font-semibold block">Lý do: {resolvingReport.reason}</span>
-              {resolvingReport.description && (
-                <p className="text-slate-600">{resolvingReport.description}</p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setResolutionChoice("RESOLVED")}
-                className={cn(
-                  "py-2.5 px-3 rounded-xl font-bold border flex items-center justify-center gap-1.5",
-                  resolutionChoice === "RESOLVED"
-                    ? "bg-rose-600 text-white border-rose-600"
-                    : "border-slate-200 text-slate-700"
-                )}
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Xác nhận vi phạm</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setResolutionChoice("DISMISSED")}
-                className={cn(
-                  "py-2.5 px-3 rounded-xl font-bold border flex items-center justify-center gap-1.5",
-                  resolutionChoice === "DISMISSED"
-                    ? "bg-slate-800 text-white border-slate-800"
-                    : "border-slate-200 text-slate-700"
-                )}
-              >
-                <Ban className="w-4 h-4" />
-                <span>Bác bỏ báo cáo</span>
-              </button>
-            </div>
-
-            {resolutionChoice === "RESOLVED" &&
-              (resolvingReport.listingId || resolvingReport.targetType === "LISTING") && (
-                <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-xl bg-amber-50 border border-amber-200">
-                  <input
-                    type="checkbox"
-                    checked={resolutionHideListing}
-                    onChange={(e) => setResolutionHideListing(e.target.checked)}
-                    className="w-4 h-4 rounded text-rose-600"
-                  />
-                  <span className="font-semibold text-amber-900">
-                    Tự động ẩn tin đăng liên quan (#{resolvingReport.listingId || resolvingReport.targetId})
-                  </span>
-                </label>
-              )}
-
-            <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">
-                Ghi chú kết quả xử lý
-              </label>
-              <textarea
-                rows={3}
-                maxLength={1000}
-                placeholder="Nhập kết luận xử lý hoặc lý do bác bỏ..."
-                value={resolutionNote}
-                onChange={(e) => setResolutionNote(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200"
-              />
-            </div>
-
-            <div className="flex gap-3 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setResolvingReport(null)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-700"
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                disabled={resolveLoading}
-                className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-50"
-              >
-                {resolveLoading ? "Đang lưu..." : "Lưu kết quả"}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* Modal: Create / Edit Catalog Item */}
-      {catalogModalOpen && (
-        <Modal
-          isOpen={true}
-          onClose={() => setCatalogModalOpen(false)}
-          title={
-            editingCatalogId
-              ? `Chỉnh Sửa ${catalogSubTab === "roomTypes" ? "Loại Phòng" : "Tiện Ích"}`
-              : `Thêm Mới ${catalogSubTab === "roomTypes" ? "Loại Phòng" : "Tiện Ích"}`
-          }
-          maxWidth="md"
-        >
-          <form onSubmit={handleSaveCatalog} className="space-y-4 text-xs">
-            <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">
-                Mã code (chữ hoa, số, _, -)
-              </label>
-              <input
-                type="text"
-                required
-                maxLength={50}
-                pattern={"[A-Za-z0-9_\\-]+"}
-                placeholder={catalogSubTab === "roomTypes" ? "VD: DUPLEX" : "VD: SMART_TV"}
-                value={catalogCode}
-                onChange={(e) => setCatalogCode(e.target.value.toUpperCase())}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 font-mono"
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">
-                Tên hiển thị
-              </label>
-              <input
-                type="text"
-                required
-                maxLength={100}
-                placeholder={catalogSubTab === "roomTypes" ? "VD: Phòng Duplex" : "VD: Smart TV"}
-                value={catalogName}
-                onChange={(e) => setCatalogName(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200"
-              />
-            </div>
-
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={catalogIsActive}
-                onChange={(e) => setCatalogIsActive(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600"
-              />
-              <span className="font-semibold text-slate-700">Hiển thị trong hệ thống</span>
-            </label>
-
-            <div className="flex gap-3 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setCatalogModalOpen(false)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-700"
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                disabled={savingCatalog}
-                className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-50"
-              >
-                {savingCatalog ? "Đang lưu..." : "Lưu danh mục"}
               </button>
             </div>
           </form>

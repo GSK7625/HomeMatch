@@ -157,26 +157,13 @@ public static class ListingsEndpoints
     }
 
     private static async Task<IResult> GetPublicByIdAsync(
-        HttpContext httpContext,
         long listingId,
         GetPublicListingByIdHandler handler,
         CancellationToken cancellationToken)
     {
-        var viewerUserId = RequestActor.UserId(httpContext.User);
-        var ipAddress = ExtractClientIp(httpContext);
-        var result = await handler.HandleAsync(
-            new GetPublicListingByIdQuery(listingId, viewerUserId, ipAddress),
-            cancellationToken);
+        var result = await handler.HandleAsync(new GetPublicListingByIdQuery(listingId), cancellationToken);
         if (result.IsFailure) return ListingsHttpErrors.Failure(result.Error);
         return Results.Ok(ApiResponse<PublicListingDetailResponse>.Success(ListingResponseMapper.ToResponse(result.Value)));
-    }
-
-    private static string? ExtractClientIp(HttpContext httpContext)
-    {
-        var rawIp = httpContext.Connection.RemoteIpAddress?.ToString();
-        if (string.IsNullOrWhiteSpace(rawIp)) return null;
-        rawIp = rawIp.Trim();
-        return rawIp.Length <= 45 ? rawIp : rawIp[..45];
     }
 
     private static async Task<IResult> CreateAsync(

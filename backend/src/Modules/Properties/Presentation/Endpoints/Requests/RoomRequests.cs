@@ -16,8 +16,7 @@ public sealed record CreateRoomRequest
     public decimal AreaSqm { get; init; }
 
     [Required]
-    [StringLength(50, MinimumLength = 1)]
-    [RegularExpression("^[A-Za-z0-9_-]+$")]
+    [RegularExpression("^(SINGLE|STUDIO|1B1B|2B1B|DORMITORY)$")]
     public string RoomType { get; init; } = string.Empty;
 
     [Range(1, int.MaxValue)]
@@ -41,8 +40,7 @@ public sealed record UpdateRoomRequest
     [Range(typeof(decimal), "0.01", "9999.99", ParseLimitsInInvariantCulture = true)]
     public decimal? AreaSqm { get; init; }
 
-    [StringLength(50, MinimumLength = 1)]
-    [RegularExpression("^[A-Za-z0-9_-]+$")]
+    [RegularExpression("^(SINGLE|STUDIO|1B1B|2B1B|DORMITORY)$")]
     public string? RoomType { get; init; }
 
     [Range(1, int.MaxValue)]

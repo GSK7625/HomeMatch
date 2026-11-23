@@ -13,7 +13,4 @@ public sealed class Amenity
 
     /// <summary>Mã code định danh nội bộ (VD: 'AIR_CONDITIONER', 'WATER_HEATER', 'WASHING_MACHINE')</summary>
     public string Code { get; set; } = string.Empty;
-
-    /// <summary>Trạng thái hiển thị trong bộ lọc và form tạo phòng</summary>
-    public bool IsActive { get; set; } = true;
 }

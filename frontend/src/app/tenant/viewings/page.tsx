@@ -25,7 +25,7 @@ import {
   AlertCircle,
   Search,
 } from "lucide-react";
-import { cn, NOTIFICATION_OPENED_EVENT } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const STATUS_CONFIG: Record<
   BackendViewingStatus,
@@ -89,38 +89,33 @@ export default function TenantViewingsPage() {
     }
   }, [role, router]);
 
-  const refreshAppointments = useCallback(
-    async (silent = false) => {
-      if (!user) return;
-      if (!silent) setIsLoading(true);
-      try {
-        const token = getStoredToken();
-        if (token) {
-          const res = await viewingsApi.getAppointments({
-            status: statusFilter,
-            roleView: "TENANT",
-            page: 1,
-            pageSize: 30,
-          });
-          if (res.isSuccess && res.data) {
-            setAppointments(res.data.items);
-            setTotalCount(res.data.totalCount);
-            return;
-          }
-          setAppointments([]);
-          setTotalCount(0);
+  const loadAppointments = useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      const token = getStoredToken();
+      if (token) {
+        const res = await viewingsApi.getAppointments({
+          status: statusFilter,
+          roleView: "TENANT",
+          page: 1,
+          pageSize: 30,
+        });
+        if (res.isSuccess && res.data) {
+          setAppointments(res.data.items);
+          setTotalCount(res.data.totalCount);
           return;
         }
         setAppointments([]);
         setTotalCount(0);
-      } finally {
-        if (!silent) setIsLoading(false);
+        return;
       }
-    },
-    [user, statusFilter]
-  );
-
-  const loadAppointments = useCallback(() => refreshAppointments(false), [refreshAppointments]);
+      setAppointments([]);
+      setTotalCount(0);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, statusFilter]);
 
   useEffect(() => {
     loadAppointments();
@@ -131,16 +126,6 @@ export default function TenantViewingsPage() {
       }
     }).catch(() => null);
   }, [loadAppointments]);
-
-  useEffect(() => {
-    const handleNotificationOpened = () => {
-      refreshAppointments(true);
-    };
-    window.addEventListener(NOTIFICATION_OPENED_EVENT, handleNotificationOpened);
-    return () => {
-      window.removeEventListener(NOTIFICATION_OPENED_EVENT, handleNotificationOpened);
-    };
-  }, [refreshAppointments]);
 
   const handleBookAppointment = async (e: React.FormEvent) => {
     e.preventDefault();

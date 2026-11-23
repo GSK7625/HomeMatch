@@ -1,8 +1,8 @@
 "use client";
 
-import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useToast } from "@/components/Toast";
 import { propertiesApi } from "@/lib/api-client";
@@ -20,7 +20,6 @@ import {
 } from "@/features/leasing/leasing-helpers";
 import { parseContractSnapshot } from "@/features/leasing/contract-snapshot";
 import { CreateContractModal, RoomOption } from "@/features/leasing/CreateContractModal";
-import { LandlordLeadsPanel } from "@/features/leasing/LandlordLeadsPanel";
 import { LeasingContractDto } from "@/types";
 import { cn } from "@/lib/utils";
 import {
@@ -38,21 +37,12 @@ import {
   Sparkles,
   Trash2,
   User,
-  Users,
 } from "lucide-react";
 
-function LandlordContractsContent() {
+export default function LandlordContractsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { showToast } = useToast();
-
-  const initialSection = searchParams.get("tab") === "leads" ? "leads" : "contracts";
-  const [mainSection, setMainSection] = useState<"contracts" | "leads">(initialSection);
-
-  useEffect(() => {
-    setMainSection(searchParams.get("tab") === "leads" ? "leads" : "contracts");
-  }, [searchParams]);
 
   const [contracts, setContracts] = useState<LeasingContractDto[]>([]);
   const [expiring, setExpiring] = useState<LeasingContractDto[]>([]);
@@ -188,27 +178,25 @@ function LandlordContractsContent() {
         <div>
           <div className="flex items-center gap-2 text-blue-600 text-xs font-bold uppercase tracking-wider mb-1">
             <FileText className="w-4 h-4" />
-            <span>Nghiệp vụ khách thuê, hợp đồng điện tử &amp; tiền cọc · Leasing</span>
+            <span>Nghiệp vụ hợp đồng điện tử & tiền cọc · Leasing</span>
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Khách Thuê &amp; Hợp Đồng Cho Thuê
+            Quản Lý Hợp Đồng Cho Thuê
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Theo dõi khách quan tâm theo tin/phòng, soạn hợp đồng điện tử chuẩn pháp lý A4, ký OTP 2 bên và quản lý tiền cọc.
+            Soạn hợp đồng điện tử chuẩn pháp lý A4, ký OTP 2 bên, quản lý sổ cái tiền cọc và bàn giao phòng.
           </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {mainSection === "contracts" && (
-            <button
-              onClick={loadContracts}
-              disabled={loading}
-              className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors"
-              title="Làm mới danh sách"
-            >
-              <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
-            </button>
-          )}
+          <button
+            onClick={loadContracts}
+            disabled={loading}
+            className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors"
+            title="Làm mới danh sách"
+          >
+            <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+          </button>
           <button
             onClick={() => setIsCreateOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all"
@@ -219,47 +207,7 @@ function LandlordContractsContent() {
         </div>
       </div>
 
-      {/* Main Module Switcher: Hợp đồng & Người thuê vs Khách quan tâm (Leads) */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            setMainSection("contracts");
-            router.replace("/landlord/contracts", { scroll: false });
-          }}
-          className={cn(
-            "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer",
-            mainSection === "contracts"
-              ? "bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/20"
-              : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900"
-          )}
-        >
-          <FileText className="w-4 h-4" />
-          <span>Hợp đồng &amp; Người thuê</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setMainSection("leads");
-            router.replace("/landlord/contracts?tab=leads", { scroll: false });
-          }}
-          className={cn(
-            "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer",
-            mainSection === "leads"
-              ? "bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/20"
-              : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900"
-          )}
-        >
-          <Users className="w-4 h-4" />
-          <span>Khách quan tâm</span>
-        </button>
-      </div>
-
-      {mainSection === "leads" ? (
-        <LandlordLeadsPanel onCreateContractClick={() => setIsCreateOpen(true)} />
-      ) : (
-        <>
-          {/* Expiring Banner */}
+      {/* Expiring Banner */}
       {expiring.length > 0 && activeTab !== "EXPIRING" && (
         <div className="px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2.5 text-amber-900 font-medium">
@@ -503,8 +451,6 @@ function LandlordContractsContent() {
           </div>
         )}
       </div>
-        </>
-      )}
 
       <CreateContractModal
         isOpen={isCreateOpen}
@@ -516,23 +462,6 @@ function LandlordContractsContent() {
         }}
       />
     </div>
-  );
-}
-
-export default function LandlordContractsPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="max-w-7xl mx-auto px-4 py-20 text-center space-y-3">
-          <RefreshCw className="w-7 h-7 text-blue-600 animate-spin mx-auto" />
-          <p className="text-xs text-slate-500 font-medium">
-            Đang tải danh sách khách thuê &amp; hợp đồng...
-          </p>
-        </div>
-      }
-    >
-      <LandlordContractsContent />
-    </Suspense>
   );
 }
 

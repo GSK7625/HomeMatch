@@ -80,10 +80,6 @@ public static class LeasingErrors
         "Leasing.InvalidOtp",
         "Mã OTP xác thực không chính xác hoặc đã hết hạn hiệu lực.");
 
-    public static readonly Error TooManyOtpAttempts = new(
-        "Leasing.TooManyOtpAttempts",
-        "Bạn đã nhập sai mã OTP quá 5 lần. Vui lòng yêu cầu mã OTP mới sau 10 phút.");
-
     public static readonly Error DocumentHashMismatch = new(
         "Leasing.DocumentHashMismatch",
         "Mã băm nội dung hợp đồng không khớp với phiên bản bên kia đã ký.");

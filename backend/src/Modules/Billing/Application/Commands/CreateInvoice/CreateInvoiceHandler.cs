@@ -15,15 +15,18 @@ public class CreateInvoiceHandler
     private readonly IInvoiceRepository _invoiceRepository;
     private readonly ILeasingContractReader _leasingContractReader;
     private readonly IRoomListingReader _roomListingReader;
+    private readonly IUtilityReadingRepository? _utilityReadingRepository;
 
     public CreateInvoiceHandler(
         IInvoiceRepository invoiceRepository,
         ILeasingContractReader leasingContractReader,
-        IRoomListingReader roomListingReader)
+        IRoomListingReader roomListingReader,
+        IUtilityReadingRepository? utilityReadingRepository = null)
     {
         _invoiceRepository = invoiceRepository;
         _leasingContractReader = leasingContractReader;
         _roomListingReader = roomListingReader;
+        _utilityReadingRepository = utilityReadingRepository;
     }
 
     public async Task<Result<InvoiceDto>> HandleAsync(CreateInvoiceCommand command, CancellationToken cancellationToken = default)
@@ -116,6 +119,23 @@ public class CreateInvoiceHandler
         // 8. Sinh mã hóa đơn duy nhất
         string invoiceCode = $"INV-{command.BillingYear:D4}{command.BillingMonth:D2}-{contract.Id:D4}-{Random.Shared.Next(1000, 9999)}";
 
+        // 8.1. Lấy chỉ số điện nước & phí dịch vụ của kỳ (nếu đã ghi chỉ số)
+        long electricityAmount = 0;
+        long waterAmount = 0;
+        long serviceAmount = 0;
+
+        if (_utilityReadingRepository is not null)
+        {
+            var reading = await _utilityReadingRepository.GetByRoomAndPeriodAsync(
+                contract.RoomId, command.BillingMonth, command.BillingYear, cancellationToken);
+            if (reading is not null)
+            {
+                electricityAmount = reading.ElectricityCost;
+                waterAmount = reading.WaterCost;
+                serviceAmount = reading.ServiceCost;
+            }
+        }
+
         // 9. Khởi tạo thực thể Invoice
         var invoiceResult = Invoice.Create(
             invoiceCode,
@@ -127,7 +147,10 @@ public class CreateInvoiceHandler
             command.BillingMonth,
             command.BillingYear,
             rentAmount,
-            dueDate);
+            dueDate,
+            electricityAmount,
+            waterAmount,
+            serviceAmount);
 
         if (invoiceResult.IsFailure)
         {

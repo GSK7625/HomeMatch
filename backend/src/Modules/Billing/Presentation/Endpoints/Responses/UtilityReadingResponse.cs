@@ -1,0 +1,26 @@
+namespace HomeMatch.Modules.Billing.Presentation.Endpoints.Responses;
+
+public sealed record UtilityReadingResponse(
+    long Id,
+    long PropertyId,
+    long RoomId,
+    long ContractId,
+    long LandlordId,
+    long TenantId,
+    long RecordedBy,
+    int BillingMonth,
+    int BillingYear,
+    int ElectricityOld,
+    int ElectricityNew,
+    int ElectricityUsage,
+    long ElectricityUnitPrice,
+    long ElectricityCost,
+    int WaterOld,
+    int WaterNew,
+    int WaterUsage,
+    long WaterUnitPrice,
+    long WaterCost,
+    long ServiceCost,
+    DateOnly ReadingDate,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);

@@ -545,6 +545,7 @@ export interface TariffItemBody {
 }
 
 export interface SetPropertyTariffsBody {
+  roomId?: number | null;
   tariffs: TariffItemBody[];
 }
 
@@ -1118,9 +1119,50 @@ export interface BillingPaymentDto {
   createdAt: string;
 }
 
+export interface BillingUtilityReadingDto {
+  id: number;
+  propertyId: number;
+  roomId: number;
+  contractId: number;
+  landlordId: number;
+  tenantId: number;
+  recordedBy: number;
+  billingMonth: number;
+  billingYear: number;
+  electricityOld: number;
+  electricityNew: number;
+  electricityUsage: number;
+  electricityUnitPrice: number;
+  electricityCost: number;
+  waterOld: number;
+  waterNew: number;
+  waterUsage: number;
+  waterUnitPrice: number;
+  waterCost: number;
+  serviceCost: number;
+  readingDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecordUtilityReadingPayload {
+  contractId: number;
+  billingMonth: number;
+  billingYear: number;
+  electricityOld: number;
+  electricityNew: number;
+  waterOld: number;
+  waterNew: number;
+  electricityUnitPriceOverride?: number | null;
+  waterUnitPriceOverride?: number | null;
+  serviceCostOverride?: number | null;
+  readingDate?: string | null;
+}
+
 export interface BillingInvoiceDetailDto extends BillingInvoiceDto {
   contractCode?: string | null;
   payments: BillingPaymentDto[];
+  utilityReading?: BillingUtilityReadingDto | null;
 }
 
 export interface BillingPagedInvoicesDto {

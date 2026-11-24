@@ -5,9 +5,13 @@ namespace HomeMatch.Modules.Properties.Application.Interfaces;
 
 public interface ITariffRepository
 {
-    Task<IReadOnlyList<UtilityTariff>> GetPropertyTariffsAsync(long propertyId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<UtilityTariff>> GetPropertyTariffsAsync(
+        long propertyId,
+        CancellationToken cancellationToken,
+        long? roomId = null);
     Task<Result<IReadOnlyList<UtilityTariff>>> SetPropertyTariffsAsync(
         long propertyId,
         IReadOnlyList<(string TariffType, string CalcMethod, long UnitPrice)> tariffs,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        long? roomId = null);
 }

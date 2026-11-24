@@ -9,26 +9,57 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Repositories;
 
 public sealed class TariffRepository(PropertiesDbContext db) : ITariffRepository
 {
-    public async Task<IReadOnlyList<UtilityTariff>> GetPropertyTariffsAsync(long propertyId, CancellationToken cancellationToken) =>
-        await db.UtilityTariffs
+    public async Task<IReadOnlyList<UtilityTariff>> GetPropertyTariffsAsync(
+        long propertyId,
+        CancellationToken cancellationToken,
+        long? roomId = null)
+    {
+        if (roomId is null)
+        {
+            return await db.UtilityTariffs
+                .AsNoTracking()
+                .Where(t => t.PropertyId == propertyId && t.RoomId == null)
+                .OrderBy(t => t.TariffType)
+                .ToListAsync(cancellationToken);
+        }
+
+        // Lấy cả biểu giá cấp phòng và biểu giá cấp tòa nhà để fallback nếu phòng chưa cấu hình riêng
+        var allRates = await db.UtilityTariffs
             .AsNoTracking()
-            .Where(t => t.PropertyId == propertyId && t.RoomId == null)
-            .OrderBy(t => t.TariffType)
+            .Where(t => t.PropertyId == propertyId && (t.RoomId == null || t.RoomId == roomId.Value))
             .ToListAsync(cancellationToken);
+
+        var roomRates = allRates
+            .Where(t => t.RoomId == roomId.Value)
+            .ToDictionary(t => t.TariffType, StringComparer.OrdinalIgnoreCase);
+
+        var propertyRates = allRates
+            .Where(t => t.RoomId == null)
+            .ToDictionary(t => t.TariffType, StringComparer.OrdinalIgnoreCase);
+
+        var merged = new Dictionary<string, UtilityTariff>(propertyRates, StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in roomRates)
+        {
+            merged[kv.Key] = kv.Value;
+        }
+
+        return merged.Values.OrderBy(t => t.TariffType).ToList();
+    }
 
     public async Task<Result<IReadOnlyList<UtilityTariff>>> SetPropertyTariffsAsync(
         long propertyId,
         IReadOnlyList<(string TariffType, string CalcMethod, long UnitPrice)> tariffs,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        long? roomId = null)
     {
         var existing = await db.UtilityTariffs
-            .Where(t => t.PropertyId == propertyId && t.RoomId == null)
+            .Where(t => t.PropertyId == propertyId && t.RoomId == roomId)
             .ToListAsync(cancellationToken);
 
         var existingByType = existing.ToDictionary(t => t.TariffType, StringComparer.OrdinalIgnoreCase);
         var targetTypes = new HashSet<string>(tariffs.Select(t => t.TariffType), StringComparer.OrdinalIgnoreCase);
 
-        // Xóa những loại phí không còn trong danh sách mới
+        // Xóa những loại phí không còn trong danh sách mới ở đúng phạm vi (Property hoặc Room)
         foreach (var old in existing)
         {
             if (!targetTypes.Contains(old.TariffType))
@@ -53,7 +84,7 @@ public sealed class TariffRepository(PropertiesDbContext db) : ITariffRepository
                 var created = new UtilityTariff
                 {
                     PropertyId = propertyId,
-                    RoomId = null,
+                    RoomId = roomId,
                     TariffType = item.TariffType,
                     CalcMethod = item.CalcMethod,
                     UnitPrice = item.UnitPrice,

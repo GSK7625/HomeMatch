@@ -23,6 +23,8 @@ public interface IRoomListingReader
         IReadOnlyCollection<long> roomIds, CancellationToken cancellationToken);
     Task<bool> HasElectricityAndWaterRatesAsync(
         long roomId, DateOnly date, CancellationToken cancellationToken);
+    Task<IReadOnlyList<RoomListingTariffSnapshot>> GetEffectiveRoomTariffsAsync(
+        long roomId, CancellationToken cancellationToken);
     Task<bool> RoomTypeExistsAsync(string code, CancellationToken cancellationToken);
 }
 

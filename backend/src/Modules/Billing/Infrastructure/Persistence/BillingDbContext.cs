@@ -10,6 +10,7 @@ public class BillingDbContext(DbContextOptions<BillingDbContext> options) : DbCo
 
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<UtilityReading> UtilityReadings => Set<UtilityReading>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -1,3 +1,4 @@
+using HomeMatch.Modules.Billing.Application.Commands.RecordUtilityReading;
 using HomeMatch.Modules.Billing.Application.DTOs;
 using HomeMatch.Modules.Billing.Application.Interfaces;
 using HomeMatch.Modules.Billing.Domain.Constants;
@@ -10,13 +11,16 @@ public class GetInvoiceByIdHandler
 {
     private readonly IInvoiceRepository _invoiceRepository;
     private readonly ILeasingContractReader _leasingContractReader;
+    private readonly IUtilityReadingRepository? _utilityReadingRepository;
 
     public GetInvoiceByIdHandler(
         IInvoiceRepository invoiceRepository,
-        ILeasingContractReader leasingContractReader)
+        ILeasingContractReader leasingContractReader,
+        IUtilityReadingRepository? utilityReadingRepository = null)
     {
         _invoiceRepository = invoiceRepository;
         _leasingContractReader = leasingContractReader;
+        _utilityReadingRepository = utilityReadingRepository;
     }
 
     public async Task<Result<InvoiceDetailDto>> HandleAsync(GetInvoiceByIdQuery query, CancellationToken cancellationToken = default)
@@ -35,6 +39,17 @@ public class GetInvoiceByIdHandler
         }
 
         var contract = await _leasingContractReader.GetContractByIdAsync(invoice.ContractId, cancellationToken);
+
+        UtilityReadingDto? readingDto = null;
+        if (_utilityReadingRepository is not null)
+        {
+            var reading = await _utilityReadingRepository.GetByRoomAndPeriodAsync(
+                invoice.RoomId, invoice.BillingMonth, invoice.BillingYear, cancellationToken);
+            if (reading is not null)
+            {
+                readingDto = RecordUtilityReadingHandler.ToDto(reading);
+            }
+        }
 
         var paymentDtos = invoice.Payments
             .OrderByDescending(p => p.CreatedAt)
@@ -80,7 +95,8 @@ public class GetInvoiceByIdHandler
             invoice.CancelledAt,
             invoice.CreatedAt,
             invoice.UpdatedAt,
-            paymentDtos);
+            paymentDtos,
+            readingDto);
 
         return Result.Success(detailDto);
     }

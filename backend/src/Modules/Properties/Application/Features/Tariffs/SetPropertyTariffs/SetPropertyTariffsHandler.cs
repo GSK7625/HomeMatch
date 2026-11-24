@@ -7,11 +7,13 @@ namespace HomeMatch.Modules.Properties.Application.Features.Tariffs.SetPropertyT
 public sealed class SetPropertyTariffsHandler
 {
     private readonly IPropertyRepository _properties;
+    private readonly IRoomRepository _rooms;
     private readonly ITariffRepository _tariffs;
 
-    public SetPropertyTariffsHandler(IPropertyRepository properties, ITariffRepository tariffs)
+    public SetPropertyTariffsHandler(IPropertyRepository properties, IRoomRepository rooms, ITariffRepository tariffs)
     {
         _properties = properties;
+        _rooms = rooms;
         _tariffs = tariffs;
     }
 
@@ -21,6 +23,13 @@ public sealed class SetPropertyTariffsHandler
     {
         if (!await _properties.IsOwnedAsync(command.LandlordId, command.PropertyId, cancellationToken))
             return Result.Failure<IReadOnlyList<TariffResult>>(PropertiesErrors.PropertyNotFound);
+
+        if (command.RoomId.HasValue)
+        {
+            var room = await _rooms.GetAsync(command.PropertyId, command.RoomId.Value, cancellationToken);
+            if (room is null)
+                return Result.Failure<IReadOnlyList<TariffResult>>(PropertiesErrors.RoomNotFound);
+        }
 
         if (command.Tariffs is null || command.Tariffs.Count == 0)
             return Result.Failure<IReadOnlyList<TariffResult>>(new Error("Request.Invalid", "Danh sách biểu giá không được để trống."));
@@ -42,7 +51,7 @@ public sealed class SetPropertyTariffsHandler
             tuples.Add((item.TariffType, item.CalcMethod, item.UnitPrice));
         }
 
-        var saved = await _tariffs.SetPropertyTariffsAsync(command.PropertyId, tuples, cancellationToken);
+        var saved = await _tariffs.SetPropertyTariffsAsync(command.PropertyId, tuples, cancellationToken, command.RoomId);
         if (saved.IsFailure)
             return Result.Failure<IReadOnlyList<TariffResult>>(saved.Error);
 

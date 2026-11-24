@@ -1,4 +1,6 @@
 using HomeMatch.Modules.Properties.Application.Features.AdminCatalogs;
+using HomeMatch.Modules.Properties.Application.Features.Geocoding;
+using HomeMatch.Modules.Properties.Infrastructure.Geocoding;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetAmenities;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetProvinces;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetRoomTypes;
@@ -46,6 +48,10 @@ public static class PropertiesModuleExtensions
             }
         });
 
+        services.Configure<GeocodingOptions>(configuration.GetSection("Geocoding"));
+        services.AddHttpClient("Properties.Geocoding", client => client.Timeout = TimeSpan.FromSeconds(35));
+        services.AddSingleton<IGeocodingService, NominatimGeocodingService>();
+        services.AddScoped<GeocodingHandler>();
         services.AddScoped<IRoomOperationLock, PostgresRoomOperationLock>();
         services.AddScoped<DeletePropertyHandler>();
         services.AddScoped<DeleteRoomHandler>();
@@ -88,6 +94,7 @@ public static class PropertiesModuleExtensions
         var propertiesGroup = endpoints.MapGroup("/api/v1/properties").WithTags("Properties");
         propertiesGroup.MapGet("/ping", () => Results.Ok(new { module = "Properties", status = "Healthy", timestamp = DateTime.UtcNow }));
         propertiesGroup.MapPropertyEndpoints();
+        propertiesGroup.MapGeocodingEndpoints();
         propertiesGroup.MapRoomEndpoints();
         propertiesGroup.MapTariffEndpoints();
 

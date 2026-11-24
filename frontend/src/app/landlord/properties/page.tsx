@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/AuthContext";
 import { propertiesApi, catalogsApi, getStoredToken } from "@/lib/api-client";
@@ -101,6 +101,8 @@ export default function LandlordPropertiesPage() {
   const [newPropLat, setNewPropLat] = useState<number | null>(null);
   const [newPropLng, setNewPropLng] = useState<number | null>(null);
   const [savingProp, setSavingProp] = useState(false);
+  const [newLocationConfirmed, setNewLocationConfirmed] = useState(false);
+  const newWardRequest = useRef(0);
 
   // Form: Edit Property
   const [editPropName, setEditPropName] = useState("");
@@ -112,6 +114,8 @@ export default function LandlordPropertiesPage() {
   const [editPropLat, setEditPropLat] = useState<number | null>(null);
   const [editPropLng, setEditPropLng] = useState<number | null>(null);
   const [updatingProp, setUpdatingProp] = useState(false);
+  const [editLocationConfirmed, setEditLocationConfirmed] = useState(false);
+  const editWardRequest = useRef(0);
 
   // Form: Create Room
   const [newRoomNumber, setNewRoomNumber] = useState("");
@@ -171,31 +175,36 @@ export default function LandlordPropertiesPage() {
 
   // Load wards for Create Property Form
   const loadWardsForProvince = useCallback(async (provinceCode: string) => {
+    const revision = ++newWardRequest.current;
     if (!provinceCode) {
       setWards([]);
       setNewPropWard("");
+      setLoadingWards(false);
       return;
     }
     setLoadingWards(true);
     try {
       const wardRes = await catalogsApi.getWards(provinceCode);
+      if (revision !== newWardRequest.current) return;
       if (wardRes.isSuccess && wardRes.data && wardRes.data.length > 0) {
         const wardList = wardRes.data;
         setWards(wardList);
         setNewPropWard((prev) => {
           const exists = wardList.some((w) => w.code === prev);
-          return exists ? prev : wardList[0].code;
+          return exists ? prev : "";
         });
         return;
       }
     } catch (err) {
       console.warn("Could not load wards from backend", err);
     } finally {
-      setLoadingWards(false);
+      if (revision === newWardRequest.current) setLoadingWards(false);
     }
 
-    setWards([]);
-    setNewPropWard("");
+    if (revision === newWardRequest.current) {
+      setWards([]);
+      setNewPropWard("");
+    }
   }, []);
 
   useEffect(() => {
@@ -204,33 +213,40 @@ export default function LandlordPropertiesPage() {
 
   // Load wards for Edit Property Form
   const loadEditWardsForProvince = useCallback(async (provinceCode: string) => {
+    const revision = ++editWardRequest.current;
     if (!provinceCode) {
       setEditPropWards([]);
+      setEditPropWard("");
+      setLoadingEditWards(false);
       return;
     }
     setLoadingEditWards(true);
     try {
       const wardRes = await catalogsApi.getWards(provinceCode);
+      if (revision !== editWardRequest.current) return;
       if (wardRes.isSuccess && wardRes.data && wardRes.data.length > 0) {
         const wardList = wardRes.data;
         setEditPropWards(wardList);
         setEditPropWard((prev) => {
           const exists = wardList.some((w) => w.code === prev);
-          return exists ? prev : wardList[0].code;
+          return exists ? prev : "";
         });
         return;
       }
     } catch (err) {
       console.warn("Could not load edit wards from backend", err);
     } finally {
-      setLoadingEditWards(false);
+      if (revision === editWardRequest.current) setLoadingEditWards(false);
     }
 
-    setEditPropWards([]);
+    if (revision === editWardRequest.current) {
+      setEditPropWards([]);
+      setEditPropWard("");
+    }
   }, []);
 
   useEffect(() => {
-    if (isEditPropOpen && editPropProvince) {
+    if (isEditPropOpen) {
       loadEditWardsForProvince(editPropProvince);
     }
   }, [editPropProvince, isEditPropOpen, loadEditWardsForProvince]);
@@ -355,9 +371,13 @@ export default function LandlordPropertiesPage() {
       showToast("Vui lòng điền đầy đủ tên và địa chỉ tòa nhà!", "error");
       return;
     }
-    const finalWard = newPropWard || (wards.length > 0 ? wards[0].code : "00001");
+    const finalWard = newPropWard;
     if (!finalWard) {
       showToast("Vui lòng chọn Phường / Xã!", "error");
+      return;
+    }
+    if (!newLocationConfirmed || newPropLat == null || newPropLng == null) {
+      showToast("Vui lòng mở bản đồ và xác nhận vị trí của địa chỉ hiện tại.", "error");
       return;
     }
     setSavingProp(true);
@@ -379,6 +399,7 @@ export default function LandlordPropertiesPage() {
         setNewPropAddress("");
         setNewPropLat(null);
         setNewPropLng(null);
+        setNewLocationConfirmed(false);
         await loadProperties();
         setSelectedPropertyId(res.data.id);
       } else {
@@ -402,6 +423,7 @@ export default function LandlordPropertiesPage() {
 
   // Open Edit Property Modal
   const handleOpenEditProperty = async (prop: PropertyDto) => {
+    setEditLocationConfirmed(prop.latitude != null && prop.longitude != null);
     setEditPropName(prop.name);
     setEditPropType(prop.propertyType || "BOARDING_HOUSE");
     setEditPropProvince(prop.provinceCode || "01");
@@ -420,6 +442,7 @@ export default function LandlordPropertiesPage() {
         setEditPropAddress(res.data.addressDetail);
         setEditPropLat(res.data.latitude ?? null);
         setEditPropLng(res.data.longitude ?? null);
+        setEditLocationConfirmed(res.data.latitude != null && res.data.longitude != null);
       }
     } catch {
       // fallback to local prop
@@ -432,6 +455,10 @@ export default function LandlordPropertiesPage() {
     if (!selectedPropertyId) return;
     if (!editPropName.trim() || !editPropAddress.trim()) {
       showToast("Vui lòng nhập đầy đủ tên và địa chỉ tòa nhà!", "error");
+      return;
+    }
+    if (!editPropWard || !editLocationConfirmed || editPropLat == null || editPropLng == null) {
+      showToast("Vui lòng chọn phường/xã và xác nhận lại vị trí trên bản đồ.", "error");
       return;
     }
     setUpdatingProp(true);
@@ -994,9 +1021,16 @@ export default function LandlordPropertiesPage() {
                 </div>
                 <select
                   value={newPropProvince}
-                  onChange={(e) => setNewPropProvince(e.target.value)}
+                  onChange={(e) => {
+                    newWardRequest.current += 1;
+                    setNewPropProvince(e.target.value);
+                    setNewPropWard("");
+                    setWards([]);
+                    setNewLocationConfirmed(false);
+                  }}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
+                  <option value="">Chọn tỉnh / thành phố...</option>
                   {availableProvinces.map((p) => (
                     <option key={p.code} value={p.code}>
                       {p.fullName || p.name}
@@ -1020,7 +1054,7 @@ export default function LandlordPropertiesPage() {
               </div>
               <SearchableSelect
                 value={newPropWard}
-                onChange={(code) => setNewPropWard(code)}
+                onChange={(code) => { setNewPropWard(code); setNewLocationConfirmed(false); }}
                 options={availableWards.map((w) => ({
                   value: w.code,
                   label: w.fullName || w.name,
@@ -1039,7 +1073,7 @@ export default function LandlordPropertiesPage() {
               </label>
               <AddressAutocompleteInput
                 value={newPropAddress}
-                onChange={(val) => setNewPropAddress(val)}
+                onChange={(val) => { setNewPropAddress(val); setNewLocationConfirmed(false); }}
                 onSelectCoords={(lat, lng) => {
                   setNewPropLat(lat);
                   setNewPropLng(lng);
@@ -1060,7 +1094,7 @@ export default function LandlordPropertiesPage() {
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-bold text-slate-700 uppercase flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Tọa độ vị trí GPS (Khuyến nghị)</span>
+                  <span>Tọa độ vị trí GPS (Bắt buộc xác nhận)</span>
                 </label>
                 <button
                   type="button"
@@ -1068,11 +1102,11 @@ export default function LandlordPropertiesPage() {
                   className="text-xs text-blue-600 font-bold hover:underline inline-flex items-center gap-1"
                 >
                   <Compass className="w-3.5 h-3.5" />
-                  <span>{newPropLat && newPropLng ? "Chỉnh sửa ghim" : "Ghim trên bản đồ"}</span>
+                  <span>{newPropLat != null && newPropLng != null ? "Kiểm tra / chỉnh ghim" : "Tìm địa chỉ / ghim bản đồ"}</span>
                 </button>
               </div>
 
-              {newPropLat && newPropLng ? (
+              {newPropLat != null && newPropLng != null ? (
                 <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-slate-200 text-xs">
                   <div className="font-mono text-slate-700">
                     <span className="text-emerald-600 font-bold mr-1.5">Đã ghim:</span>
@@ -1083,6 +1117,7 @@ export default function LandlordPropertiesPage() {
                     onClick={() => {
                       setNewPropLat(null);
                       setNewPropLng(null);
+                      setNewLocationConfirmed(false);
                     }}
                     className="text-[11px] text-red-500 hover:underline font-medium"
                   >
@@ -1091,11 +1126,12 @@ export default function LandlordPropertiesPage() {
                 </div>
               ) : (
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Nếu chưa ghim, hệ thống sẽ tự động định vị theo tên đường & phường/xã. Bạn có thể bấm <strong>&quot;Ghim trên bản đồ&quot;</strong> để chọn chính xác số nhà / ngõ trọ.
+                  Mở bản đồ để tìm vị trí từ địa chỉ hoặc ghim thủ công, rồi xác nhận trước khi tạo tòa nhà.
                 </p>
               )}
             </div>
 
+            {!newLocationConfirmed && <p className="text-xs text-amber-700">Địa chỉ hiện tại chưa được xác nhận vị trí trên bản đồ.</p>}
             <div className="flex gap-3 pt-3 border-t border-slate-100">
               <button
                 type="button"
@@ -1325,9 +1361,16 @@ export default function LandlordPropertiesPage() {
                 </div>
                 <select
                   value={editPropProvince}
-                  onChange={(e) => setEditPropProvince(e.target.value)}
+                  onChange={(e) => {
+                    editWardRequest.current += 1;
+                    setEditPropProvince(e.target.value);
+                    setEditPropWard("");
+                    setEditPropWards([]);
+                    setEditLocationConfirmed(false);
+                  }}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
+                  <option value="">Chọn tỉnh / thành phố...</option>
                   {availableProvinces.map((p) => (
                     <option key={p.code} value={p.code}>
                       {p.fullName || p.name}
@@ -1351,7 +1394,7 @@ export default function LandlordPropertiesPage() {
               </div>
               <SearchableSelect
                 value={editPropWard}
-                onChange={(code) => setEditPropWard(code)}
+                onChange={(code) => { setEditPropWard(code); setEditLocationConfirmed(false); }}
                 options={availableEditWards.map((w) => ({
                   value: w.code,
                   label: w.fullName || w.name,
@@ -1370,7 +1413,7 @@ export default function LandlordPropertiesPage() {
               </label>
               <AddressAutocompleteInput
                 value={editPropAddress}
-                onChange={(val) => setEditPropAddress(val)}
+                onChange={(val) => { setEditPropAddress(val); setEditLocationConfirmed(false); }}
                 onSelectCoords={(lat, lng) => {
                   setEditPropLat(lat);
                   setEditPropLng(lng);
@@ -1391,7 +1434,7 @@ export default function LandlordPropertiesPage() {
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-bold text-slate-700 uppercase flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Tọa độ vị trí GPS (Khuyến nghị)</span>
+                  <span>Tọa độ vị trí GPS (Bắt buộc xác nhận)</span>
                 </label>
                 <button
                   type="button"
@@ -1399,11 +1442,11 @@ export default function LandlordPropertiesPage() {
                   className="text-xs text-blue-600 font-bold hover:underline inline-flex items-center gap-1"
                 >
                   <Compass className="w-3.5 h-3.5" />
-                  <span>{editPropLat && editPropLng ? "Chỉnh sửa ghim" : "Ghim trên bản đồ"}</span>
+                  <span>{editPropLat != null && editPropLng != null ? "Kiểm tra / chỉnh ghim" : "Tìm địa chỉ / ghim bản đồ"}</span>
                 </button>
               </div>
 
-              {editPropLat && editPropLng ? (
+              {editPropLat != null && editPropLng != null ? (
                 <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-slate-200 text-xs">
                   <div className="font-mono text-slate-700">
                     <span className="text-emerald-600 font-bold mr-1.5">Đã ghim:</span>
@@ -1414,6 +1457,7 @@ export default function LandlordPropertiesPage() {
                     onClick={() => {
                       setEditPropLat(null);
                       setEditPropLng(null);
+                      setEditLocationConfirmed(false);
                     }}
                     className="text-[11px] text-red-500 hover:underline font-medium"
                   >
@@ -1443,6 +1487,7 @@ export default function LandlordPropertiesPage() {
                 {updatingProp ? "Đang cập nhật..." : "Lưu thay đổi"}
               </button>
             </div>
+            {!editLocationConfirmed && <p className="text-xs text-amber-700">Địa chỉ hiện tại chưa được xác nhận vị trí trên bản đồ.</p>}
           </form>
         </Modal>
       )}
@@ -1603,6 +1648,7 @@ export default function LandlordPropertiesPage() {
           onClose={() => setIsPickerOpenForCreate(false)}
           initialLatitude={newPropLat}
           initialLongitude={newPropLng}
+          addressQuery={{ addressDetail: newPropAddress, provinceCode: newPropProvince, wardCode: newPropWard }}
           addressContext={[
             newPropAddress,
             availableWards.find((w) => w.code === newPropWard)?.name,
@@ -1611,9 +1657,14 @@ export default function LandlordPropertiesPage() {
           ]
             .filter(Boolean)
             .join(", ")}
-          onConfirm={({ latitude, longitude }) => {
+          onConfirm={({ latitude, longitude, address }) => {
             setNewPropLat(latitude);
             setNewPropLng(longitude);
+            setNewLocationConfirmed(true);
+            const suggestedAddress = address?.formattedAddress.trim() || address?.addressDetail.trim();
+            if (suggestedAddress) {
+              setNewPropAddress(suggestedAddress);
+            }
             showToast(`Đã ghim tọa độ GPS: ${latitude}, ${longitude}`, "success");
           }}
         />
@@ -1652,6 +1703,7 @@ export default function LandlordPropertiesPage() {
           onClose={() => setIsPickerOpenForEdit(false)}
           initialLatitude={editPropLat}
           initialLongitude={editPropLng}
+          addressQuery={{ addressDetail: editPropAddress, provinceCode: editPropProvince, wardCode: editPropWard }}
           addressContext={[
             editPropAddress,
             availableEditWards.find((w) => w.code === editPropWard)?.name,
@@ -1660,9 +1712,14 @@ export default function LandlordPropertiesPage() {
           ]
             .filter(Boolean)
             .join(", ")}
-          onConfirm={({ latitude, longitude }) => {
+          onConfirm={({ latitude, longitude, address }) => {
             setEditPropLat(latitude);
             setEditPropLng(longitude);
+            setEditLocationConfirmed(true);
+            const suggestedAddress = address?.formattedAddress.trim() || address?.addressDetail.trim();
+            if (suggestedAddress) {
+              setEditPropAddress(suggestedAddress);
+            }
             showToast(`Đã cập nhật tọa độ GPS: ${latitude}, ${longitude}`, "success");
           }}
         />

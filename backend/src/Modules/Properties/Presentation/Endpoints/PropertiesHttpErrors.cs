@@ -8,6 +8,8 @@ internal static class PropertiesHttpErrors
     public static IResult Failure(Error error) => Results.Json(ApiResponse<object>.Failure(error),
         statusCode: error.Code switch
         {
+            "Geocoding.NotFound" => StatusCodes.Status404NotFound,
+            "Geocoding.Unavailable" or "Geocoding.Busy" => StatusCodes.Status500InternalServerError,
             "Auth.Unauthorized" => StatusCodes.Status401Unauthorized,
             "Auth.LandlordRequired" => StatusCodes.Status403Forbidden,
             "Auth.AdminRequired" => StatusCodes.Status403Forbidden,

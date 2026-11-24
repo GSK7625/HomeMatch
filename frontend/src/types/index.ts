@@ -496,6 +496,19 @@ export interface WardDto {
   provinceCode: string;
 }
 
+export interface GeocodingResult {
+  latitude: number;
+  longitude: number;
+  formattedAddress: string;
+  addressDetail: string;
+  provinceCode: string | null;
+  provinceName: string | null;
+  wardCode: string | null;
+  wardName: string | null;
+  matchStatus: "MATCHED" | "PARTIAL" | "NEEDS_CONFIRMATION";
+  precision: "BUILDING" | "STREET" | "AREA";
+}
+
 export interface CreatePropertyBody {
   name: string;
   provinceCode: string;

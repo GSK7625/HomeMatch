@@ -25,6 +25,7 @@ import {
   ProvinceDto,
   WardDto,
   CreatePropertyBody,
+  GeocodingResult,
   UpdatePropertyBody,
   CreateRoomBody,
   UpdateRoomBody,
@@ -789,6 +790,16 @@ export const tenantOverviewApi = {
 // Properties & Rooms Module API (/api/v1/properties)
 // ============================================================================
 export const propertiesApi = {
+  geocode: (addressDetail: string, provinceCode: string, wardCode: string, signal?: AbortSignal) => {
+    const query = new URLSearchParams({ addressDetail, provinceCode, wardCode });
+    return apiRequest<GeocodingResult[]>(`/api/v1/properties/geocoding?${query}`, { signal });
+  },
+
+  reverseGeocode: (latitude: number, longitude: number, signal?: AbortSignal) => {
+    const query = new URLSearchParams({ latitude: String(latitude), longitude: String(longitude) });
+    return apiRequest<GeocodingResult>(`/api/v1/properties/reverse-geocoding?${query}`, { signal });
+  },
+
   getMyProperties: async () => {
     return apiRequest<PropertyDto[]>("/api/v1/properties/mine", {
       method: "GET",

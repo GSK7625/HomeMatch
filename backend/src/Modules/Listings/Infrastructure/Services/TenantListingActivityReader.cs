@@ -3,6 +3,7 @@ using HomeMatch.Shared.Contracts;
 using HomeMatch.Shared.Contracts.Identity;
 using HomeMatch.Shared.Contracts.Listings;
 using Microsoft.EntityFrameworkCore;
+using HomeMatch.Modules.Listings.Application;
 
 namespace HomeMatch.Modules.Listings.Infrastructure.Services;
 
@@ -102,11 +103,7 @@ public sealed class TenantListingActivityReader(
                 }.Where(part => !string.IsNullOrWhiteSpace(part)));
             }
 
-            var primaryImageUrl = listing.Images
-                .OrderByDescending(i => i.IsPrimary)
-                .ThenBy(i => i.SortOrder)
-                .ThenBy(i => i.Id)
-                .FirstOrDefault()?.ImageUrl;
+            var primaryImageUrl = ListingMapping.CoverImageUrl(listing);
 
             var isPublished = listing.DeletedAt == null && listing.Status == "PUBLISHED"
                 && (listing.ExpiresAt == null || listing.ExpiresAt > DateTimeOffset.UtcNow)

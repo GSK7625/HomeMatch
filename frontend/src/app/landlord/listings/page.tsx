@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { listingsApi, propertiesApi, catalogsApi, getStoredToken } from "@/lib/api-client";
 import {
@@ -15,6 +15,8 @@ import {
 import { useAuth } from "@/features/auth/AuthContext";
 import { useToast } from "@/components/Toast";
 import { Modal } from "@/components/Modal";
+import { ListingMedia } from "@/features/listings/ListingMedia";
+import { ListingMediaUploader, type ListingMediaUploaderHandle } from "@/features/listings/ListingMediaUploader";
 import {
   FileText,
   Plus,
@@ -162,10 +164,6 @@ export default function LandlordListingsPage() {
   const [selectedListingForImage, setSelectedListingForImage] = useState<number | null>(null);
   const [listingImages, setListingImages] = useState<ListingImageDto[]>([]);
   const [loadingImages, setLoadingImages] = useState(false);
-  const [newImageUrl, setNewImageUrl] = useState("");
-  const [newMediaType, setNewMediaType] = useState("IMAGE");
-  const [newIsPrimary, setNewIsPrimary] = useState(true);
-  const [newSortOrder, setNewSortOrder] = useState(1);
   const [addingImage, setAddingImage] = useState(false);
 
   // Edit / Detail Listing Modal
@@ -203,9 +201,9 @@ export default function LandlordListingsPage() {
     "Khóa vân tay",
     "Giờ tự do",
   ]);
-  const [imageUrl, setImageUrl] = useState(
-    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80"
-  );
+  const createMediaRef = useRef<ListingMediaUploaderHandle>(null);
+  const [createdListingId, setCreatedListingId] = useState<number | null>(null);
+  const [creationStep, setCreationStep] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Load listings from backend
@@ -387,8 +385,6 @@ export default function LandlordListingsPage() {
       if (res.isSuccess && res.data) {
         const imgs = res.data.images || [];
         setListingImages(imgs);
-        setNewSortOrder(imgs.length + 1);
-        setNewIsPrimary(imgs.length === 0);
       } else {
         setListingImages([]);
       }
@@ -396,33 +392,6 @@ export default function LandlordListingsPage() {
       setListingImages([]);
     } finally {
       setLoadingImages(false);
-    }
-  };
-
-  // Add image to listing (POST /api/v1/listings/{id}/images)
-  const handleAddImage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedListingForImage || !newImageUrl.trim()) return;
-    setAddingImage(true);
-    try {
-      const res = await listingsApi.addImage(selectedListingForImage, {
-        imageUrl: newImageUrl.trim(),
-        isPrimary: newIsPrimary,
-        sortOrder: Number(newSortOrder) || 1,
-        mediaType: newMediaType,
-      });
-      if (res.isSuccess) {
-        showToast("Đã thêm media vào tin đăng thành công!", "success");
-        setNewImageUrl("");
-        await handleOpenImageModal(selectedListingForImage);
-        loadData();
-      } else {
-        showToast(res.error?.message || "Thêm ảnh thất bại", "error");
-      }
-    } catch {
-      showToast("Lỗi kết nối", "error");
-    } finally {
-      setAddingImage(false);
     }
   };
 
@@ -518,60 +487,51 @@ export default function LandlordListingsPage() {
   // Create Listing
   const handleCreateListing = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+    if (!selectedRoomId) {
+      showToast("Vui lòng chọn hoặc tạo phòng trước khi đăng tin!", "error");
+      return;
+    }
+    if (!createMediaRef.current?.validate()) return;
     setSubmitting(true);
-
-    if (selectedRoomId) {
+    setCreationStep(createdListingId ? "Đang lưu tin nháp..." : "Đang tạo tin...");
+    try {
       // Create via backend API
-      try {
-        const finalTitle = title.trim() || `Phòng cho thuê - ${selectedPropId}`;
-
-        const res = await listingsApi.createListing({
-          roomId: selectedRoomId,
-          title: finalTitle,
-          description: description.trim() || "Phòng đầy đủ tiện nghi, an ninh tốt, giờ giấc tự do.",
-          price: Number(price),
-          depositAmount: Number(deposit),
-          minLeaseMonths: Number(minLeaseMonths) || 6,
-          houseRules: houseRules.trim() || null,
-        });
-
-        if (res.isSuccess && res.data) {
-          if (imageUrl && imageUrl.trim()) {
-            await listingsApi.addImage(res.data.id, {
-              imageUrl: imageUrl.trim(),
-              isPrimary: true,
-              sortOrder: 1,
-            });
-          }
-          const submitRes = await listingsApi.submitListing(res.data.id);
-          if (submitRes.isSuccess) {
-            showToast("Đã tạo tin và gửi kiểm duyệt lên Admin thành công!", "success");
-          } else {
-            showToast(
-              `Đã tạo tin dạng Bản nháp. ${submitRes.error?.message ? "Lưu ý: " + submitRes.error.message : ""}`,
-              "info"
-            );
-          }
-          setIsCreateOpen(false);
-          await loadData();
-          setSubmitting(false);
-          return;
-        } else {
-          const detailMsg = res.error?.details && res.error.details.length > 0
-            ? `: ${res.error.details.map((d) => d.message || d.field).join(", ")}`
-            : "";
-          showToast(`${res.error?.message || "Không thể tạo tin đăng"}${detailMsg}`, "error");
-          setSubmitting(false);
-          return;
-        }
-      } catch (err) {
-        showToast("Không thể tạo tin đăng. Vui lòng kiểm tra lại kết nối.", "error");
-        setSubmitting(false);
+      const payload = {
+        title: title.trim() || `Phòng cho thuê - ${selectedPropId}`,
+        description: description.trim() || "Phòng đầy đủ tiện nghi, an ninh tốt, giờ giấc tự do.",
+        price: Number(price),
+        depositAmount: Number(deposit),
+        minLeaseMonths: Number(minLeaseMonths) || 6,
+        houseRules: houseRules.trim() || null,
+      };
+      const res = createdListingId
+        ? await listingsApi.updateListing(createdListingId, payload)
+        : await listingsApi.createListing({ roomId: selectedRoomId, ...payload });
+      if (!res.isSuccess || !res.data) {
+        const detailMsg = res.error?.details?.length
+          ? `: ${res.error.details.map(detail => detail.message || detail.field).join(", ")}` : "";
+        showToast(`${res.error?.message || "Không thể lưu tin đăng"}${detailMsg}`, "error");
         return;
       }
-    } else {
-      showToast("Vui lòng chọn hoặc tạo phòng trước khi đăng tin!", "error");
+      const listingId = res.data.id;
+      setCreatedListingId(listingId);
+      setCreationStep("Đang tải ảnh và video...");
+      const uploaded = await createMediaRef.current?.upload(listingId);
+      if (!uploaded) {
+        showToast("Tin đã được lưu nháp. Kiểm tra file lỗi bên dưới và bấm thử lại; file đã tải thành công được giữ nguyên.", "info");
+        await loadData();
+        return;
+      }
+      showToast("Đã lưu bản nháp cùng ảnh/video. Bạn có thể gửi duyệt từ danh sách tin đăng.", "success");
+      setIsCreateOpen(false);
+      setCreatedListingId(null);
+      await loadData();
+    } catch {
+      showToast("Không thể hoàn tất lưu bản nháp. Vui lòng kiểm tra kết nối và thử lại.", "error");
+    } finally {
       setSubmitting(false);
+      setCreationStep("");
     }
   };
 
@@ -815,14 +775,14 @@ export default function LandlordListingsPage() {
       {isAddImageOpen && (
         <Modal
           isOpen={true}
-          onClose={() => setIsAddImageOpen(false)}
+          onClose={() => { if (!addingImage) setIsAddImageOpen(false); }}
           title={`Quản Lý Hình Ảnh & Media Tin Đăng #${selectedListingForImage}`}
           maxWidth="lg"
         >
           <div className="space-y-4">
             <div>
               <span className="block text-xs font-bold text-slate-700 uppercase mb-2">
-                Danh sách ảnh hiện tại ({listingImages.length}/20)
+                Danh sách media hiện tại ({listingImages.length})
               </span>
               {loadingImages ? (
                 <p className="text-xs text-slate-400 py-4 text-center">Đang tải danh sách hình ảnh...</p>
@@ -840,7 +800,7 @@ export default function LandlordListingsPage() {
                         img.isPrimary ? "border-blue-500 ring-2 ring-blue-500/30" : "border-slate-200"
                       )}
                     >
-                      <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                      <ListingMedia media={img} className={img.mediaType === "VIDEO" ? "w-full h-[calc(100%-2rem)] object-contain" : "w-full h-full object-cover"} />
                       <div className="absolute top-1.5 left-1.5 flex gap-1">
                         {img.isPrimary && (
                           <span className="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[9px] font-bold">
@@ -855,6 +815,7 @@ export default function LandlordListingsPage() {
                         {!img.isPrimary ? (
                           <button
                             type="button"
+                            disabled={addingImage}
                             onClick={() => handleSetPrimaryImage(img)}
                             className="px-2 py-0.5 rounded bg-white/90 hover:bg-white text-slate-800 text-[10px] font-bold flex items-center gap-0.5"
                           >
@@ -866,6 +827,7 @@ export default function LandlordListingsPage() {
                         )}
                         <button
                           type="button"
+                          disabled={addingImage}
                           onClick={() => handleDeleteImage(img.id)}
                           className="p-1 rounded bg-rose-600 hover:bg-rose-700 text-white"
                           title="Xóa ảnh"
@@ -879,79 +841,17 @@ export default function LandlordListingsPage() {
               )}
             </div>
 
-            <form onSubmit={handleAddImage} className="space-y-3 pt-3 border-t border-slate-200">
-              <span className="block text-xs font-bold text-slate-800 uppercase">
-                Thêm Ảnh / Video / Tour 360 Mới
-              </span>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                  Đường dẫn Media (URL https://) *
-                </label>
-                <input
-                  type="url"
-                  required
-                  placeholder="https://images.unsplash.com/..."
-                  value={newImageUrl}
-                  onChange={(e) => setNewImageUrl(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                    Loại Media
-                  </label>
-                  <select
-                    value={newMediaType}
-                    onChange={(e) => setNewMediaType(e.target.value)}
-                    className="w-full px-2.5 py-2 text-xs rounded-xl border border-slate-200 bg-white"
-                  >
-                    <option value="IMAGE">Hình ảnh (IMAGE)</option>
-                    <option value="VIDEO">Video (VIDEO)</option>
-                    <option value="VIRTUAL_TOUR_360">Ảnh 360° (VIRTUAL_TOUR_360)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                    Thứ tự hiển thị
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={newSortOrder}
-                    onChange={(e) => setNewSortOrder(Number(e.target.value))}
-                    className="w-full px-2.5 py-2 text-xs rounded-xl border border-slate-200"
-                  />
-                </div>
-                <div className="flex items-end pb-2">
-                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newIsPrimary}
-                      onChange={(e) => setNewIsPrimary(e.target.checked)}
-                      className="rounded text-blue-600"
-                    />
-                    <span>Đặt làm ảnh bìa</span>
-                  </label>
-                </div>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddImageOpen(false)}
-                  className="flex-1 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700"
-                >
-                  Đóng
-                </button>
-                <button
-                  type="submit"
-                  disabled={addingImage}
-                  className="flex-1 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {addingImage ? "Đang tải lên..." : "Thêm Media"}
-                </button>
-              </div>
-            </form>
+            {selectedListingForImage && <ListingMediaUploader
+              key={selectedListingForImage}
+              listingId={selectedListingForImage}
+              nextSortOrder={Math.max(-1, ...listingImages.map(image => image.sortOrder)) + 1}
+              onBusyChange={setAddingImage}
+              onUploaded={async () => { await handleOpenImageModal(selectedListingForImage); await loadData(); }}
+            />}
+            <button type="button" disabled={addingImage} onClick={() => setIsAddImageOpen(false)}
+              className="w-full py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 disabled:opacity-50">
+              Đóng
+            </button>
           </div>
         </Modal>
       )}
@@ -1096,11 +996,15 @@ export default function LandlordListingsPage() {
       {isCreateOpen && (
         <Modal
           isOpen={true}
-          onClose={() => setIsCreateOpen(false)}
+          onClose={() => { if (!submitting) { setIsCreateOpen(false); setCreatedListingId(null); } }}
           title="Đăng Tin Cho Thuê Phòng Mới"
           maxWidth="2xl"
         >
           <form onSubmit={handleCreateListing} className="space-y-4">
+            <fieldset disabled={submitting} className="space-y-4 min-w-0">
+            {createdListingId && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+              Bản nháp đã được lưu. Bạn có thể thử lại các file lỗi hoặc đóng để tiếp tục chỉnh sửa sau.
+            </p>}
             {properties.length === 0 ? (
               <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
                 <div className="font-bold flex items-center gap-1.5 text-amber-800">
@@ -1132,6 +1036,7 @@ export default function LandlordListingsPage() {
                     </label>
                     <select
                       value={selectedPropId || ""}
+                      disabled={createdListingId !== null}
                       onChange={(e) => setSelectedPropId(Number(e.target.value))}
                       className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-bold"
                     >
@@ -1149,6 +1054,7 @@ export default function LandlordListingsPage() {
                     </label>
                     <select
                       value={selectedRoomId || ""}
+                      disabled={createdListingId !== null}
                       onChange={(e) => {
                         const rId = Number(e.target.value);
                         setSelectedRoomId(rId);
@@ -1261,17 +1167,7 @@ export default function LandlordListingsPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                Ảnh đại diện (URL)
-              </label>
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
-              />
-            </div>
+            <ListingMediaUploader ref={createMediaRef} deferred disabled={submitting} />
 
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -1311,19 +1207,21 @@ export default function LandlordListingsPage() {
             <div className="flex gap-3 pt-3 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setIsCreateOpen(false)}
+                disabled={submitting}
+                onClick={() => { setIsCreateOpen(false); setCreatedListingId(null); }}
                 className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50"
               >
-                Hủy
+                {createdListingId ? "Đóng" : "Hủy"}
               </button>
               <button
                 type="submit"
                 disabled={submitting || !selectedRoomId}
                 className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-500/20 disabled:opacity-50"
               >
-                {submitting ? "Đang gửi duyệt..." : !selectedRoomId ? "Cần chọn phòng trước" : "Xác nhận & Gửi kiểm duyệt"}
+                {submitting ? creationStep : !selectedRoomId ? "Cần chọn phòng trước" : createdListingId ? "Thử lại & Lưu bản nháp" : "Lưu bản nháp"}
               </button>
             </div>
+            </fieldset>
           </form>
         </Modal>
       )}

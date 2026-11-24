@@ -1,5 +1,6 @@
 using HomeMatch.Modules.Listings.Application.Features.AdminDashboard;
 using HomeMatch.Modules.Listings.Application.Features.ListingImages.AddListingImage;
+using HomeMatch.Modules.Listings.Application.Features.ListingImages.UploadListingImage;
 using HomeMatch.Modules.Listings.Application.Features.ListingImages.DeleteListingImage;
 using HomeMatch.Modules.Listings.Application.Features.ListingImages.UpdateListingImage;
 using HomeMatch.Modules.Listings.Application.Features.Listings.CreateListing;
@@ -62,6 +63,9 @@ public static class ListingsModuleExtensions
         services.AddScoped<IViolationReportRepository, ViolationReportRepository>();
         services.AddHostedService<ListingExpirationService>();
         services.AddScoped<IListingImageRepository, ListingImageRepository>();
+        services.Configure<ListingR2Settings>(configuration.GetSection("R2"));
+        services.AddSingleton<IListingImageStorage, R2ImageStorage>();
+        services.AddScoped<UploadListingImageHandler>();
         services.AddScoped<ISavedListingRepository, SavedListingRepository>();
 
         // Cross-module writers & readers

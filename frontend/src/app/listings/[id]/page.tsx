@@ -10,6 +10,7 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { useToast } from "@/components/Toast";
 import { Modal } from "@/components/Modal";
 import { MapLocationViewer } from "@/components/MapLocationViewer";
+import { ListingMedia } from "@/features/listings/ListingMedia";
 import {
   MapPin,
   Calendar,
@@ -397,6 +398,8 @@ export default function ListingDetailPage() {
   const estWaterCost = listing.waterPrice != null ? estWaterUsage * listing.waterPrice : 0;
   const estServiceFee = listing.serviceFee ?? 0;
   const firstMonthTotal = listing.price + listing.deposit + estElecCost + estWaterCost + estServiceFee;
+  const galleryMedia = rawDetail?.images ?? listing.images.map(imageUrl => ({ imageUrl, mediaType: "IMAGE" }));
+  const activeMedia = galleryMedia[activeImageIndex] ?? galleryMedia[0];
   const hasValidCoordinates =
     typeof listing.latitude === "number" &&
     typeof listing.longitude === "number" &&
@@ -477,12 +480,9 @@ export default function ListingDetailPage() {
           {/* Gallery */}
           <div className="space-y-3">
             <div className="aspect-[16/10] rounded-3xl overflow-hidden bg-slate-100 relative shadow-md">
-              {listing.images.length > 0 ? (
-                <img
-                  src={listing.images[activeImageIndex] || listing.images[0]}
-                  alt={listing.title}
-                  className="w-full h-full object-cover"
-                />
+              {activeMedia ? (
+                <ListingMedia key={activeMedia.imageUrl} media={activeMedia} alt={listing.title}
+                  className="w-full h-full object-contain bg-slate-950" />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2">
                   <Building2 className="w-12 h-12 opacity-40" />
@@ -503,12 +503,13 @@ export default function ListingDetailPage() {
             </div>
 
             {/* Thumbnail selector */}
-            {listing.images.length > 1 && (
+            {galleryMedia.length > 1 && (
               <div className="flex gap-3 overflow-x-auto pb-1">
-                {listing.images.map((img, idx) => (
+                {galleryMedia.map((media, idx) => (
                   <button
                     key={idx}
                     onClick={() => setActiveImageIndex(idx)}
+                    aria-label={`${media.mediaType === "VIDEO" ? "Xem video" : "Xem ảnh"} ${idx + 1}`}
                     className={cn(
                       "w-24 h-16 rounded-2xl overflow-hidden shrink-0 border-2 transition-all",
                       activeImageIndex === idx
@@ -516,7 +517,7 @@ export default function ListingDetailPage() {
                         : "border-transparent opacity-70 hover:opacity-100"
                     )}
                   >
-                    <img src={img} alt="Thumb" className="w-full h-full object-cover" />
+                    <ListingMedia media={media} thumbnail alt={`Media ${idx + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>

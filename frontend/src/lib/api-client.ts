@@ -1023,6 +1023,17 @@ export const listingsApi = {
     });
   },
 
+  uploadMedia: async (listingId: number, file: File, sortOrder: number, isPrimary = false) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("sortOrder", String(sortOrder));
+    form.append("isPrimary", String(isPrimary));
+    return apiRequest<ListingImageDto>(`/api/v1/listings/${listingId}/images/uploads`, {
+      method: "POST",
+      body: form,
+    });
+  },
+
   updateImage: async (listingId: number, imageId: number, payload: UpdateListingImageBody) => {
     return apiRequest<ListingImageDto>(`/api/v1/listings/${listingId}/images/${imageId}`, {
       method: "PATCH",

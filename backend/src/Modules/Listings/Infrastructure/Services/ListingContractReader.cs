@@ -2,6 +2,7 @@ using HomeMatch.Modules.Listings.Infrastructure.Persistence;
 using HomeMatch.Shared.Contracts;
 using HomeMatch.Shared.Contracts.Listings;
 using Microsoft.EntityFrameworkCore;
+using HomeMatch.Modules.Listings.Application;
 
 namespace HomeMatch.Modules.Listings.Infrastructure.Services;
 
@@ -31,8 +32,7 @@ public sealed class ListingContractReader(
             ? string.Join(", ", new[] { p.AddressDetail, p.WardName, p.DistrictName, p.ProvinceName }.Where(s => !string.IsNullOrWhiteSpace(s)))
             : null;
 
-        var primaryImage = listing.Images.OrderBy(i => i.SortOrder).FirstOrDefault(i => i.IsPrimary)?.ImageUrl
-            ?? listing.Images.OrderBy(i => i.SortOrder).FirstOrDefault()?.ImageUrl;
+        var primaryImage = ListingMapping.CoverImageUrl(listing);
 
         return new ListingContractInfo(
             ListingId: listing.Id,
@@ -73,8 +73,7 @@ public sealed class ListingContractReader(
                 ? string.Join(", ", new[] { room.AddressDetail, room.DistrictName, room.ProvinceName }.Where(s => !string.IsNullOrWhiteSpace(s)))
                 : null;
 
-            var primaryImage = listing.Images.OrderBy(i => i.SortOrder).FirstOrDefault(i => i.IsPrimary)?.ImageUrl
-                ?? listing.Images.OrderBy(i => i.SortOrder).FirstOrDefault()?.ImageUrl;
+            var primaryImage = ListingMapping.CoverImageUrl(listing);
 
             result[listing.Id] = new ListingContractInfo(
                 ListingId: listing.Id,

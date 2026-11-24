@@ -2,9 +2,11 @@ using HomeMatch.Modules.Messaging.Application.Commands.MarkConversationRead;
 using HomeMatch.Modules.Messaging.Application.Commands.SaveMessageDraft;
 using HomeMatch.Modules.Messaging.Application.Commands.SendMessage;
 using HomeMatch.Modules.Messaging.Application.Commands.StartOrGetConversation;
+using HomeMatch.Modules.Messaging.Application.Commands.UpdateLeadStatus;
 using HomeMatch.Modules.Messaging.Application.Interfaces;
 using HomeMatch.Modules.Messaging.Application.Queries.GetConversationMessages;
 using HomeMatch.Modules.Messaging.Application.Queries.GetConversations;
+using HomeMatch.Modules.Messaging.Application.Queries.GetLandlordLeads;
 using HomeMatch.Modules.Messaging.Infrastructure.Persistence;
 using HomeMatch.Modules.Messaging.Infrastructure.Repositories;
 using HomeMatch.Modules.Messaging.Infrastructure.Services;
@@ -43,6 +45,7 @@ public static class MessagingModuleExtensions
 
         // Repositories & Cross-Module Contracts
         services.AddScoped<IConversationRepository, ConversationRepository>();
+        services.AddScoped<ILeadRepository, LeadRepository>();
         services.AddScoped<IMessagingStatsReader, MessagingStatsReader>();
         services.AddScoped<IMessagingDashboardReader, MessagingDashboardReader>();
         services.AddScoped<IChatRealtimeNotifier, SignalRChatRealtimeNotifier>();
@@ -55,6 +58,8 @@ public static class MessagingModuleExtensions
         services.AddScoped<SaveMessageDraftHandler>();
         services.AddScoped<GetConversationsHandler>();
         services.AddScoped<GetConversationMessagesHandler>();
+        services.AddScoped<GetLandlordLeadsHandler>();
+        services.AddScoped<UpdateLeadStatusHandler>();
 
         return services;
     }

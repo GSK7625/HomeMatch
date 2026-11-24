@@ -21,4 +21,7 @@ public static class PropertiesErrors
     public static readonly Error DuplicateTariffDate = new("Tariff.DuplicateDate", "Đã có đơn giá cùng loại và ngày hiệu lực trong phạm vi này.");
     public static readonly Error TariffAlreadyEffective = new("Tariff.AlreadyEffective", "Đơn giá đã có hiệu lực. Hãy tạo mức giá mới với ngày hiệu lực mới.");
     public static readonly Error InvalidTariffDate = new("Tariff.InvalidDate", "Chỉ có thể sửa đơn giá chưa có hiệu lực.");
+    public static readonly Error CatalogNotFound = new("Catalog.NotFound", "Không tìm thấy mục danh mục yêu cầu.");
+    public static readonly Error InvalidCatalog = new("Catalog.InvalidInput", "Mã code hoặc tên danh mục không hợp lệ.");
+    public static readonly Error DuplicateCatalogEntry = new("Catalog.Duplicate", "Mã code hoặc tên danh mục đã tồn tại.");
 }

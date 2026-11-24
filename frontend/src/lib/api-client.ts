@@ -848,16 +848,21 @@ export const propertiesApi = {
     });
   },
 
-  getTariffs: async (propertyId: number) => {
-    return apiRequest<TariffDto[]>(`/api/v1/properties/${propertyId}/tariffs`, {
+  getTariffs: async (propertyId: number, roomId?: number | null) => {
+    const qs = roomId ? `?roomId=${roomId}` : "";
+    return apiRequest<TariffDto[]>(`/api/v1/properties/${propertyId}/tariffs${qs}`, {
       method: "GET",
     });
   },
 
-  setTariffs: async (propertyId: number, payload: SetPropertyTariffsBody) => {
-    return apiRequest<TariffDto[]>(`/api/v1/properties/${propertyId}/tariffs`, {
+  setTariffs: async (propertyId: number, payload: SetPropertyTariffsBody, roomId?: number | null) => {
+    const qs = roomId ? `?roomId=${roomId}` : "";
+    return apiRequest<TariffDto[]>(`/api/v1/properties/${propertyId}/tariffs${qs}`, {
       method: "PUT",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        ...payload,
+        roomId: roomId ?? payload.roomId ?? null,
+      }),
     });
   },
 };

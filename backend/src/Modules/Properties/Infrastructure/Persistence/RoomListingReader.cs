@@ -187,10 +187,40 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
 
         var types = await db.UtilityTariffs.AsNoTracking()
             .Where(rate => rate.PropertyId == propertyId
-                && rate.RoomId == null
+                && (rate.RoomId == null || rate.RoomId == roomId)
                 && (rate.TariffType == "ELECTRICITY" || rate.TariffType == "WATER"))
             .Select(rate => rate.TariffType).Distinct().ToListAsync(cancellationToken);
         return types.Count == 2;
+    }
+
+    public async Task<IReadOnlyList<RoomListingTariffSnapshot>> GetEffectiveRoomTariffsAsync(
+        long roomId, CancellationToken cancellationToken)
+    {
+        var propertyId = await db.Rooms.AsNoTracking()
+            .Where(room => room.Id == roomId)
+            .Select(room => (long?)room.PropertyId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (propertyId is null)
+            return [];
+
+        var allRates = await db.UtilityTariffs.AsNoTracking()
+            .Where(t => t.PropertyId == propertyId.Value && (t.RoomId == null || t.RoomId == roomId))
+            .ToListAsync(cancellationToken);
+
+        var merged = new Dictionary<string, RoomListingTariffSnapshot>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var t in allRates.Where(x => x.RoomId == null))
+        {
+            merged[t.TariffType] = new RoomListingTariffSnapshot(t.Id, t.TariffType, t.CalcMethod, t.UnitPrice);
+        }
+
+        foreach (var t in allRates.Where(x => x.RoomId == roomId))
+        {
+            merged[t.TariffType] = new RoomListingTariffSnapshot(t.Id, t.TariffType, t.CalcMethod, t.UnitPrice);
+        }
+
+        return merged.Values.OrderBy(t => t.TariffType).ToArray();
     }
 
     public Task<bool> RoomTypeExistsAsync(string code, CancellationToken cancellationToken) =>

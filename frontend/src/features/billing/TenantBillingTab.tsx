@@ -7,6 +7,7 @@ import {
   BillingDebtInvoiceDto,
   BillingDebtSummaryDto,
   BillingInvoiceDto,
+  BillingUtilityReadingDto,
   LeasingContractDto,
 } from "@/types";
 import {
@@ -37,6 +38,8 @@ import {
   RefreshCw,
   RotateCcw,
   Wallet,
+  Zap,
+  Droplet,
 } from "lucide-react";
 
 interface TenantBillingTabProps {
@@ -71,7 +74,9 @@ export function TenantBillingTab({
   }>({ totalPayable: 0, totalPaid: 0, invoiceCount: 0 });
   const [invoices, setInvoices] = useState<BillingInvoiceDto[]>([]);
   const [debtInvoices, setDebtInvoices] = useState<BillingDebtInvoiceDto[]>([]);
+  const [utilityReadings, setUtilityReadings] = useState<BillingUtilityReadingDto[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
+  const [viewMode, setViewMode] = useState<"invoices" | "usage">("invoices");
 
   // Modal & action state
   const [detailInvoiceId, setDetailInvoiceId] = useState<number | null>(null);
@@ -92,10 +97,21 @@ export function TenantBillingTab({
       : undefined;
 
   const loadSummaryAndTotals = useCallback(async () => {
-    const [summaryRes, allInvoicesRes] = await Promise.all([
+    const [summaryRes, allInvoicesRes, readingsRes] = await Promise.all([
       billingApi.getDebtSummary({ contractId: parsedContractId }),
       billingApi.getInvoices({ contractId: parsedContractId, page: 1, pageSize: 100 }),
+      billingApi.getUtilityReadings({
+        contractId: parsedContractId,
+        month: selectedMonth !== "ALL" ? Number(selectedMonth) : undefined,
+        year: selectedYear !== "ALL" ? Number(selectedYear) : undefined,
+      }),
     ]);
+
+    if (readingsRes.isSuccess && readingsRes.data) {
+      setUtilityReadings(readingsRes.data);
+    } else {
+      setUtilityReadings([]);
+    }
 
     if (summaryRes.isSuccess && summaryRes.data) {
       setDebtSummary(summaryRes.data);
@@ -115,7 +131,7 @@ export function TenantBillingTab({
         invoiceCount: validItems.length,
       });
     }
-  }, [parsedContractId, onDebtSummaryChange]);
+  }, [parsedContractId, selectedMonth, selectedYear, onDebtSummaryChange]);
 
   const loadListData = useCallback(async () => {
     if (selectedAgingGroup) {
@@ -338,8 +354,39 @@ export function TenantBillingTab({
         </div>
       )}
 
-      {/* 3. Filter Toolbar */}
+      {/* 3. Filter Toolbar & Sub-tab Switcher */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/70">
+            <button
+              type="button"
+              onClick={() => setViewMode("invoices")}
+              className={cn(
+                "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                viewMode === "invoices"
+                  ? "bg-white text-blue-600 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              )}
+            >
+              <Receipt className="w-3.5 h-3.5" />
+              <span>Hóa đơn & Thanh toán</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("usage")}
+              className={cn(
+                "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                viewMode === "usage"
+                  ? "bg-white text-blue-600 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              )}
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-500" />
+              <span>Bảng chi phí sử dụng điện nước ({utilityReadings.length})</span>
+            </button>
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
             <Filter className="w-4 h-4 text-blue-600" />
@@ -445,7 +492,7 @@ export function TenantBillingTab({
         </div>
       </div>
 
-      {/* 4. Invoice / Debt List */}
+      {/* 4. Invoice / Debt List OR Utility Usage Table */}
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -454,6 +501,102 @@ export function TenantBillingTab({
               className="h-32 rounded-2xl bg-slate-100 animate-pulse border border-slate-200/60"
             />
           ))}
+        </div>
+      ) : viewMode === "usage" ? (
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-500" />
+                <span>Bảng Chi Phí Sử Dụng Điện, Nước & Dịch Vụ Theo Kỳ</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Theo dõi chỉ số công tơ đầu kỳ, cuối kỳ, lượng tiêu thụ thực tế, đơn giá áp dụng và tổng chi phí sử dụng từng tháng.
+              </p>
+            </div>
+          </div>
+
+          {utilityReadings.length === 0 ? (
+            <div className="p-12 text-center space-y-2">
+              <Zap className="w-9 h-9 text-slate-300 mx-auto" />
+              <h4 className="text-sm font-bold text-slate-800">
+                Chưa có dữ liệu ghi chỉ số điện nước cho kỳ đã chọn
+              </h4>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Khi chủ nhà ghi nhận chỉ số công tơ điện nước hàng tháng, bảng chi tiết chỉ số tiêu thụ, đơn giá và thành tiền sẽ hiển thị tại đây.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
+                    <th className="py-3 px-4">Kỳ / Phòng</th>
+                    <th className="py-3 px-4">Chỉ số Điện (kWh)</th>
+                    <th className="py-3 px-4 text-right">Đơn giá Điện</th>
+                    <th className="py-3 px-4 text-right">Tiền Điện</th>
+                    <th className="py-3 px-4">Chỉ số Nước (m³)</th>
+                    <th className="py-3 px-4 text-right">Đơn giá Nước</th>
+                    <th className="py-3 px-4 text-right">Tiền Nước</th>
+                    <th className="py-3 px-4 text-right">Phí Dịch Vụ</th>
+                    <th className="py-3 px-4 text-right">Tổng Chi Phí DV</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {utilityReadings.map((r) => {
+                    const info = contractMap[r.contractId];
+                    const totalUtilityCost = r.electricityCost + r.waterCost + r.serviceCost;
+                    return (
+                      <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3.5 px-4">
+                          <span className="font-black text-slate-900 block">
+                            Tháng {String(r.billingMonth).padStart(2, "0")}/{r.billingYear}
+                          </span>
+                          <span className="text-[11px] text-slate-500">
+                            {info?.roomName || `Phòng #${r.roomId}`} • Chốt: {formatDate(r.readingDate)}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="font-mono text-slate-700">
+                            {r.electricityOld} → <strong>{r.electricityNew}</strong>
+                          </span>
+                          <span className="ml-1.5 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-bold text-[10px]">
+                            {r.electricityUsage} kWh
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right text-slate-600">
+                          {formatVnd(r.electricityUnitPrice)}/kWh
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-bold text-slate-900">
+                          {formatVnd(r.electricityCost)}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="font-mono text-slate-700">
+                            {r.waterOld} → <strong>{r.waterNew}</strong>
+                          </span>
+                          <span className="ml-1.5 px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 font-bold text-[10px]">
+                            {r.waterUsage} m³
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right text-slate-600">
+                          {formatVnd(r.waterUnitPrice)}/m³
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-bold text-slate-900">
+                          {formatVnd(r.waterCost)}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-semibold text-slate-800">
+                          {formatVnd(r.serviceCost)}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-black text-blue-600">
+                          {formatVnd(totalUtilityCost)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       ) : selectedAgingGroup ? (
         debtInvoices.length === 0 ? (

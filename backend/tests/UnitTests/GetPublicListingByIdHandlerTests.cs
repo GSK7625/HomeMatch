@@ -200,6 +200,9 @@ public class GetPublicListingByIdHandlerTests
         public Task<bool> HasElectricityAndWaterRatesAsync(long roomId, DateOnly date, CancellationToken cancellationToken) =>
             Task.FromResult(true);
 
+        public Task<IReadOnlyList<RoomListingTariffSnapshot>> GetEffectiveRoomTariffsAsync(long roomId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<RoomListingTariffSnapshot>>([]);
+
         public Task<bool> RoomTypeExistsAsync(string code, CancellationToken cancellationToken) =>
             Task.FromResult(true);
     }

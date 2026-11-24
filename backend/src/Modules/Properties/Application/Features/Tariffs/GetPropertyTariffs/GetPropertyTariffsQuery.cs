@@ -2,5 +2,7 @@ namespace HomeMatch.Modules.Properties.Application.Features.Tariffs.GetPropertyT
 
 public sealed record GetPropertyTariffsQuery(
     long LandlordId,
-    long PropertyId);
+    long PropertyId,
+    long? RoomId = null);
+
 

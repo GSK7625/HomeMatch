@@ -290,6 +290,132 @@ namespace HomeMatch.Modules.Billing.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("HomeMatch.Modules.Billing.Domain.Entities.UtilityReading", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("BillingMonth")
+                        .HasColumnType("integer")
+                        .HasColumnName("billing_month");
+
+                    b.Property<int>("BillingYear")
+                        .HasColumnType("integer")
+                        .HasColumnName("billing_year");
+
+                    b.Property<long>("ContractId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("contract_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("ElectricityCost")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
+                        .HasColumnName("electricity_cost");
+
+                    b.Property<int>("ElectricityNew")
+                        .HasColumnType("integer")
+                        .HasColumnName("electricity_new");
+
+                    b.Property<int>("ElectricityOld")
+                        .HasColumnType("integer")
+                        .HasColumnName("electricity_old");
+
+                    b.Property<long>("ElectricityUnitPrice")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
+                        .HasColumnName("electricity_unit_price");
+
+                    b.Property<int>("ElectricityUsage")
+                        .HasColumnType("integer")
+                        .HasColumnName("electricity_usage");
+
+                    b.Property<long>("LandlordId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("landlord_id");
+
+                    b.Property<long>("PropertyId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("property_id");
+
+                    b.Property<DateOnly>("ReadingDate")
+                        .HasColumnType("date")
+                        .HasColumnName("reading_date");
+
+                    b.Property<long>("RecordedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("recorded_by");
+
+                    b.Property<long>("RoomId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("room_id");
+
+                    b.Property<long>("ServiceCost")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
+                        .HasColumnName("service_cost");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("WaterCost")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
+                        .HasColumnName("water_cost");
+
+                    b.Property<int>("WaterNew")
+                        .HasColumnType("integer")
+                        .HasColumnName("water_new");
+
+                    b.Property<int>("WaterOld")
+                        .HasColumnType("integer")
+                        .HasColumnName("water_old");
+
+                    b.Property<long>("WaterUnitPrice")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
+                        .HasColumnName("water_unit_price");
+
+                    b.Property<int>("WaterUsage")
+                        .HasColumnType("integer")
+                        .HasColumnName("water_usage");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoomId", "BillingYear", "BillingMonth")
+                        .IsUnique()
+                        .HasDatabaseName("uq_utility_readings_room_period");
+
+                    b.HasIndex("ContractId", "BillingYear", "BillingMonth")
+                        .HasDatabaseName("ix_utility_readings_contract_period");
+
+                    b.HasIndex("LandlordId", "PropertyId", "BillingYear", "BillingMonth")
+                        .HasDatabaseName("ix_utility_readings_landlord_property");
+
+                    b.ToTable("utility_readings", "billing");
+                });
+
             modelBuilder.Entity("HomeMatch.Modules.Billing.Domain.Entities.Payment", b =>
                 {
                     b.HasOne("HomeMatch.Modules.Billing.Domain.Entities.Invoice", "Invoice")

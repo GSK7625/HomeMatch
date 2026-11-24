@@ -63,4 +63,8 @@ public static class BillingErrors
     public static readonly Error PaymentAlreadyProcessed = new(
         "Billing.PaymentAlreadyProcessed",
         "Giao dịch thanh toán này đã được ghi nhận trước đó.");
+
+    public static readonly Error CannotModifyReadingWithActiveInvoice = new(
+        "Billing.CannotModifyReadingWithActiveInvoice",
+        "Kỳ này đã phát hành hóa đơn chưa bị hủy. Theo quy tắc BR-BIL-13, vui lòng hủy hóa đơn hiện tại trước khi cập nhật lại chỉ số điện nước.");
 }

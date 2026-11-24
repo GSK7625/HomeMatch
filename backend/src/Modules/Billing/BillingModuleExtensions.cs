@@ -4,6 +4,7 @@ using HomeMatch.Modules.Billing.Application.Commands.CreateInvoice;
 using HomeMatch.Modules.Billing.Application.Commands.CreatePayment;
 using HomeMatch.Modules.Billing.Application.Commands.ProcessInvoiceOverdue;
 using HomeMatch.Modules.Billing.Application.Commands.ProcessPaymentCallback;
+using HomeMatch.Modules.Billing.Application.Commands.RecordUtilityReading;
 using HomeMatch.Modules.Billing.Application.Interfaces;
 using HomeMatch.Modules.Billing.Application.Queries.GetDebtInvoices;
 using HomeMatch.Modules.Billing.Application.Queries.GetDebtSummary;
@@ -13,6 +14,7 @@ using HomeMatch.Modules.Billing.Application.Queries.GetInvoices;
 using HomeMatch.Modules.Billing.Application.Queries.GetMonthlyCashflow;
 using HomeMatch.Modules.Billing.Application.Queries.GetPaymentById;
 using HomeMatch.Modules.Billing.Application.Queries.GetPropertyFinancialReport;
+using HomeMatch.Modules.Billing.Application.Queries.GetUtilityReadings;
 using HomeMatch.Modules.Billing.Domain.Constants;
 using HomeMatch.Modules.Billing.Infrastructure.BackgroundJobs;
 using HomeMatch.Modules.Billing.Infrastructure.Persistence;
@@ -55,13 +57,16 @@ public static class BillingModuleExtensions
         services.AddScoped<IBillingDbContext>(sp => sp.GetRequiredService<BillingDbContext>());
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
+        services.AddScoped<IUtilityReadingRepository, UtilityReadingRepository>();
         services.AddScoped<ILandlordDashboardService, LandlordDashboardService>();
 
-        // Application Handlers - Invoices
+        // Application Handlers - Invoices & Utility Readings
         services.AddScoped<CreateInvoiceHandler>();
         services.AddScoped<CancelInvoiceHandler>();
         services.AddScoped<GetInvoiceByIdHandler>();
         services.AddScoped<GetInvoicesHandler>();
+        services.AddScoped<RecordUtilityReadingHandler>();
+        services.AddScoped<GetUtilityReadingsHandler>();
 
         // Application Handlers - Payments
         services.AddScoped<CreatePaymentHandler>();
@@ -90,6 +95,7 @@ public static class BillingModuleExtensions
 
         group.MapBillingEndpointsInternal();
         group.MapInvoiceEndpoints();
+        group.MapUtilityReadingEndpoints();
         group.MapPaymentEndpoints();
         group.MapDebtEndpoints();
         group.MapBillingReportEndpoints();

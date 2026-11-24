@@ -25,4 +25,5 @@ public sealed record InvoiceDetailResponse(
     DateTimeOffset? CancelledAt,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    IReadOnlyList<PaymentResponse> Payments);
+    IReadOnlyList<PaymentResponse> Payments,
+    UtilityReadingResponse? UtilityReading = null);

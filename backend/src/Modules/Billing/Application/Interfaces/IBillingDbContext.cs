@@ -7,5 +7,6 @@ public interface IBillingDbContext
 {
     DbSet<Invoice> Invoices { get; }
     DbSet<Payment> Payments { get; }
+    DbSet<UtilityReading> UtilityReadings { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -66,7 +66,34 @@ public static class InvoiceResponseMapper
             dto.CancelledAt,
             dto.CreatedAt,
             dto.UpdatedAt,
-            dto.Payments.Select(ToResponse).ToList());
+            dto.Payments.Select(ToResponse).ToList(),
+            dto.UtilityReading is not null ? ToResponse(dto.UtilityReading) : null);
+
+    public static UtilityReadingResponse ToResponse(UtilityReadingDto dto) =>
+        new(
+            dto.Id,
+            dto.PropertyId,
+            dto.RoomId,
+            dto.ContractId,
+            dto.LandlordId,
+            dto.TenantId,
+            dto.RecordedBy,
+            dto.BillingMonth,
+            dto.BillingYear,
+            dto.ElectricityOld,
+            dto.ElectricityNew,
+            dto.ElectricityUsage,
+            dto.ElectricityUnitPrice,
+            dto.ElectricityCost,
+            dto.WaterOld,
+            dto.WaterNew,
+            dto.WaterUsage,
+            dto.WaterUnitPrice,
+            dto.WaterCost,
+            dto.ServiceCost,
+            dto.ReadingDate,
+            dto.CreatedAt,
+            dto.UpdatedAt);
 
     public static PaymentResponse ToResponse(PaymentDto dto) =>
         new(

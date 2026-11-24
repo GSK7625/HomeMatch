@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useAuth } from "@/features/auth/AuthContext";
 import Link from "next/link";
 import { compareSelection } from "@/lib/compare-selection";
-import { listingsApi } from "@/lib/api-client";
+import { listingsApi, getStoredToken } from "@/lib/api-client";
 import { PropertyListing } from "@/types";
 import { useToast } from "@/components/Toast";
 import {
@@ -20,11 +21,15 @@ import {
 import { mapPublicDetailToCard } from "@/lib/utils";
 
 export default function ComparePage() {
+  const { user, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
   const [comparedListings, setComparedListings] = useState<PropertyListing[]>([]);
   const [loading, setLoading] = useState(true);
+  const requestVersion = useRef(0);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    const version = ++requestVersion.current;
+    if (!getStoredToken()) return;
     const ids = compareSelection
       .getIds()
       .map((id) => parseInt(id, 10))
@@ -40,6 +45,7 @@ export default function ComparePage() {
     setLoading(true);
     try {
       const res = await listingsApi.compareRooms(ids);
+      if (version !== requestVersion.current || !getStoredToken()) return;
       if (res.isSuccess && Array.isArray(res.data)) {
         const mapped = res.data.map(mapPublicDetailToCard);
         setComparedListings(mapped);
@@ -50,16 +56,23 @@ export default function ComparePage() {
         }
       }
     } catch {
+      if (version !== requestVersion.current || !getStoredToken()) return;
       setComparedListings([]);
       showToast("Không thể tải dữ liệu so sánh từ máy chủ.", "error");
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user || !getStoredToken()) {
+      setComparedListings([]);
+      return;
+    }
     loadData();
-  }, []);
+    return () => { requestVersion.current++; };
+  }, [authLoading, user, loadData]);
 
   const allAmenities = React.useMemo(() => {
     return Array.from(
@@ -74,10 +87,34 @@ export default function ComparePage() {
   };
 
   const handleClearAll = () => {
+    requestVersion.current++;
     compareSelection.clear();
     setComparedListings([]);
+    setLoading(false);
     showToast("Đã xóa toàn bộ danh sách so sánh.", "info");
   };
+
+  if (authLoading) {
+    return <div className="p-16 text-center"><Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" /></div>;
+  }
+
+  if (!user || !getStoredToken()) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8 w-full flex-1">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-16 text-center space-y-4">
+          <Scale className="w-10 h-10 text-blue-600 mx-auto" />
+          <h1 className="text-lg font-bold text-slate-800">Vui lòng đăng nhập để so sánh phòng</h1>
+          <Link
+            href="/auth/login?redirect=/compare"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700"
+          >
+            Đăng nhập
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-6">

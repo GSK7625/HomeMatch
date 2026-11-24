@@ -28,7 +28,7 @@ interface ListingCardProps {
 }
 
 export function ListingCard({ listing, onFavoriteChange, isFavorite: isFavoriteProp }: ListingCardProps) {
-  const { user, role } = useAuth();
+  const { user, role, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
   const [isFav, setIsFav] = useState(() => Boolean(isFavoriteProp));
   const [isSyncing, setIsSyncing] = useState(false);
@@ -120,6 +120,11 @@ export function ListingCard({ listing, onFavoriteChange, isFavorite: isFavoriteP
   const handleCompareClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (authLoading) return;
+    if (!user || !getStoredToken()) {
+      showToast("Vui lòng đăng nhập để so sánh phòng.", "info");
+      return;
+    }
     const res = compareSelection.add(listing.roomId ?? "");
     showToast(res.message, res.success ? "success" : "error");
   };

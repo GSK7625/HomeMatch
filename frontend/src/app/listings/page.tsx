@@ -4,7 +4,6 @@ import React, { useState, useMemo, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { searchParamsFor } from "@/features/listings/search-params";
 import { useSearchParams } from "next/navigation";
-import { compareSelection } from "@/lib/compare-selection";
 import { listingsApi, catalogsApi, getStoredToken } from "@/lib/api-client";
 import { useAuth } from "@/features/auth/AuthContext";
 import { PropertyListing, ProvinceDto, WardDto, AmenityDto, RoomTypeDto } from "@/types";
@@ -16,9 +15,7 @@ import {
   Grid,
   List,
   Map as MapIcon,
-  Scale,
   X,
-  ArrowRight,
   Loader2,
   Navigation,
 } from "lucide-react";
@@ -91,7 +88,6 @@ function ListingsContent() {
   const [page, setPage] = useState(Math.max(1, Number(searchParams.get("page")) || 1));
   const pageSize = 10;
 
-  const [compareList, setCompareList] = useState<string[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
@@ -174,20 +170,6 @@ function ListingsContent() {
       if (res.isSuccess && res.data) setWards(res.data);
     }).catch(() => null);
   }, [provinceCode]);
-
-  useEffect(() => {
-    setCompareList(compareSelection.getIds());
-    const handleCompareUpdated = (e: Event) => {
-      const customEvent = e as CustomEvent<{ ids?: string[] }>;
-      if (Array.isArray(customEvent.detail?.ids)) {
-        setCompareList(customEvent.detail.ids);
-      } else {
-        setCompareList(compareSelection.getIds());
-      }
-    };
-    window.addEventListener("homematch:compare-updated", handleCompareUpdated);
-    return () => window.removeEventListener("homematch:compare-updated", handleCompareUpdated);
-  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -943,35 +925,6 @@ function ListingsContent() {
         </div>
       </div>
 
-      {/* Floating Comparison Bar if items exist */}
-      {compareList.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-slate-900/95 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4">
-          <div className="flex items-center gap-2">
-            <Scale className="w-5 h-5 text-blue-400" />
-            <span className="text-xs font-bold">
-              Đang chọn <span className="text-blue-300 font-black">{compareList.length}/3</span> phòng
-              so sánh
-            </span>
-          </div>
-          <Link
-            href="/compare"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors"
-          >
-            <span>So sánh ngay</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-          <button
-            onClick={() => {
-              compareSelection.clear();
-              setCompareList([]);
-            }}
-            className="text-slate-400 hover:text-white p-1 rounded"
-            title="Bỏ chọn so sánh"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
     </div>
   );
 }

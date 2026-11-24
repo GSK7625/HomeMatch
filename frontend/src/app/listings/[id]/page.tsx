@@ -38,7 +38,7 @@ export default function ListingDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { user, role } = useAuth();
+  const { user, role, isLoading: authLoading } = useAuth();
   const isLandlord = role === "Landlord" || user?.role === "Landlord";
   const { showToast } = useToast();
 
@@ -337,6 +337,11 @@ export default function ListingDetailPage() {
   };
 
   const handleAddToCompare = () => {
+    if (authLoading) return;
+    if (!user || !getStoredToken()) {
+      showToast("Vui lòng đăng nhập để so sánh phòng.", "info");
+      return;
+    }
     const res = compareSelection.add(rawDetail?.roomId ?? listing.roomId ?? "");
     showToast(res.message, res.success ? "success" : "error");
   };

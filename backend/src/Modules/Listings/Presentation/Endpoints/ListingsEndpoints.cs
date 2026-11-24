@@ -27,10 +27,11 @@ public static class ListingsEndpoints
     public static void MapListingEndpoints(this RouteGroupBuilder group)
     {
         group.MapGet("/compare", CompareRoomsAsync)
-            .AllowAnonymous()
+            .RequireAuthorization()
             .WithName("Listings.CompareRooms")
             .WithSummary("So sánh tối đa 3 phòng có tin đăng công khai")
             .Produces<ApiResponse<IReadOnlyList<PublicListingDetailResponse>>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
             .Produces<ApiResponse<string>>(StatusCodes.Status400BadRequest);
 
         group.MapGet("/search", SearchAsync)

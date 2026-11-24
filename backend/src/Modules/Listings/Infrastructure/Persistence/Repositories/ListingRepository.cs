@@ -24,7 +24,7 @@ public sealed class ListingRepository(ListingsDbContext db, IRoomListingReader? 
             .SetProperty(listing => listing.UpdatedAt, now), cancellationToken);
     }
 
-    public async Task<(IReadOnlyList<Listing> Items, int TotalCount)> SearchPublicAsync(
+    public async Task<(IReadOnlyList<ListingSearchItemDto> Items, int TotalCount)> SearchPublicAsync(
         SearchListingsQuery filter, long[] roomIds, long[] keywordRoomIds, CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
@@ -39,16 +39,27 @@ public sealed class ListingRepository(ListingsDbContext db, IRoomListingReader? 
         {
             var pattern = "%" + filter.Keyword.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
             query = query.Where(listing => keywordRoomIds.Contains(listing.RoomId)
-                || EF.Functions.ILike(listing.Title, pattern, "\\")
-                || EF.Functions.ILike(listing.Description, pattern, "\\"));
+                || EF.Functions.ILike(listing.Title, pattern, "\\"));
         }
 
+        if (filter.Latitude.HasValue && filter.Longitude.HasValue)
+        {
+            var center = new Point(filter.Longitude.Value, filter.Latitude.Value) { SRID = 4326 };
+            var nearby = from listing in query.Include(item => item.Images)
+                         join location in db.ListingLocations on listing.Id equals location.ListingId
+                         where location.Coordinates != null && location.Coordinates.IsWithinDistance(center, filter.RadiusMeters ?? 3000)
+                         select new { Listing = listing, Distance = location.Coordinates!.Distance(center) };
+            var count = await nearby.CountAsync(cancellationToken);
+            var page = await nearby.OrderBy(item => item.Distance).ThenByDescending(item => item.Listing.Id)
+                .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize).ToArrayAsync(cancellationToken);
+            return (page.Select(item => new ListingSearchItemDto(item.Listing, item.Distance)).ToArray(), count);
+        }
         var total = await query.CountAsync(cancellationToken);
         var items = await query.Include(listing => listing.Images)
             .OrderByDescending(listing => listing.PublishedAt).ThenByDescending(listing => listing.Id)
             .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize)
             .ToArrayAsync(cancellationToken);
-        return (items, total);
+        return (items.Select(item => new ListingSearchItemDto(item)).ToArray(), total);
     }
 
     public Task<Listing?> GetByIdAsync(long listingId, CancellationToken cancellationToken) =>

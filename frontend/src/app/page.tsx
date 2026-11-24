@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { searchParamsFor } from "@/features/listings/search-params";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
-import { fetchHealth, listingsApi, getStoredToken } from "@/lib/api-client";
-import { PropertyListing, HealthCheck } from "@/types";
+import { fetchHealth, listingsApi, catalogsApi, getStoredToken } from "@/lib/api-client";
+import { PropertyListing, HealthCheck, ProvinceDto, RoomTypeDto } from "@/types";
 import { ListingCard } from "@/features/listings/ListingCard";
 import {
   Search,
@@ -51,7 +52,12 @@ export default function HomePage() {
   }, [role, router]);
 
   // Search State
+  const [roomTypes, setRoomTypes] = useState<RoomTypeDto[]>([]);
+  const [selectedRoomType, setSelectedRoomType] = useState("");
+  useEffect(() => { catalogsApi.getRoomTypes().then(res => { if (res.isSuccess && res.data) setRoomTypes(res.data); }); }, []);
   const [activeCategoryTab, setActiveCategoryTab] = useState<string>("all");
+  const [provinces, setProvinces] = useState<ProvinceDto[]>([]);
+  useEffect(() => { catalogsApi.getProvinces().then(res => { if (res.isSuccess && res.data) setProvinces(res.data); }); }, []);
   const [city, setCity] = useState("Tất cả");
   const [district, setDistrict] = useState("Tất cả");
   const [priceRange, setPriceRange] = useState("all");
@@ -110,12 +116,13 @@ export default function HomePage() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const params = new URLSearchParams();
+    const params = searchParamsFor({});
     if (keyword.trim()) params.set("keyword", keyword.trim());
-    if (city !== "Tất cả") params.set("city", city);
+    if (city !== "Tất cả") params.set("provinceCode", city);
     if (district !== "Tất cả") params.set("district", district);
     if (priceRange !== "all") params.set("price", priceRange);
-    if (activeCategoryTab !== "all") params.set("roomType", activeCategoryTab);
+    if (activeCategoryTab !== "all") params.set("propertyType", activeCategoryTab);
+    if (selectedRoomType) params.set("roomType", selectedRoomType);
     const qs = params.toString();
     router.push(qs ? `/listings?${qs}` : "/listings");
   };
@@ -126,23 +133,20 @@ export default function HomePage() {
 
   const displayListings = listings.slice(0, 6);
 
-  const quickKeywordMatches = keyword.trim()
-    ? listings
-        .filter((item) => {
-          const kw = keyword.trim().toLowerCase();
-          const matchText =
-            item.title.toLowerCase().includes(kw) ||
-            item.address.toLowerCase().includes(kw) ||
-            item.district.toLowerCase().includes(kw) ||
-            item.city.toLowerCase().includes(kw) ||
-            item.roomType.toLowerCase().includes(kw);
-          if (!matchText) return false;
-          if (city !== "Tất cả" && !matchesLocationFilter(item.city, city)) return false;
-          if (activeCategoryTab !== "all" && item.roomType !== activeCategoryTab) return false;
-          return true;
-        })
-        .slice(0, 5)
-    : [];
+  const [quickKeywordMatches, setQuickKeywordMatches] = useState<PropertyListing[]>([]);
+  useEffect(() => {
+    let active = true;
+    if (!keyword.trim()) { setQuickKeywordMatches([]); return; }
+    const timer = setTimeout(async () => {
+      const propertyType = activeCategoryTab !== "all" ? activeCategoryTab : undefined;
+      const roomType = selectedRoomType || undefined;
+      const result = await listingsApi.searchListings({ keyword: keyword.trim(), provinceCode: city !== "Tất cả" ? city : undefined,
+        propertyType, roomType, minPrice: priceRange === "3to5" ? 3000000 : priceRange === "5to8" ? 5000000 : priceRange === "over8" ? 8000000 : undefined,
+        maxPrice: priceRange === "under3" ? 3000000 : priceRange === "3to5" ? 5000000 : priceRange === "5to8" ? 8000000 : undefined, pageSize: 5 });
+      if (active) setQuickKeywordMatches(result.isSuccess && result.data ? result.data.items.map(mapListingSummaryToCard) : []);
+    }, 250);
+    return () => { active = false; clearTimeout(timer); };
+  }, [keyword, city, activeCategoryTab, priceRange, selectedRoomType]);
 
   // Computed landlord projected income
   const monthlyRevenue = calcRooms * calcRent * 0.95; // 95% occupancy rate
@@ -196,11 +200,10 @@ export default function HomePage() {
               <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 border-b border-slate-100 scrollbar-none">
                 {[
                   { id: "all", label: "Tất cả" },
-                  { id: "Phòng trọ", label: "Phòng trọ" },
-                  { id: "Studio", label: "Studio" },
-                  { id: "Chung cư mini", label: "Chung cư mini" },
-                  { id: "Căn hộ dịch vụ", label: "Căn hộ" },
-                  { id: "Ở ghép", label: "Ở ghép" },
+                  { id: "BOARDING_HOUSE", label: "Dãy trọ" },
+                  { id: "APARTMENT", label: "Chung cư" },
+                  { id: "SERVICED_APARTMENT", label: "Căn hộ dịch vụ" },
+                  { id: "HOMESTAY", label: "Homestay" },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -231,7 +234,7 @@ export default function HomePage() {
                     <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="text"
-                      placeholder="Gần ĐH Bách Khoa, Cầu Giấy..."
+                      placeholder="Tiêu đề, tên tòa nhà, địa chỉ..."
                       value={keyword}
                       onFocus={() => setSearchDropdownOpen(true)}
                       onBlur={() => setTimeout(() => setSearchDropdownOpen(false), 180)}
@@ -284,6 +287,13 @@ export default function HomePage() {
                   )}
                 </div>
 
+                <div className="sm:col-span-1 lg:w-40 shrink-0">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Loại phòng</label>
+                  <select className="w-full h-10 px-3 border rounded-xl text-xs" value={selectedRoomType} onChange={e => setSelectedRoomType(e.target.value)}>
+                    <option value="">Tất cả loại phòng</option>
+                    {roomTypes.map(t => <option key={t.code} value={t.code}>{t.name}</option>)}
+                  </select>
+                </div>
                 {/* City */}
                 <div className="sm:col-span-1 lg:w-48 shrink-0">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
@@ -297,8 +307,7 @@ export default function HomePage() {
                       className="w-full h-10 pl-9 pr-8 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer appearance-none"
                     >
                       <option value="Tất cả">Tất cả địa điểm</option>
-                      <option value="Hà Nội">Hà Nội</option>
-                      <option value="Hồ Chí Minh">TP. Hồ Chí Minh</option>
+                      {provinces.map(p => <option key={p.code} value={p.code}>{p.fullName || p.name}</option>)}
                     </select>
                     <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>

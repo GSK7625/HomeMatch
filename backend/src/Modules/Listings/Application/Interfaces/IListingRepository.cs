@@ -8,7 +8,7 @@ namespace HomeMatch.Modules.Listings.Application.Interfaces;
 public interface IListingRepository
 {
     Task<int> ExpirePublishedAsync(DateTimeOffset now, long? roomId, CancellationToken cancellationToken);
-    Task<(IReadOnlyList<Listing> Items, int TotalCount)> SearchPublicAsync(
+    Task<(IReadOnlyList<ListingSearchItemDto> Items, int TotalCount)> SearchPublicAsync(
         SearchListingsQuery query, long[] roomIds, long[] keywordRoomIds, CancellationToken cancellationToken);
     Task<Listing?> GetByIdAsync(long listingId, CancellationToken cancellationToken);
     Task<IReadOnlyList<Listing>> GetPublicByRoomIdsAsync(IReadOnlyCollection<long> roomIds, CancellationToken cancellationToken);

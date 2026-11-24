@@ -156,10 +156,11 @@ public static class ListingsEndpoints
         [FromQuery] string? keyword, [FromQuery] string? roomType,
         [FromQuery] int? occupants, [FromQuery] decimal? minArea, [FromQuery] decimal? maxArea,
         [FromQuery] long[]? amenityIds, [FromQuery] int? page, [FromQuery] int? pageSize,
+        [FromQuery] string? propertyType, [FromQuery] double? latitude, [FromQuery] double? longitude, [FromQuery] int? radiusMeters,
         SearchListingsHandler handler, CancellationToken cancellationToken)
     {
         var result = await handler.HandleAsync(new(minPrice, maxPrice, provinceCode, wardCode,
-            keyword, roomType, occupants, minArea, maxArea, amenityIds, page ?? 1, pageSize ?? 20), cancellationToken);
+            keyword, roomType, occupants, minArea, maxArea, amenityIds, page ?? 1, pageSize ?? 20, propertyType, latitude, longitude, radiusMeters), cancellationToken);
         if (result.IsFailure) return ListingsHttpErrors.Failure(result.Error);
         var value = result.Value;
         return Results.Ok(ApiResponse<SearchListingsResponse>.Success(new(

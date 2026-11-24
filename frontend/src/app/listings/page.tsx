@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { searchParamsFor } from "@/features/listings/search-params";
 import { useSearchParams } from "next/navigation";
 import { compareSelection } from "@/lib/compare-selection";
 import { listingsApi, catalogsApi, getStoredToken } from "@/lib/api-client";
@@ -35,6 +36,7 @@ const ROOM_TYPE_OPTIONS = [
 
 function normalizeRoomTypeParam(raw: string | null): string {
   if (!raw || raw === "all") return "";
+  if (raw === "Chung cư mini" || raw === "Căn hộ dịch vụ") return "";
   const upper = raw.trim().toUpperCase();
   if (upper === "SINGLE" || upper === "STUDIO" || upper === "1B1B" || upper === "2B1B" || upper === "DORMITORY") {
     return upper;
@@ -74,17 +76,19 @@ function ListingsContent() {
   const [cityParam, setCityParam] = useState(searchParams.get("city") || "Tất cả");
   const [provinceCode, setProvinceCode] = useState(searchParams.get("provinceCode") || "");
   const [wardCode, setWardCode] = useState(searchParams.get("wardCode") || "");
-  const [occupants, setOccupants] = useState<number>(0);
+  const [occupants, setOccupants] = useState<number>(Number(searchParams.get("occupants")) || 0);
+  const [propertyType, setPropertyType] = useState(searchParams.get("propertyType") || (searchParams.get("roomType") === "Chung cư mini" ? "APARTMENT" : searchParams.get("roomType") === "Căn hộ dịch vụ" ? "SERVICED_APARTMENT" : ""));
+  const [radiusMeters, setRadiusMeters] = useState(3000);
   const [selectedRoomType, setSelectedRoomType] = useState<string>(
     normalizeRoomTypeParam(searchParams.get("roomType"))
   );
   const [priceRange, setPriceRange] = useState(searchParams.get("price") || "all");
-  const [areaRange, setAreaRange] = useState("all");
-  const [selectedAmenityIds, setSelectedAmenityIds] = useState<number[]>([]);
+  const [areaRange, setAreaRange] = useState(searchParams.get("area") || "all");
+  const [selectedAmenityIds, setSelectedAmenityIds] = useState<number[]>(searchParams.getAll("amenityIds").map(Number));
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showMap, setShowMap] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(Math.max(1, Number(searchParams.get("page")) || 1));
   const pageSize = 10;
 
   const [compareList, setCompareList] = useState<string[]>([]);
@@ -126,9 +130,13 @@ function ListingsContent() {
     setCityParam(nextCity);
     setProvinceCode(nextProvinceCode);
     setWardCode(nextWardCode);
+    setPropertyType(searchParams.get("propertyType") || (searchParams.get("roomType") === "Chung cư mini" ? "APARTMENT" : searchParams.get("roomType") === "Căn hộ dịch vụ" ? "SERVICED_APARTMENT" : ""));
     setSelectedRoomType(nextRoomType);
     setPriceRange(nextPrice);
-    setPage(1);
+    setOccupants(Number(searchParams.get("occupants")) || 0);
+    setAreaRange(searchParams.get("area") || "all");
+    setSelectedAmenityIds(searchParams.getAll("amenityIds").map(Number));
+    setPage(Math.max(1, Number(searchParams.get("page")) || 1));
   }, [searchParams]);
 
   useEffect(() => {
@@ -203,24 +211,12 @@ function ListingsContent() {
   }, [user, role]);
 
   const handleNearMe = () => {
-    setShowMap(true);
-    showToast("Đang định vị vị trí của bạn qua GPS...", "info");
-    if (typeof navigator !== "undefined" && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          showToast("Đã định vị thành công! Đang hiển thị vị trí của bạn trên bản đồ.", "success");
-          setUserCoords({
-            lat: Number(pos.coords.latitude.toFixed(6)),
-            lng: Number(pos.coords.longitude.toFixed(6)),
-          });
-        },
-        () => {
-          showToast("Không thể lấy vị trí GPS. Đang hiển thị bản đồ mặc định.", "info");
-          setUserCoords({ lat: 21.0285, lng: 105.8542 });
-        },
-        { timeout: 8000, enableHighAccuracy: true }
-      );
-    }
+    if (!navigator.geolocation) { showToast("Trình duyệt không hỗ trợ định vị.", "error"); return; }
+    showToast("Đang lấy vị trí...", "info");
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      setUserCoords({ lat: coords.latitude, lng: coords.longitude }); setShowMap(true); setPage(1);
+    }, () => showToast("Không lấy được vị trí. Hãy cấp quyền và thử lại.", "error"),
+    { timeout: 10000, enableHighAccuracy: true });
   };
 
   useEffect(() => {
@@ -251,6 +247,8 @@ function ListingsContent() {
       try {
         const searchRes = await listingsApi.searchListings({
           keyword: debouncedKeyword || undefined,
+          propertyType: propertyType || undefined, latitude: userCoords?.lat, longitude: userCoords?.lng,
+          radiusMeters: userCoords ? radiusMeters : undefined,
           provinceCode: provinceCode || undefined,
           wardCode: wardCode || undefined,
           minPrice,
@@ -288,7 +286,7 @@ function ListingsContent() {
       isMounted = false;
     };
   }, [
-    debouncedKeyword,
+    debouncedKeyword, propertyType, userCoords, radiusMeters,
     provinceCode,
     wardCode,
     priceRange,
@@ -299,6 +297,15 @@ function ListingsContent() {
     page,
   ]);
 
+  useEffect(() => {
+    const next = searchParamsFor({ keyword: debouncedKeyword, provinceCode, wardCode, propertyType,
+      roomType: selectedRoomType, price: priceRange, area: areaRange, occupants: occupants || undefined,
+      amenityIds: selectedAmenityIds, page: page > 1 ? page : undefined,
+      city: !provinceCode && cityParam !== "Tất cả" ? cityParam : undefined });
+    if (window.location.search.slice(1) !== next.toString())
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${next.size ? "?" + next : ""}`);
+  }, [debouncedKeyword, provinceCode, wardCode, propertyType, selectedRoomType, priceRange, areaRange, occupants, selectedAmenityIds, page, cityParam]);
+
   const toggleAmenityId = (amenityId: number) => {
     setSelectedAmenityIds((prev) =>
       prev.includes(amenityId) ? prev.filter((id) => id !== amenityId) : [...prev, amenityId]
@@ -308,6 +315,7 @@ function ListingsContent() {
 
   const resetFilters = () => {
     setKeyword("");
+    setPropertyType(""); setUserCoords(null);
     setDebouncedKeyword("");
     setCityParam("Tất cả");
     setProvinceCode("");
@@ -334,6 +342,20 @@ function ListingsContent() {
 
   const renderFilterFormContent = () => (
     <>
+      <div>
+        <label className="block text-xs font-bold mb-2">Loại bất động sản</label>
+        <select className="w-full p-2 border rounded-xl" value={propertyType} onChange={e => { setPropertyType(e.target.value); setPage(1); }}>
+          <option value="">Tất cả</option><option value="BOARDING_HOUSE">Dãy trọ</option>
+          <option value="APARTMENT">Chung cư</option><option value="SERVICED_APARTMENT">Căn hộ dịch vụ</option><option value="HOMESTAY">Homestay</option>
+        </select>
+      </div>
+      {userCoords && <div>
+        <label className="block text-xs font-bold mb-2">Bán kính gần tôi</label>
+        <select value={radiusMeters} onChange={e => { setRadiusMeters(Number(e.target.value)); setPage(1); }}>
+          {[1000,3000,5000,10000].map(r => <option key={r} value={r}>{r / 1000} km</option>)}
+        </select>
+        <button className="ml-3 text-blue-600" onClick={() => { setUserCoords(null); setPage(1); }}>Tắt gần tôi</button>
+      </div>}
       {/* Province (Backend Catalog) */}
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
@@ -729,6 +751,7 @@ function ListingsContent() {
               <ListingsInteractiveMap
                 listings={listings}
                 userLocation={userCoords}
+                radiusMeters={userCoords ? radiusMeters : undefined}
                 onLocateMe={handleNearMe}
               />
             </div>

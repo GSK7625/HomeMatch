@@ -920,6 +920,10 @@ export const listingsApi = {
 
   searchListings: async (params?: SearchListingsParams) => {
     const search = new URLSearchParams();
+    if (params?.propertyType) search.set("propertyType", params.propertyType);
+    if (params?.latitude !== undefined) search.set("latitude", String(params.latitude));
+    if (params?.longitude !== undefined) search.set("longitude", String(params.longitude));
+    if (params?.radiusMeters !== undefined) search.set("radiusMeters", String(params.radiusMeters));
     if (params?.minPrice !== undefined) search.set("minPrice", String(params.minPrice));
     if (params?.maxPrice !== undefined) search.set("maxPrice", String(params.maxPrice));
     if (params?.provinceCode) search.set("provinceCode", params.provinceCode);

@@ -18,6 +18,7 @@ import {
 
 interface ListingsInteractiveMapProps {
   listings: PropertyListing[];
+  radiusMeters?: number;
   userLocation?: { lat: number; lng: number } | null;
   onLocateMe?: () => void;
 }
@@ -26,8 +27,8 @@ function getListingCoordinates(listing: PropertyListing): [number, number] | nul
   if (
     typeof listing.latitude === "number" &&
     typeof listing.longitude === "number" &&
-    listing.latitude !== 0 &&
-    listing.longitude !== 0 &&
+    Number.isFinite(listing.latitude) &&
+    Number.isFinite(listing.longitude) &&
     !isNaN(listing.latitude) &&
     !isNaN(listing.longitude)
   ) {
@@ -46,6 +47,7 @@ function escapeHtml(str: string): string {
 }
 
 export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
+  radiusMeters,
   listings,
   userLocation,
   onLocateMe,
@@ -169,6 +171,7 @@ export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
 
       // 1. Add user location marker if present
       if (userLocation) {
+        if (radiusMeters) LModule.circle([userLocation.lat, userLocation.lng], { radius: radiusMeters, weight: 1 }).addTo(markersGroup);
         const userIcon = LModule.divIcon({
           className: "hm-user-gps-marker-wrapper",
           html: `
@@ -278,7 +281,7 @@ export const ListingsInteractiveMap: React.FC<ListingsInteractiveMapProps> = ({
     } catch (err) {
       console.warn("Could not update map markers", err);
     }
-  }, [isMapReady, listings, userLocation]);
+  }, [isMapReady, listings, userLocation, radiusMeters]);
 
   // Hook 3: Fly to user location if changed and available
   useEffect(() => {

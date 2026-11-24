@@ -13,6 +13,8 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
             query = query.Where(room => room.Property.ProvinceCode == filter.ProvinceCode);
         if (filter.WardCode is not null)
             query = query.Where(room => room.Property.WardCode == filter.WardCode);
+        if (filter.PropertyType is not null)
+            query = query.Where(room => room.Property.PropertyType == filter.PropertyType);
         if (filter.RoomType is not null)
             query = query.Where(room => room.RoomType == filter.RoomType);
         if (filter.Occupants.HasValue)
@@ -29,7 +31,10 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
         return await query.Select(room => new RoomListingSearchMatch(room.Id,
             filter.Keyword == null
             || EF.Functions.ILike(room.Property.Name, pattern, "\\")
-            || EF.Functions.ILike(room.Property.AddressDetail, pattern, "\\")))
+            || EF.Functions.ILike(room.Property.AddressDetail, pattern, "\\")
+            || EF.Functions.ILike(room.Property.AddressDetail + ", "
+                + db.AdministrativeWards.Where(w => w.Code == room.Property.WardCode && w.ProvinceCode == room.Property.ProvinceCode).Select(w => w.FullName).FirstOrDefault()
+                + ", " + db.AdministrativeProvinces.Where(p => p.Code == room.Property.ProvinceCode).Select(p => p.FullName).FirstOrDefault(), pattern, "\\")))
             .ToArrayAsync(cancellationToken);
     }
 
@@ -46,6 +51,7 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
             {
                 room.Id, room.RoomNumber, room.Floor, room.AreaSqm, room.RoomType,
                 room.MaxOccupants, room.Status, room.AvailableFrom,
+                RoomTypeName = db.RoomTypes.Where(t => t.Code == room.RoomType).Select(t => t.Name).FirstOrDefault(),
                 DeletedAt = room.DeletedAt ?? room.DeletionRequestedAt ?? room.Property.DeletedAt,
                 Property = new RoomListingPropertySnapshot(
                     room.Property.Id, room.Property.Name, room.Property.PropertyType,
@@ -70,7 +76,7 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
 
         return new RoomListingDetailSnapshot(
             detail.Id, detail.RoomNumber, detail.Floor, detail.AreaSqm, detail.RoomType,
-            detail.MaxOccupants, detail.Status, detail.AvailableFrom, detail.Property, amenities, tariffs) { DeletedAt = detail.DeletedAt };
+            detail.MaxOccupants, detail.Status, detail.AvailableFrom, detail.Property, amenities, tariffs) { DeletedAt = detail.DeletedAt, RoomTypeName = detail.RoomTypeName };
     }
 
     public Task<RoomListingSnapshot?> GetRoomAsync(long roomId, CancellationToken cancellationToken) =>
@@ -106,10 +112,12 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
 
         var baseData = await (
             from room in db.Rooms.AsNoTracking()
-            join province in db.AdministrativeProvinces on room.Property.ProvinceCode equals province.Code
+            join province in db.AdministrativeProvinces on room.Property.ProvinceCode equals province.Code into provinces
+            from province in provinces.DefaultIfEmpty()
             join ward in db.AdministrativeWards
                 on new { room.Property.ProvinceCode, Code = room.Property.WardCode }
-                equals new { ward.ProvinceCode, ward.Code }
+                equals new { ward.ProvinceCode, ward.Code } into wards
+            from ward in wards.DefaultIfEmpty()
             where roomIds.Contains(room.Id)
             select new
             {
@@ -117,11 +125,14 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
                 room.PropertyId,
                 room.RoomType,
                 room.AreaSqm,
-                ward.DistrictName,
-                ProvinceName = province.FullName,
+                DistrictName = ward == null ? null : ward.DistrictName,
+                ProvinceName = province == null ? null : province.FullName,
                 room.Property.AddressDetail,
                 room.Property.Latitude,
-                room.Property.Longitude
+                room.Property.Longitude,
+                room.Property.PropertyType,
+                WardName = ward == null ? null : ward.FullName,
+                RoomTypeName = db.RoomTypes.Where(t => t.Code == room.RoomType).Select(t => t.Name).FirstOrDefault()
             }).ToListAsync(cancellationToken);
 
         if (baseData.Count == 0)
@@ -172,7 +183,8 @@ public sealed class RoomListingReader(PropertiesDbContext db) : IRoomListingRead
                 tariff?.Water,
                 roomAmenities ?? [],
                 b.Latitude.HasValue ? (double)b.Latitude.Value : null,
-                b.Longitude.HasValue ? (double)b.Longitude.Value : null);
+                b.Longitude.HasValue ? (double)b.Longitude.Value : null,
+                b.RoomTypeName, b.WardName, b.PropertyType);
         }
 
         return result;

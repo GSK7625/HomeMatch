@@ -103,6 +103,7 @@ export default function LandlordPropertiesPage() {
   const [savingProp, setSavingProp] = useState(false);
   const [newLocationConfirmed, setNewLocationConfirmed] = useState(false);
   const newWardRequest = useRef(0);
+  const pendingNewWard = useRef<string | null>(null);
 
   // Form: Edit Property
   const [editPropName, setEditPropName] = useState("");
@@ -116,6 +117,7 @@ export default function LandlordPropertiesPage() {
   const [updatingProp, setUpdatingProp] = useState(false);
   const [editLocationConfirmed, setEditLocationConfirmed] = useState(false);
   const editWardRequest = useRef(0);
+  const pendingEditWard = useRef<string | null>(null);
 
   // Form: Create Room
   const [newRoomNumber, setNewRoomNumber] = useState("");
@@ -174,8 +176,11 @@ export default function LandlordPropertiesPage() {
   }, [loadCatalogs]);
 
   // Load wards for Create Property Form
-  const loadWardsForProvince = useCallback(async (provinceCode: string) => {
+  const loadWardsForProvince = useCallback(async (provinceCode: string, targetWardCode?: string) => {
     const revision = ++newWardRequest.current;
+    if (targetWardCode !== undefined) {
+      pendingNewWard.current = targetWardCode;
+    }
     if (!provinceCode) {
       setWards([]);
       setNewPropWard("");
@@ -189,9 +194,12 @@ export default function LandlordPropertiesPage() {
       if (wardRes.isSuccess && wardRes.data && wardRes.data.length > 0) {
         const wardList = wardRes.data;
         setWards(wardList);
+        const targetWard = pendingNewWard.current;
+        pendingNewWard.current = null;
         setNewPropWard((prev) => {
-          const exists = wardList.some((w) => w.code === prev);
-          return exists ? prev : "";
+          const wardToSet = targetWard !== null ? targetWard : prev;
+          const exists = wardList.some((w) => w.code === wardToSet);
+          return exists ? wardToSet : "";
         });
         return;
       }
@@ -212,8 +220,11 @@ export default function LandlordPropertiesPage() {
   }, [newPropProvince, loadWardsForProvince]);
 
   // Load wards for Edit Property Form
-  const loadEditWardsForProvince = useCallback(async (provinceCode: string) => {
+  const loadEditWardsForProvince = useCallback(async (provinceCode: string, targetWardCode?: string) => {
     const revision = ++editWardRequest.current;
+    if (targetWardCode !== undefined) {
+      pendingEditWard.current = targetWardCode;
+    }
     if (!provinceCode) {
       setEditPropWards([]);
       setEditPropWard("");
@@ -227,9 +238,12 @@ export default function LandlordPropertiesPage() {
       if (wardRes.isSuccess && wardRes.data && wardRes.data.length > 0) {
         const wardList = wardRes.data;
         setEditPropWards(wardList);
+        const targetWard = pendingEditWard.current;
+        pendingEditWard.current = null;
         setEditPropWard((prev) => {
-          const exists = wardList.some((w) => w.code === prev);
-          return exists ? prev : "";
+          const wardToSet = targetWard !== null ? targetWard : prev;
+          const exists = wardList.some((w) => w.code === wardToSet);
+          return exists ? wardToSet : "";
         });
         return;
       }
@@ -1661,9 +1675,18 @@ export default function LandlordPropertiesPage() {
             setNewPropLat(latitude);
             setNewPropLng(longitude);
             setNewLocationConfirmed(true);
-            const suggestedAddress = address?.formattedAddress.trim() || address?.addressDetail.trim();
-            if (suggestedAddress) {
-              setNewPropAddress(suggestedAddress);
+            if (address) {
+              const detail = address.addressDetail?.trim();
+              if (detail) {
+                setNewPropAddress(detail);
+              }
+              if (address.provinceCode) {
+                pendingNewWard.current = address.wardCode ?? null;
+                setNewPropProvince(address.provinceCode);
+                loadWardsForProvince(address.provinceCode, address.wardCode ?? undefined);
+              } else if (address.wardCode) {
+                setNewPropWard(address.wardCode);
+              }
             }
             showToast(`Đã ghim tọa độ GPS: ${latitude}, ${longitude}`, "success");
           }}
@@ -1716,9 +1739,18 @@ export default function LandlordPropertiesPage() {
             setEditPropLat(latitude);
             setEditPropLng(longitude);
             setEditLocationConfirmed(true);
-            const suggestedAddress = address?.formattedAddress.trim() || address?.addressDetail.trim();
-            if (suggestedAddress) {
-              setEditPropAddress(suggestedAddress);
+            if (address) {
+              const detail = address.addressDetail?.trim();
+              if (detail) {
+                setEditPropAddress(detail);
+              }
+              if (address.provinceCode) {
+                pendingEditWard.current = address.wardCode ?? null;
+                setEditPropProvince(address.provinceCode);
+                loadEditWardsForProvince(address.provinceCode, address.wardCode ?? undefined);
+              } else if (address.wardCode) {
+                setEditPropWard(address.wardCode);
+              }
             }
             showToast(`Đã cập nhật tọa độ GPS: ${latitude}, ${longitude}`, "success");
           }}

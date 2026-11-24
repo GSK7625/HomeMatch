@@ -343,9 +343,15 @@ export const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
         </ul>}
         {selectedAddress && <div className="text-xs p-3 border rounded-xl space-y-2" aria-live="polite">
           <p><strong>Địa chỉ gợi ý:</strong> {selectedAddress.formattedAddress}</p>
-          <p className="text-amber-700">Kiểm tra địa chỉ gần ghim và bổ sung số nhà/ngõ nếu thiếu. Tỉnh/phường được giữ theo lựa chọn trong form.</p>
+          {selectedAddress.matchStatus === "MATCHED" ? (
+            <p className="text-emerald-700 font-medium">✓ Đã đối chiếu khớp tỉnh/thành và phường/xã trong hệ thống.</p>
+          ) : selectedAddress.matchStatus === "PARTIAL" ? (
+            <p className="text-amber-700">✓ Đã đối chiếu tỉnh/thành ({selectedAddress.provinceName}). Vui lòng kiểm tra và chọn lại phường/xã nếu chưa khớp.</p>
+          ) : (
+            <p className="text-amber-700">Chưa đối chiếu được tỉnh/phường từ bản đồ. Vui lòng chọn tỉnh/phường thủ công trong form.</p>
+          )}
           <label className="flex gap-2 items-start"><input type="checkbox" checked={applyAddress} onChange={e => { setApplyAddress(e.target.checked); setConfirmed(false); }} />
-            Điền địa chỉ gợi ý vào form (kiểm tra và bổ sung trước khi lưu)
+            Điền địa chỉ gợi ý vào form (tự động điền tỉnh/phường và địa chỉ chi tiết)
           </label>
         </div>}
         <p className="text-[10px] text-slate-500">Tra cứu địa chỉ: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">© OpenStreetMap contributors</a></p>

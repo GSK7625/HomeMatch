@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using HomeMatch.Modules.Properties.Application;
 using HomeMatch.Modules.Properties.Application.DTOs;
 using HomeMatch.Modules.Properties.Application.Interfaces;
@@ -106,12 +107,24 @@ public sealed class NominatimGeocodingService(
             || place.Address is null) return null;
         string Read(string key) => place.Address.GetValueOrDefault(key) ?? "";
         string[] Names(params string[] keys) => keys.Select(Read).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToArray();
-        var road = Names("road", "pedestrian", "residential", "path").FirstOrDefault() ?? "";
-        var detail = string.Join(" ", new[] { Read("house_number"), road }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+        // Strip postal codes (4-6 digits, e.g. "13906") from display name
+        var cleanedDisplayName = Regex.Replace(place.DisplayName, @",\s*\d{4,6}(?=,|$)", "").Trim();
+
+        var houseNumber = Read("house_number");
+        var road = Names("road", "pedestrian", "residential", "path", "street").FirstOrDefault() ?? "";
+        var hamlet = Names("hamlet", "neighbourhood").FirstOrDefault() ?? "";
+
+        var roadPart = string.Join(" ", new[] { houseNumber, road }.Where(s => !string.IsNullOrWhiteSpace(s)));
+        var detail = string.Join(", ", new[] { roadPart, hamlet }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
         var precision = place.AddressType is "house" or "building" or "apartments" ? "BUILDING"
             : place.AddressType is "road" or "pedestrian" or "residential" ? "STREET" : "AREA";
-        return new(lat, lon, place.DisplayName, detail, Names("state", "province", "city"),
-            Names("suburb", "quarter", "village", "town", "city_district", "municipality"), Read("country_code"), precision);
+
+        var wardNames = Names("commune", "suburb", "quarter", "village", "town", "city_district", "municipality", "county", "district");
+
+        return new(lat, lon, cleanedDisplayName, detail, Names("state", "province", "city"),
+            wardNames, Read("country_code"), precision);
     }
 
     public void Dispose() { _cache.Dispose(); _gate.Dispose(); }

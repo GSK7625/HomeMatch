@@ -36,7 +36,7 @@ public sealed record PublicListingRoomResponse(
     int MaxOccupants,
     string Status,
     DateOnly AvailableFrom,
-    IReadOnlyList<PublicListingAmenityResponse> Amenities);
+    IReadOnlyList<PublicListingAmenityResponse> Amenities, string? RoomTypeName = null);
 
 public sealed record PublicListingPropertyResponse(
     long Id,

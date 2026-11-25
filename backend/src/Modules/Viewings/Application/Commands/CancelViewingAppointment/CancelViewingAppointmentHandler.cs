@@ -65,6 +65,7 @@ public sealed class CancelViewingAppointmentHandler
                 ViewingErrors.InvalidStatusTransition(appointment.Status, ViewingAppointmentStatus.Cancelled));
         }
 
+        var previousStatus = appointment.Status;
         appointment.Status = ViewingAppointmentStatus.Cancelled;
         appointment.CancelledBy = cancelledBy;
         appointment.CancelledReason = string.IsNullOrWhiteSpace(command.CancelledReason)
@@ -77,7 +78,8 @@ public sealed class CancelViewingAppointmentHandler
             appointment.VirtualViewing.Status = VirtualViewingStatus.Cancelled;
         }
 
-        await _appointmentRepository.SaveChangesAsync(cancellationToken);
+        if (!await _appointmentRepository.TrySaveChangesAsync(appointment, previousStatus, cancellationToken))
+            return Result.Failure<ViewingAppointmentDto>(ViewingErrors.AppointmentChanged);
 
         var tenant = await _userReader.GetUserByIdAsync(appointment.TenantId, cancellationToken);
         var landlord = listing is not null

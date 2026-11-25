@@ -10,12 +10,15 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Repositories;
 
 public sealed class RoomRepository(PropertiesDbContext db) : IRoomRepository
 {
-    public Task<Room?> GetAsync(long propertyId, long roomId, CancellationToken cancellationToken) =>
+    public Task<Room?> GetForDeletionAsync(long propertyId, long roomId, CancellationToken cancellationToken) =>
         db.Rooms.FirstOrDefaultAsync(r => r.Id == roomId && r.PropertyId == propertyId, cancellationToken);
+
+    public Task<Room?> GetAsync(long propertyId, long roomId, CancellationToken cancellationToken) =>
+        db.Rooms.FirstOrDefaultAsync(r => r.Id == roomId && r.PropertyId == propertyId && r.DeletedAt == null && r.DeletionRequestedAt == null && r.Property.DeletedAt == null, cancellationToken);
 
     public async Task<IReadOnlyList<RoomResult>> GetByPropertyAsync(long propertyId, CancellationToken cancellationToken)
     {
-        var rooms = await db.Rooms.AsNoTracking().Where(r => r.PropertyId == propertyId)
+        var rooms = await db.Rooms.AsNoTracking().Where(r => r.PropertyId == propertyId && r.DeletedAt == null && r.DeletionRequestedAt == null && r.Property.DeletedAt == null)
             .OrderBy(r => r.RoomNumber).ThenBy(r => r.Id).ToListAsync(cancellationToken);
         var ids = rooms.Select(r => r.Id).ToArray();
         var amenities = await db.RoomAmenities.AsNoTracking().Where(a => ids.Contains(a.RoomId))
@@ -35,7 +38,7 @@ public sealed class RoomRepository(PropertiesDbContext db) : IRoomRepository
 
     /// Đảm bảo số phòng không bị trùng lặp trong cùng tòa nhà
     public Task<bool> NumberExistsAsync(long propertyId, string number, long? exceptId, CancellationToken cancellationToken) =>
-        db.Rooms.AnyAsync(r => r.PropertyId == propertyId && r.RoomNumber == number && r.Id != exceptId, cancellationToken);
+        db.Rooms.AnyAsync(r => r.PropertyId == propertyId && r.RoomNumber == number && r.Id != exceptId && r.DeletedAt == null, cancellationToken);
 
     public async Task<bool> AmenitiesExistAsync(IReadOnlyList<long> amenityIds, CancellationToken cancellationToken) =>
         await db.Amenities.CountAsync(a => amenityIds.Contains(a.Id), cancellationToken) == amenityIds.Count;

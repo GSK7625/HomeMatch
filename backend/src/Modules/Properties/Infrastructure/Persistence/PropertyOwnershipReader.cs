@@ -10,7 +10,7 @@ public sealed class PropertyOwnershipReader(PropertiesDbContext db) : IPropertyO
         CancellationToken cancellationToken)
     {
         if (!await db.Properties.AsNoTracking().AnyAsync(
-                property => property.Id == propertyId && property.LandlordId == landlordId,
+                property => property.Id == propertyId && property.LandlordId == landlordId && property.DeletedAt == null,
                 cancellationToken))
             throw ApiException.NotFound("Property.NotFound", "Không tìm thấy căn thuộc tài khoản này.");
     }

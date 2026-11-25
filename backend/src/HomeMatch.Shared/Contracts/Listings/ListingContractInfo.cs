@@ -8,4 +8,7 @@ public record ListingContractInfo(
     decimal Price,
     string? Address,
     string? PrimaryImageUrl,
-    bool IsPublished);
+    bool IsPublished)
+{
+    public DateTimeOffset? DeletedAt { get; init; }
+}

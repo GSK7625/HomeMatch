@@ -2,22 +2,30 @@ using HomeMatch.Modules.Leasing.Application.DTOs;
 using HomeMatch.Modules.Leasing.Application.Interfaces;
 using HomeMatch.Modules.Leasing.Domain.Constants;
 using HomeMatch.Shared.Common;
+using HomeMatch.Shared.Contracts;
 using HomeMatch.Shared.Contracts.Notifications;
+using HomeMatch.Shared.Contracts.Properties;
 using Microsoft.Extensions.Logging;
 
 namespace HomeMatch.Modules.Leasing.Application.Commands.SendContractForSignature;
 
 public sealed class SendContractForSignatureHandler
 {
+    private readonly IRoomListingReader _rooms;
+    private readonly IRoomOperationLock _roomOperations;
     private readonly IContractRepository _contractRepository;
     private readonly INotificationPublisher _notificationPublisher;
     private readonly ILogger<SendContractForSignatureHandler> _logger;
 
     public SendContractForSignatureHandler(
         IContractRepository contractRepository,
+        IRoomListingReader rooms,
+        IRoomOperationLock roomOperations,
         INotificationPublisher notificationPublisher,
         ILogger<SendContractForSignatureHandler> logger)
     {
+        _rooms = rooms;
+        _roomOperations = roomOperations;
         _contractRepository = contractRepository;
         _notificationPublisher = notificationPublisher;
         _logger = logger;
@@ -38,26 +46,32 @@ public sealed class SendContractForSignatureHandler
             return Result.Failure<ContractDto>(LeasingErrors.Forbidden);
         }
 
-        // Kiểm tra lịch giữ phòng trước khi chuyển sang PENDING_SIGNATURE
-        var hasOverlap = await _contractRepository.HasOverlappingOccupancyAsync(
-            contract.RoomId,
-            contract.StartDate,
-            contract.EndDate,
-            excludeContractId: contract.Id,
-            cancellationToken);
-
-        if (hasOverlap)
+        await using (var roomLock = await _roomOperations.AcquireAsync(contract.RoomId, cancellationToken))
         {
-            return Result.Failure<ContractDto>(LeasingErrors.ScheduleConflict);
-        }
+            if (await _rooms.GetRoomAsync(contract.RoomId, cancellationToken) is null)
+                return Result.Failure<ContractDto>(LeasingErrors.RoomNotFound);
 
-        var result = contract.SendForSignature(command.SignatureExpiresAt, command.HandoverDueAt);
-        if (result.IsFailure)
-        {
-            return Result.Failure<ContractDto>(result.Error);
-        }
+            // Kiểm tra lịch giữ phòng trước khi chuyển sang PENDING_SIGNATURE
+            var hasOverlap = await _contractRepository.HasOverlappingOccupancyAsync(
+                contract.RoomId,
+                contract.StartDate,
+                contract.EndDate,
+                excludeContractId: contract.Id,
+                cancellationToken);
 
-        await _contractRepository.SaveChangesAsync(cancellationToken);
+            if (hasOverlap)
+            {
+                return Result.Failure<ContractDto>(LeasingErrors.ScheduleConflict);
+            }
+
+            var result = contract.SendForSignature(command.SignatureExpiresAt, command.HandoverDueAt);
+            if (result.IsFailure)
+            {
+                return Result.Failure<ContractDto>(result.Error);
+            }
+
+            await _contractRepository.SaveChangesAsync(cancellationToken);
+        }
 
         _logger.LogInformation("Hợp đồng [ID: {ContractId}] đã được gửi ký. Hạn chót: {ExpiresAt}",
             contract.Id, command.SignatureExpiresAt);

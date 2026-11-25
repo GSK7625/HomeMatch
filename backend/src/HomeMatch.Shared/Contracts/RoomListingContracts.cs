@@ -39,11 +39,12 @@ public sealed record RoomCardSummary(
     long? WaterPrice,
     IReadOnlyList<string> Amenities,
     double? Latitude = null,
-    double? Longitude = null);
+    double? Longitude = null,
+    string? RoomTypeName = null, string? WardName = null, string? PropertyType = null);
 
 public sealed record RoomListingSearchFilter(
     string? ProvinceCode, string? WardCode, string? RoomType, int? Occupants,
-    decimal? MinArea, decimal? MaxArea, IReadOnlyCollection<long> AmenityIds, string? Keyword);
+    decimal? MinArea, decimal? MaxArea, IReadOnlyCollection<long> AmenityIds, string? Keyword, string? PropertyType = null);
 
 public sealed record RoomListingSearchMatch(long RoomId, bool MatchesKeyword);
 
@@ -58,7 +59,11 @@ public sealed record RoomListingDetailSnapshot(
     DateOnly AvailableFrom,
     RoomListingPropertySnapshot Property,
     IReadOnlyList<RoomListingAmenitySnapshot> Amenities,
-    IReadOnlyList<RoomListingTariffSnapshot> Tariffs);
+    IReadOnlyList<RoomListingTariffSnapshot> Tariffs)
+{
+    public DateTimeOffset? DeletedAt { get; init; }
+    public string? RoomTypeName { get; init; }
+}
 
 public sealed record RoomListingPropertySnapshot(
     long Id,

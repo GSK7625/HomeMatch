@@ -58,6 +58,7 @@ public static class LeasingModuleExtensions
         services.AddScoped<IDepositTransactionRepository, DepositTransactionRepository>();
         services.AddScoped<ILeasingEmailService, LeasingEmailService>();
         services.AddScoped<ILeasingContractReader, LeasingContractReader>();
+        services.AddScoped<IRoomDeletionGuard, RoomDeletionGuard>();
 
         // Storage & Cloudflare R2
         services.Configure<R2Settings>(configuration.GetSection(R2Settings.SectionName));

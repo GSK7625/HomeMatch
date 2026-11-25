@@ -1,9 +1,13 @@
 using HomeMatch.Modules.Properties.Application.Features.AdminCatalogs;
+using HomeMatch.Modules.Properties.Application.Features.Geocoding;
+using HomeMatch.Modules.Properties.Infrastructure.Geocoding;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetAmenities;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetProvinces;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetRoomTypes;
 using HomeMatch.Modules.Properties.Application.Features.Catalogs.GetWards;
 using HomeMatch.Modules.Properties.Application.Features.Properties.CreateProperty;
+using HomeMatch.Modules.Properties.Application.Features.Properties.DeleteProperty;
+using HomeMatch.Modules.Properties.Application.Features.Rooms.DeleteRoom;
 using HomeMatch.Modules.Properties.Application.Features.Properties.GetMyProperties;
 using HomeMatch.Modules.Properties.Application.Features.Properties.GetPropertyById;
 using HomeMatch.Modules.Properties.Application.Features.Properties.UpdateProperty;
@@ -44,6 +48,13 @@ public static class PropertiesModuleExtensions
             }
         });
 
+        services.Configure<GeocodingOptions>(configuration.GetSection("Geocoding"));
+        services.AddHttpClient("Properties.Geocoding", client => client.Timeout = TimeSpan.FromSeconds(35));
+        services.AddSingleton<IGeocodingService, NominatimGeocodingService>();
+        services.AddScoped<GeocodingHandler>();
+        services.AddScoped<IRoomOperationLock, PostgresRoomOperationLock>();
+        services.AddScoped<DeletePropertyHandler>();
+        services.AddScoped<DeleteRoomHandler>();
         services.AddScoped<IPropertyRepository, PropertyRepository>();
         services.AddScoped<IRoomRepository, RoomRepository>();
         services.AddScoped<ITariffRepository, TariffRepository>();
@@ -83,6 +94,7 @@ public static class PropertiesModuleExtensions
         var propertiesGroup = endpoints.MapGroup("/api/v1/properties").WithTags("Properties");
         propertiesGroup.MapGet("/ping", () => Results.Ok(new { module = "Properties", status = "Healthy", timestamp = DateTime.UtcNow }));
         propertiesGroup.MapPropertyEndpoints();
+        propertiesGroup.MapGeocodingEndpoints();
         propertiesGroup.MapRoomEndpoints();
         propertiesGroup.MapTariffEndpoints();
 

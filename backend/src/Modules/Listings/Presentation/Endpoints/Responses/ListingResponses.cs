@@ -53,7 +53,8 @@ public sealed class ListingSummaryResponse(
     string? districtName = null, string? provinceName = null, string? addressDetail = null,
     long? electricityPrice = null, long? waterPrice = null,
     IReadOnlyList<string>? amenities = null,
-    double? latitude = null, double? longitude = null)
+    double? latitude = null, double? longitude = null,
+    double? distanceMeters = null, string? roomTypeName = null, string? wardName = null, string? propertyType = null)
 {
     public long Id { get; } = id;
     public long RoomId { get; } = roomId;
@@ -73,6 +74,10 @@ public sealed class ListingSummaryResponse(
     public IReadOnlyList<string> Amenities { get; } = amenities ?? [];
     public double? Latitude { get; } = latitude;
     public double? Longitude { get; } = longitude;
+    public double? DistanceMeters { get; } = distanceMeters;
+    public string? RoomTypeName { get; } = roomTypeName;
+    public string? WardName { get; } = wardName;
+    public string? PropertyType { get; } = propertyType;
 }
 
 

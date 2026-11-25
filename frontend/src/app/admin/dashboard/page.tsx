@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/AuthContext";
+import { ListingMedia } from "@/features/listings/ListingMedia";
 import {
   adminDashboardApi,
   adminListingsApi,
@@ -1445,7 +1446,7 @@ export default function AdminDashboardPage() {
                       key={img.id}
                       className="aspect-[16/10] rounded-lg overflow-hidden border border-slate-200 bg-slate-100 relative"
                     >
-                      <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                      <ListingMedia media={img} className="w-full h-full object-contain" />
                       {img.isPrimary && (
                         <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-blue-600 text-white text-[9px] font-bold">
                           Ảnh chính

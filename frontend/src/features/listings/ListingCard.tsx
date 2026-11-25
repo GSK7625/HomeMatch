@@ -28,7 +28,7 @@ interface ListingCardProps {
 }
 
 export function ListingCard({ listing, onFavoriteChange, isFavorite: isFavoriteProp }: ListingCardProps) {
-  const { user, role } = useAuth();
+  const { user, role, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
   const [isFav, setIsFav] = useState(() => Boolean(isFavoriteProp));
   const [isSyncing, setIsSyncing] = useState(false);
@@ -120,6 +120,11 @@ export function ListingCard({ listing, onFavoriteChange, isFavorite: isFavoriteP
   const handleCompareClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (authLoading) return;
+    if (!user || !getStoredToken()) {
+      showToast("Vui lòng đăng nhập để so sánh phòng.", "info");
+      return;
+    }
     const res = compareSelection.add(listing.roomId ?? "");
     showToast(res.message, res.success ? "success" : "error");
   };
@@ -206,6 +211,7 @@ export function ListingCard({ listing, onFavoriteChange, isFavorite: isFavoriteP
           <div>
             <span className="text-xl font-black text-white tracking-tight drop-shadow-sm">
               {formattedPrice(listing.price)}
+              {listing.distanceMeters != null && <span className="block text-xs">Cách bạn {(listing.distanceMeters / 1000).toFixed(1)} km</span>}
             </span>
             <span className="text-[11px] text-slate-300 block">
               {listing.deposit > 0
@@ -245,10 +251,7 @@ export function ListingCard({ listing, onFavoriteChange, isFavorite: isFavoriteP
           <div className="flex items-center gap-1 text-xs text-slate-500 mt-1.5 mb-2.5">
             <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
             <span className="line-clamp-1 font-medium">
-              {[listing.district, listing.city]
-                .map((p) => p?.trim())
-                .filter((p, idx, arr): p is string => Boolean(p) && arr.findIndex((x) => x?.toLowerCase() === p?.toLowerCase()) === idx)
-                .join(", ") || listing.address}
+              {listing.address}
             </span>
           </div>
 

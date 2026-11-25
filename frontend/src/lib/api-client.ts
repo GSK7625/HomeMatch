@@ -25,6 +25,7 @@ import {
   ProvinceDto,
   WardDto,
   CreatePropertyBody,
+  GeocodingResult,
   UpdatePropertyBody,
   CreateRoomBody,
   UpdateRoomBody,
@@ -824,6 +825,16 @@ export const tenantOverviewApi = {
 // Properties & Rooms Module API (/api/v1/properties)
 // ============================================================================
 export const propertiesApi = {
+  geocode: (addressDetail: string, provinceCode: string, wardCode: string, signal?: AbortSignal) => {
+    const query = new URLSearchParams({ addressDetail, provinceCode, wardCode });
+    return apiRequest<GeocodingResult[]>(`/api/v1/properties/geocoding?${query}`, { signal });
+  },
+
+  reverseGeocode: (latitude: number, longitude: number, signal?: AbortSignal) => {
+    const query = new URLSearchParams({ latitude: String(latitude), longitude: String(longitude) });
+    return apiRequest<GeocodingResult>(`/api/v1/properties/reverse-geocoding?${query}`, { signal });
+  },
+
   getMyProperties: async () => {
     return apiRequest<PropertyDto[]>("/api/v1/properties/mine", {
       method: "GET",
@@ -848,6 +859,14 @@ export const propertiesApi = {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
+  },
+
+  deleteProperty: async (id: number) => {
+    return apiRequest<void>(`/api/v1/properties/${id}`, { method: "DELETE" });
+  },
+
+  deleteRoom: async (propertyId: number, roomId: number) => {
+    return apiRequest<void>(`/api/v1/properties/${propertyId}/rooms/${roomId}`, { method: "DELETE" });
   },
 
   getRooms: async (propertyId: number) => {
@@ -935,8 +954,16 @@ export const catalogsApi = {
 // Listings Module API (/api/v1/listings)
 // ============================================================================
 export const listingsApi = {
+  deleteListing: async (id: number) => {
+    return apiRequest<void>(`/api/v1/listings/${id}`, { method: "DELETE" });
+  },
+
   searchListings: async (params?: SearchListingsParams) => {
     const search = new URLSearchParams();
+    if (params?.propertyType) search.set("propertyType", params.propertyType);
+    if (params?.latitude !== undefined) search.set("latitude", String(params.latitude));
+    if (params?.longitude !== undefined) search.set("longitude", String(params.longitude));
+    if (params?.radiusMeters !== undefined) search.set("radiusMeters", String(params.radiusMeters));
     if (params?.minPrice !== undefined) search.set("minPrice", String(params.minPrice));
     if (params?.maxPrice !== undefined) search.set("maxPrice", String(params.maxPrice));
     if (params?.provinceCode) search.set("provinceCode", params.provinceCode);
@@ -1033,6 +1060,17 @@ export const listingsApi = {
     return apiRequest<ListingImageDto>(`/api/v1/listings/${listingId}/images`, {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  },
+
+  uploadMedia: async (listingId: number, file: File, sortOrder: number, isPrimary = false) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("sortOrder", String(sortOrder));
+    form.append("isPrimary", String(isPrimary));
+    return apiRequest<ListingImageDto>(`/api/v1/listings/${listingId}/images/uploads`, {
+      method: "POST",
+      body: form,
     });
   },
 

@@ -16,15 +16,15 @@ public static class ListingMapping
 
     public static ListingSummaryDto ToSummary(Listing listing) =>
         new(listing.Id, listing.RoomId, listing.Title, listing.Slug, listing.Price, listing.Status,
-            listing.Images.FirstOrDefault(image => image.IsPrimary)?.ImageUrl ?? listing.Images.FirstOrDefault()?.ImageUrl,
+            CoverImageUrl(listing),
             depositAmount: listing.DepositAmount);
 
     public static ListingSummaryDto ToCardSummary(
         Listing listing,
         HomeMatch.Shared.Contracts.RoomCardSummary? room,
-        ListingCoordinates? coordinates = null) =>
+        ListingCoordinates? coordinates = null, double? distanceMeters = null) =>
         new(listing.Id, listing.RoomId, listing.Title, listing.Slug, listing.Price, listing.Status,
-            listing.Images.FirstOrDefault(image => image.IsPrimary)?.ImageUrl ?? listing.Images.FirstOrDefault()?.ImageUrl,
+            CoverImageUrl(listing),
             depositAmount: listing.DepositAmount,
             areaSqm: room?.AreaSqm,
             roomType: room?.RoomType,
@@ -35,9 +35,15 @@ public static class ListingMapping
             waterPrice: room?.WaterPrice,
             amenities: room?.Amenities,
             latitude: coordinates?.Latitude ?? room?.Latitude,
-            longitude: coordinates?.Longitude ?? room?.Longitude);
+            longitude: coordinates?.Longitude ?? room?.Longitude,
+            distanceMeters: distanceMeters, roomTypeName: room?.RoomTypeName, wardName: room?.WardName, propertyType: room?.PropertyType);
 
     public static ListingImageDto ToImageResult(ListingImage image) =>
         new(image.Id, image.ImageUrl, image.IsPrimary, image.SortOrder,
             image.MediaType, image.ThumbnailUrl, image.DurationSeconds);
+
+    public static string? CoverImageUrl(Listing listing) => listing.Images
+        .OrderByDescending(image => image.IsPrimary).ThenBy(image => image.SortOrder).ThenBy(image => image.Id)
+        .Select(image => image.MediaType == "VIDEO" ? image.ThumbnailUrl : image.ImageUrl)
+        .FirstOrDefault(url => !string.IsNullOrWhiteSpace(url));
 }

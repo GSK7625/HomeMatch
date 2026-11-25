@@ -64,7 +64,8 @@ public sealed class CompleteViewingAppointmentHandler
             appointment.VirtualViewing.EndedAt ??= now;
         }
 
-        await _appointmentRepository.SaveChangesAsync(cancellationToken);
+        if (!await _appointmentRepository.TrySaveChangesAsync(appointment, ViewingAppointmentStatus.Confirmed, cancellationToken))
+            return Result.Failure<ViewingAppointmentDto>(ViewingErrors.AppointmentChanged);
 
         _logger.LogInformation(
             "Buổi xem phòng #{AppointmentId} đã được đánh dấu hoàn thành bởi UserId {ActorUserId}",

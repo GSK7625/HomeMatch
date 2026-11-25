@@ -4,6 +4,10 @@ namespace HomeMatch.Modules.Viewings.Domain.Constants;
 
 public static class ViewingErrors
 {
+    public static readonly Error ListingDeleted = new(
+        "Viewing.ListingDeleted", "Tin đăng đã xóa, không thể xác nhận lịch hẹn.");
+    public static readonly Error AppointmentChanged = new(
+        "Viewing.AppointmentChanged", "Lịch hẹn đã thay đổi. Vui lòng tải lại danh sách.");
     public static readonly Error AuthenticationRequired = new(
         "Viewing.AuthenticationRequired",
         "Chưa xác thực danh tính người dùng.");

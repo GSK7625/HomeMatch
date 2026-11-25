@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HomeMatch.Modules.Properties.Application.Features.Rooms.DeleteRoom;
 using HomeMatch.Modules.Properties.Presentation.Endpoints.Requests;
 using HomeMatch.Modules.Properties.Presentation.Endpoints.Responses;
 using HomeMatch.Modules.Properties.Application.Features.Rooms.CreateRoom;
@@ -21,6 +22,16 @@ public static class RoomsEndpoints
         var roomGroup = group.MapGroup("/{propertyId:long}/rooms")
             .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Landlord"))
             .WithTags("Rooms");
+
+        roomGroup.MapDelete("/{roomId:long}", DeleteAsync)
+            .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Landlord"))
+            .WithName("Rooms.Delete")
+            .WithSummary("Xóa mềm tài nguyên, giữ dữ liệu lịch sử")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ApiResponse<object>>(StatusCodes.Status401Unauthorized)
+            .Produces<ApiResponse<object>>(StatusCodes.Status403Forbidden)
+            .Produces<ApiResponse<object>>(StatusCodes.Status404NotFound)
+            .Produces<ApiResponse<object>>(StatusCodes.Status409Conflict);
 
         roomGroup.MapPost("/", CreateAsync)
             .AddEndpointFilter<PropertyRequestFilter>()
@@ -54,6 +65,15 @@ public static class RoomsEndpoints
             .WithName("Rooms.SetStatus")
             .WithSummary("Thay đổi trạng thái phòng (AVAILABLE / RENTED / SUSPENDED)")
             .Produces<ApiResponse<RoomResponse>>(StatusCodes.Status200OK);
+    }
+
+    private static async Task<IResult> DeleteAsync(ClaimsPrincipal user, long propertyId, long roomId,
+        DeleteRoomHandler handler, CancellationToken cancellationToken)
+    {
+        var landlordId = RequestActor.UserId(user);
+        if (landlordId is null) return PropertiesHttpErrors.MissingActor();
+        var result = await handler.HandleAsync(new(landlordId.Value, propertyId, roomId), cancellationToken);
+        return result.IsFailure ? PropertiesHttpErrors.Failure(result.Error) : Results.NoContent();
     }
 
     private static async Task<IResult> CreateAsync(

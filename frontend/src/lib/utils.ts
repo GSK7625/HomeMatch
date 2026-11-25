@@ -24,7 +24,7 @@ export function formatRoomTypeLabel(
 ): PropertyListing["roomType"] {
   const code = (roomType || "").toUpperCase();
   if (code === "STUDIO") return "Studio";
-  if (code === "1B1B" || code === "2B1B") return "Căn hộ dịch vụ";
+  if (code === "1B1B" || code === "2B1B") return code;
   if (code === "DORMITORY") return "Ở ghép";
   if (code === "SINGLE") return "Phòng trọ";
   if (
@@ -68,15 +68,17 @@ export function mapListingSummaryToCard(item: ListingSummaryDto): PropertyListin
     title: item.title,
     description: "",
     address:
-      joinUniqueAddressParts([item.addressDetail, item.districtName, item.provinceName]) ||
+      joinUniqueAddressParts([item.addressDetail, item.wardName, item.districtName, item.provinceName]) ||
       "Chưa cập nhật địa chỉ",
-    ward: "",
+    ward: item.wardName ?? "",
     district: item.districtName || "",
     city: item.provinceName || "",
     price: item.price,
     deposit: item.depositAmount ?? 0,
     area: item.areaSqm != null ? Number(item.areaSqm) : null,
-    roomType: formatRoomTypeLabel(item.roomType),
+    roomType: item.roomTypeName || item.roomType || "Chưa cập nhật",
+    propertyType: item.propertyType,
+    distanceMeters: item.distanceMeters,
     status: mapListingStatus(item.status),
     images: item.coverImageUrl ? [item.coverImageUrl] : [],
     amenities: item.amenities ?? [],
@@ -119,7 +121,7 @@ export function mapPublicDetailToCard(d: PublicListingDetailDto): PropertyListin
     price: d.price,
     deposit: d.depositAmount ?? 0,
     area: d.room?.areaSqm != null ? Number(d.room.areaSqm) : null,
-    roomType: formatRoomTypeLabel(d.room?.roomType),
+    roomType: d.room?.roomTypeName || formatRoomTypeLabel(d.room?.roomType),
     status: mapListingStatus(d.status),
     images: d.images ? d.images.map((img) => img.imageUrl) : [],
     amenities: d.room?.amenities ? d.room.amenities.map((a) => a.name) : [],

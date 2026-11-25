@@ -9,7 +9,7 @@ public static class ListingPublicationPolicy
     public static bool CanEdit(string status) => status is "DRAFT" or "HIDDEN" or "REJECTED" or "EXPIRED";
 
     public static bool IsPublic(Listing? listing, DateTimeOffset now) =>
-        listing is { Status: "PUBLISHED" } && (listing.ExpiresAt is null || listing.ExpiresAt > now);
+        listing is { Status: "PUBLISHED", DeletedAt: null } && (listing.ExpiresAt is null || listing.ExpiresAt > now);
 
     public static Error? ValidateCanSubmit(
         string listingStatus, RoomListingSnapshot? room, long landlordId,

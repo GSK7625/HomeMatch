@@ -7,6 +7,7 @@ import { ToastProvider } from "@/components/Toast";
 import { Navbar } from "@/components/Navbar";
 import { BottomNav } from "@/components/BottomNav";
 import { Footer } from "@/components/Footer";
+import { ComparisonBar } from "@/components/ComparisonBar";
 
 const dancingScript = Dancing_Script({
   subsets: ["latin", "vietnamese"],
@@ -18,6 +19,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
+  viewportFit: "cover",
   themeColor: "#2563eb",
 };
 
@@ -40,7 +42,8 @@ export default function RootLayout({
             <div className="print:hidden">
               <Navbar />
             </div>
-            <main className="flex-1 flex flex-col pb-16 lg:pb-0 print:pb-0">{children}</main>
+            <main className="flex-1 flex flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))] lg:pb-0 print:pb-0">{children}</main>
+            <ComparisonBar />
             <div className="print:hidden">
               <Footer />
             </div>

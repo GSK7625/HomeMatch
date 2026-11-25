@@ -2,6 +2,7 @@ using HomeMatch.Modules.Listings.Infrastructure.Persistence;
 using HomeMatch.Shared.Contracts;
 using HomeMatch.Shared.Contracts.Listings;
 using Microsoft.EntityFrameworkCore;
+using HomeMatch.Modules.Listings.Application;
 
 namespace HomeMatch.Modules.Listings.Infrastructure.Services;
 
@@ -13,7 +14,7 @@ public sealed class ListingContractReader(
         IsAnyRoomEditBlockedAsync([roomId], cancellationToken);
 
     public Task<bool> IsAnyRoomEditBlockedAsync(IReadOnlyCollection<long> roomIds, CancellationToken cancellationToken) =>
-        db.Listings.AnyAsync(listing => roomIds.Contains(listing.RoomId)
+        db.Listings.AnyAsync(listing => roomIds.Contains(listing.RoomId) && listing.DeletedAt == null
             && (listing.Status == "PUBLISHED" || listing.Status == "PENDING_APPROVAL"), cancellationToken);
 
     public async Task<ListingContractInfo?> GetListingByIdAsync(long listingId, CancellationToken cancellationToken = default)
@@ -31,8 +32,7 @@ public sealed class ListingContractReader(
             ? string.Join(", ", new[] { p.AddressDetail, p.WardName, p.DistrictName, p.ProvinceName }.Where(s => !string.IsNullOrWhiteSpace(s)))
             : null;
 
-        var primaryImage = listing.Images.OrderBy(i => i.SortOrder).FirstOrDefault(i => i.IsPrimary)?.ImageUrl
-            ?? listing.Images.OrderBy(i => i.SortOrder).FirstOrDefault()?.ImageUrl;
+        var primaryImage = ListingMapping.CoverImageUrl(listing);
 
         return new ListingContractInfo(
             ListingId: listing.Id,
@@ -42,7 +42,9 @@ public sealed class ListingContractReader(
             Price: listing.Price,
             Address: address,
             PrimaryImageUrl: primaryImage,
-            IsPublished: listing.Status == "PUBLISHED");
+            IsPublished: listing.DeletedAt == null && listing.Status == "PUBLISHED"
+                && (listing.ExpiresAt == null || listing.ExpiresAt > DateTimeOffset.UtcNow)
+                && roomDetail is { DeletedAt: null, Status: "AVAILABLE" }) { DeletedAt = listing.DeletedAt };
     }
 
     public async Task<IReadOnlyDictionary<long, ListingContractInfo>> GetListingsByIdsAsync(
@@ -61,6 +63,7 @@ public sealed class ListingContractReader(
 
         var roomIds = listings.Select(l => l.RoomId).Distinct().ToList();
         var roomCards = await rooms.GetRoomCardSummariesAsync(roomIds, cancellationToken);
+        var activeRooms = await rooms.GetRoomsAsync(roomIds, cancellationToken);
 
         var result = new Dictionary<long, ListingContractInfo>(listings.Count);
         foreach (var listing in listings)
@@ -70,8 +73,7 @@ public sealed class ListingContractReader(
                 ? string.Join(", ", new[] { room.AddressDetail, room.DistrictName, room.ProvinceName }.Where(s => !string.IsNullOrWhiteSpace(s)))
                 : null;
 
-            var primaryImage = listing.Images.OrderBy(i => i.SortOrder).FirstOrDefault(i => i.IsPrimary)?.ImageUrl
-                ?? listing.Images.OrderBy(i => i.SortOrder).FirstOrDefault()?.ImageUrl;
+            var primaryImage = ListingMapping.CoverImageUrl(listing);
 
             result[listing.Id] = new ListingContractInfo(
                 ListingId: listing.Id,
@@ -81,7 +83,9 @@ public sealed class ListingContractReader(
                 Price: listing.Price,
                 Address: address,
                 PrimaryImageUrl: primaryImage,
-                IsPublished: listing.Status == "PUBLISHED");
+                IsPublished: listing.DeletedAt == null && listing.Status == "PUBLISHED"
+                && (listing.ExpiresAt == null || listing.ExpiresAt > DateTimeOffset.UtcNow)
+                && activeRooms.TryGetValue(listing.RoomId, out var activeRoom) && activeRoom.Status == "AVAILABLE") { DeletedAt = listing.DeletedAt };
         }
 
         return result;

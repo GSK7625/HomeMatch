@@ -133,7 +133,7 @@ function ResetPasswordContent() {
       </div>
 
       {/* Card */}
-      <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-6 sm:p-8">
+      <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-5 sm:p-8">
         {isSuccess ? (
           <div className="text-center py-4 space-y-4 animate-in fade-in">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 mb-2">

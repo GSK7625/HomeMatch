@@ -12,4 +12,8 @@ public sealed record SearchListingsQuery(
     decimal? MaxArea = null,
     long[]? AmenityIds = null,
     int Page = 1,
-    int PageSize = 20);
+    int PageSize = 20,
+    string? PropertyType = null,
+    double? Latitude = null,
+    double? Longitude = null,
+    int? RadiusMeters = null);

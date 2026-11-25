@@ -106,9 +106,9 @@ public class GetPublicListingByIdHandlerTests
         public Task<int> ExpirePublishedAsync(DateTimeOffset now, long? roomId, CancellationToken cancellationToken) =>
             Task.FromResult(0);
 
-        public Task<(IReadOnlyList<Listing> Items, int TotalCount)> SearchPublicAsync(
+        public Task<(IReadOnlyList<ListingSearchItemDto> Items, int TotalCount)> SearchPublicAsync(
             SearchListingsQuery query, long[] roomIds, long[] keywordRoomIds, CancellationToken cancellationToken) =>
-            Task.FromResult<(IReadOnlyList<Listing>, int)>(([], 0));
+            Task.FromResult<(IReadOnlyList<ListingSearchItemDto>, int)>(([], 0));
 
         public Task<Listing?> GetByIdAsync(long listingId, CancellationToken cancellationToken) =>
             Task.FromResult(listing?.Id == listingId ? listing : null);
@@ -117,6 +117,9 @@ public class GetPublicListingByIdHandlerTests
             Task.FromResult<IReadOnlyList<Listing>>([]);
 
         public Task<Listing?> GetOwnedAsync(long landlordId, long listingId, CancellationToken cancellationToken) =>
+            Task.FromResult<Listing?>(null);
+
+        public Task<Listing?> GetOwnedForDeletionAsync(long landlordId, long listingId, CancellationToken cancellationToken) =>
             Task.FromResult<Listing?>(null);
 
         public Task<IReadOnlyList<Listing>> GetMineAsync(long landlordId, CancellationToken cancellationToken) =>
@@ -199,6 +202,9 @@ public class GetPublicListingByIdHandlerTests
 
         public Task<bool> HasElectricityAndWaterRatesAsync(long roomId, DateOnly date, CancellationToken cancellationToken) =>
             Task.FromResult(true);
+
+        public Task<IReadOnlyList<RoomListingTariffSnapshot>> GetEffectiveRoomTariffsAsync(long roomId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<RoomListingTariffSnapshot>>([]);
 
         public Task<bool> RoomTypeExistsAsync(string code, CancellationToken cancellationToken) =>
             Task.FromResult(true);

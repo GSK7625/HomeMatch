@@ -65,7 +65,7 @@ export function ContractA4Document({
   return (
     <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden print:border-0 print:shadow-none print:rounded-none print:overflow-visible">
       {/* Document Toolbar */}
-      <div className="px-4 py-3 border-b border-slate-200 bg-slate-50/80 flex flex-wrap items-center justify-between gap-3 print:hidden">
+      <div className="px-3 sm:px-4 py-3 border-b border-slate-200 bg-slate-50/80 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 print:hidden">
         <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
           <FileText className="w-4 h-4 text-blue-600" />
           <span>Bản Thảo Pháp Lý Hợp Đồng Thuê Nhà Ở</span>
@@ -117,7 +117,7 @@ export function ContractA4Document({
       </div>
 
       {/* Paper Canvas */}
-      <div className="p-4 sm:p-6 lg:p-8 bg-slate-100/70 overflow-x-auto print:p-0 print:bg-white print:overflow-visible">
+      <div className="p-2.5 sm:p-6 lg:p-8 bg-slate-100/70 overflow-x-auto print:p-0 print:bg-white print:overflow-visible">
         <div
           style={
             {
@@ -125,7 +125,7 @@ export function ContractA4Document({
               "--contract-print-zoom": printZoom,
             } as React.CSSProperties
           }
-          className="contract-a4-sheet mx-auto max-w-[760px] bg-white rounded-xl border border-slate-200 shadow-sm p-6 sm:p-10 text-slate-800 space-y-5 transition-all print:max-w-none print:w-full print:border-0 print:shadow-none print:rounded-none print:px-[14mm] print:py-[11mm] print:space-y-0 print:[font-size:100%!important]"
+          className="contract-a4-sheet mx-auto max-w-[760px] bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-10 text-slate-800 space-y-5 transition-all print:max-w-none print:w-full print:border-0 print:shadow-none print:rounded-none print:px-[14mm] print:py-[11mm] print:space-y-0 print:[font-size:100%!important]"
         >
           <div className="space-y-5 print:space-y-2.5">
             {/* National Header */}
@@ -254,8 +254,8 @@ export function ContractA4Document({
                 ĐIỀU 2: GIÁ THUÊ, TIỀN ĐẶT CỌC VÀ BIỂU PHÍ DỊCH VỤ
               </h3>
 
-              <div className="rounded-xl border border-slate-200 print:border-slate-300 overflow-hidden">
-                <table className="w-full table-fixed text-[11px] print:text-[9.8px] text-left border-collapse">
+              <div className="rounded-xl border border-slate-200 print:border-slate-300 overflow-x-auto print:overflow-visible">
+                <table className="w-full min-w-[480px] sm:min-w-0 table-fixed text-[11px] print:text-[9.8px] text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200 print:border-slate-300 text-slate-600 font-bold">
                       <th className="w-[26%] px-3 py-1.5 print:px-2.5 print:py-1.5">Hạng mục chi phí</th>
@@ -393,10 +393,10 @@ export function ContractA4Document({
                 <button
                   type="button"
                   onClick={() => onCopyHash(detail.signedDocumentHash!)}
-                  className="inline-flex items-center gap-1 font-mono bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded text-slate-600 print:bg-transparent print:px-0"
+                  className="inline-flex items-center gap-1 font-mono bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded text-slate-600 max-w-full truncate print:bg-transparent print:px-0"
                   title="Sao chép mã SHA-256"
                 >
-                  <span>
+                  <span className="truncate">
                     SHA-256:{" "}
                     {detail.signedDocumentHash.length > 24
                       ? `${detail.signedDocumentHash.slice(0, 24)}...`

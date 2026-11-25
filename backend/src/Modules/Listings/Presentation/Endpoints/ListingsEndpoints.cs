@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HomeMatch.Modules.Listings.Application.Features.Listings.DeleteListing;
 using HomeMatch.Modules.Listings.Presentation.Endpoints.Requests;
 using HomeMatch.Modules.Listings.Presentation.Endpoints.Responses;
 using HomeMatch.Modules.Listings.Application.Features.Listings.CreateListing;
@@ -26,10 +27,11 @@ public static class ListingsEndpoints
     public static void MapListingEndpoints(this RouteGroupBuilder group)
     {
         group.MapGet("/compare", CompareRoomsAsync)
-            .AllowAnonymous()
+            .RequireAuthorization()
             .WithName("Listings.CompareRooms")
             .WithSummary("So sánh tối đa 3 phòng có tin đăng công khai")
             .Produces<ApiResponse<IReadOnlyList<PublicListingDetailResponse>>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
             .Produces<ApiResponse<string>>(StatusCodes.Status400BadRequest);
 
         group.MapGet("/search", SearchAsync)
@@ -52,6 +54,16 @@ public static class ListingsEndpoints
             .WithSummary("Lấy chi tiết tin đăng công khai")
             .Produces<ApiResponse<PublicListingDetailResponse>>(StatusCodes.Status200OK)
             .Produces<ApiResponse<string>>(StatusCodes.Status404NotFound);
+
+        group.MapDelete("/{listingId:long}", DeleteAsync)
+            .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Landlord"))
+            .WithName("Listings.Delete")
+            .WithSummary("Xóa mềm tài nguyên, giữ dữ liệu lịch sử")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ApiResponse<object>>(StatusCodes.Status401Unauthorized)
+            .Produces<ApiResponse<object>>(StatusCodes.Status403Forbidden)
+            .Produces<ApiResponse<object>>(StatusCodes.Status404NotFound)
+            .Produces<ApiResponse<object>>(StatusCodes.Status409Conflict);
 
         group.MapPost("/", CreateAsync)
             .RequireAuthorization()
@@ -121,6 +133,15 @@ public static class ListingsEndpoints
 
     }
 
+    private static async Task<IResult> DeleteAsync(ClaimsPrincipal user, long listingId,
+        DeleteListingHandler handler, CancellationToken cancellationToken)
+    {
+        var landlordId = RequestActor.LandlordId(user);
+        if (landlordId is null) return ListingsHttpErrors.MissingLandlord();
+        var result = await handler.HandleAsync(new(landlordId.Value, listingId), cancellationToken);
+        return result.IsFailure ? ListingsHttpErrors.Failure(result.Error) : Results.NoContent();
+    }
+
     private static async Task<IResult> CompareRoomsAsync(
         [FromQuery] long[]? roomIds, CompareRoomsHandler handler, CancellationToken cancellationToken)
     {
@@ -136,10 +157,11 @@ public static class ListingsEndpoints
         [FromQuery] string? keyword, [FromQuery] string? roomType,
         [FromQuery] int? occupants, [FromQuery] decimal? minArea, [FromQuery] decimal? maxArea,
         [FromQuery] long[]? amenityIds, [FromQuery] int? page, [FromQuery] int? pageSize,
+        [FromQuery] string? propertyType, [FromQuery] double? latitude, [FromQuery] double? longitude, [FromQuery] int? radiusMeters,
         SearchListingsHandler handler, CancellationToken cancellationToken)
     {
         var result = await handler.HandleAsync(new(minPrice, maxPrice, provinceCode, wardCode,
-            keyword, roomType, occupants, minArea, maxArea, amenityIds, page ?? 1, pageSize ?? 20), cancellationToken);
+            keyword, roomType, occupants, minArea, maxArea, amenityIds, page ?? 1, pageSize ?? 20, propertyType, latitude, longitude, radiusMeters), cancellationToken);
         if (result.IsFailure) return ListingsHttpErrors.Failure(result.Error);
         var value = result.Value;
         return Results.Ok(ApiResponse<SearchListingsResponse>.Success(new(

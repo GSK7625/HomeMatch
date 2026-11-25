@@ -54,6 +54,9 @@ public sealed class ConfirmViewingAppointmentHandler
             return Result.Failure<ViewingAppointmentDto>(ViewingErrors.Forbidden);
         }
 
+        if (listing.DeletedAt.HasValue)
+            return Result.Failure<ViewingAppointmentDto>(ViewingErrors.ListingDeleted);
+
         if (appointment.Status != ViewingAppointmentStatus.Pending)
         {
             return Result.Failure<ViewingAppointmentDto>(
@@ -96,7 +99,8 @@ public sealed class ConfirmViewingAppointmentHandler
             }
         }
 
-        await _appointmentRepository.SaveChangesAsync(cancellationToken);
+        if (!await _appointmentRepository.TrySaveChangesAsync(appointment, ViewingAppointmentStatus.Pending, cancellationToken))
+            return Result.Failure<ViewingAppointmentDto>(ViewingErrors.AppointmentChanged);
 
         var tenant = await _userReader.GetUserByIdAsync(appointment.TenantId, cancellationToken);
         var landlord = await _userReader.GetUserByIdAsync(listing.LandlordId, cancellationToken);

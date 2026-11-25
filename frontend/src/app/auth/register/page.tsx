@@ -121,7 +121,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-6 sm:p-8">
+        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-5 sm:p-8">
           {/* Success Screen */}
           {isSuccess ? (
             <div className="text-center py-4 space-y-5 animate-in fade-in">
@@ -198,32 +198,32 @@ export default function RegisterPage() {
               </div>
 
               {/* Role selector tabs */}
-              <div className="grid grid-cols-2 gap-2 mb-6 p-1.5 bg-slate-100 rounded-2xl">
+              <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-6 p-1.5 bg-slate-100 rounded-2xl">
                 <button
                   type="button"
                   onClick={() => setRole("Tenant")}
                   className={cn(
-                    "py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer",
+                    "py-2.5 px-2 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer",
                     role === "Tenant"
                       ? "bg-white text-blue-600 shadow-sm"
                       : "text-slate-600 hover:text-slate-900"
                   )}
                 >
-                  <User className="w-4 h-4" />
-                  <span>Tôi là Người thuê</span>
+                  <User className="w-4 h-4 shrink-0" />
+                  <span className="truncate">Tôi là Người thuê</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setRole("Landlord")}
                   className={cn(
-                    "py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer",
+                    "py-2.5 px-2 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer",
                     role === "Landlord"
                       ? "bg-white text-blue-600 shadow-sm"
                       : "text-slate-600 hover:text-slate-900"
                   )}
                 >
-                  <Building className="w-4 h-4" />
-                  <span>Tôi là Chủ nhà</span>
+                  <Building className="w-4 h-4 shrink-0" />
+                  <span className="truncate">Tôi là Chủ nhà</span>
                 </button>
               </div>
 

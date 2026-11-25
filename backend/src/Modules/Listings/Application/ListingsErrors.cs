@@ -4,6 +4,7 @@ namespace HomeMatch.Modules.Listings.Application;
 
 public static class ListingsErrors
 {
+    public static readonly Error InvalidImageFile = new("Listing.InvalidImageFile", "Chỉ nhận ảnh JPEG/PNG/WebP tối đa 5 MB hoặc video MP4 tối đa 50 MB, đúng định dạng; thứ tự media phải không âm.");
     public static readonly Error InvalidComparison = new("Listing.InvalidComparison", "Chọn từ 1 đến 3 RoomId dương, không trùng nhau.");
     public static readonly Error InvalidSearch = new("Listing.InvalidSearch", "Bộ lọc tìm kiếm không hợp lệ. Kiểm tra khoảng giá, diện tích, số người, loại phòng và tiện nghi.");
     public static readonly Error RevisionConflict = new("Listing.RevisionConflict", "Tin đã thay đổi, vui lòng tải lại trước khi thao tác.");

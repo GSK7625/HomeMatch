@@ -149,10 +149,11 @@ public class AdminFeaturesTests
     private sealed class FakeListingsRepo(Listing listing) : IListingRepository
     {
         public Task<int> ExpirePublishedAsync(DateTimeOffset now, long? roomId, CancellationToken cancellationToken) => Task.FromResult(0);
-        public Task<(IReadOnlyList<Listing> Items, int TotalCount)> SearchPublicAsync(SearchListingsQuery query, long[] roomIds, long[] keywordRoomIds, CancellationToken cancellationToken) => Task.FromResult<(IReadOnlyList<Listing>, int)>(([], 0));
+        public Task<(IReadOnlyList<ListingSearchItemDto> Items, int TotalCount)> SearchPublicAsync(SearchListingsQuery query, long[] roomIds, long[] keywordRoomIds, CancellationToken cancellationToken) => Task.FromResult<(IReadOnlyList<ListingSearchItemDto>, int)>(([], 0));
         public Task<Listing?> GetByIdAsync(long listingId, CancellationToken cancellationToken) => Task.FromResult(listing.Id == listingId ? listing : null);
         public Task<IReadOnlyList<Listing>> GetPublicByRoomIdsAsync(IReadOnlyCollection<long> roomIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Listing>>([]);
         public Task<Listing?> GetOwnedAsync(long landlordId, long listingId, CancellationToken cancellationToken) => Task.FromResult<Listing?>(null);
+        public Task<Listing?> GetOwnedForDeletionAsync(long landlordId, long listingId, CancellationToken cancellationToken) => Task.FromResult<Listing?>(null);
         public Task<IReadOnlyList<Listing>> GetMineAsync(long landlordId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Listing>>([]);
         public Task<(IReadOnlyList<Listing> Items, int TotalCount)> GetPendingAsync(int page, int pageSize, CancellationToken cancellationToken) => Task.FromResult<(IReadOnlyList<Listing>, int)>(([], 0));
         public Task<(IReadOnlyList<Listing> Items, int TotalCount)> GetAdminListingsAsync(string? status, string? keyword, int page, int pageSize, CancellationToken cancellationToken) => Task.FromResult<(IReadOnlyList<Listing>, int)>(([listing], 1));

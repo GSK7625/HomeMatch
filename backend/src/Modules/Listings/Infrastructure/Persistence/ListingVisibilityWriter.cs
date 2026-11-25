@@ -7,7 +7,7 @@ public sealed class ListingVisibilityWriter(ListingsDbContext db) : IListingVisi
 {
     public async Task HidePublishedForRoomAsync(long roomId, CancellationToken cancellationToken)
     {
-        await db.Listings.Where(listing => listing.RoomId == roomId
+        await db.Listings.Where(listing => listing.RoomId == roomId && listing.DeletedAt == null
                 && (listing.Status == "PUBLISHED" || listing.Status == "PENDING_APPROVAL"))
             .ExecuteUpdateAsync(update => update
                 .SetProperty(listing => listing.Status, "HIDDEN")

@@ -74,7 +74,22 @@ export function Navbar() {
 
   useEffect(() => {
     pathnameRef.current = pathname;
+    setMobileMenuOpen(false);
+    setUserDropdownOpen(false);
+    setNotifDropdownOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMobileMenuOpen(false);
+        setUserDropdownOpen(false);
+        setNotifDropdownOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const handleOpenNotification = useCallback(
     async (item: NotificationDto) => {
@@ -282,8 +297,8 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-white/95 backdrop-blur-md shadow-xs">
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-3 sm:gap-4">
+      <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 gap-2 sm:gap-4">
           {/* Logo */}
           <Link
             href={role === "Landlord" ? "/landlord/dashboard" : "/"}
@@ -405,7 +420,7 @@ export function Navbar() {
                     if (!notifDropdownOpen) fetchNotificationsSummary();
                   }}
                   className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap relative shrink-0",
+                    "flex items-center justify-center gap-1.5 min-h-10 min-w-10 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap relative shrink-0",
                     pathname === "/tenant/notifications" || notifDropdownOpen
                       ? "text-blue-600 bg-blue-50/80 shadow-xs"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
@@ -700,8 +715,11 @@ export function Navbar() {
 
             {/* Mobile Menu Toggle Button */}
             <button
+              type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100"
+              aria-label={mobileMenuOpen ? "Đóng menu" : "Mở menu"}
+              aria-expanded={mobileMenuOpen}
+              className="lg:hidden min-h-10 min-w-10 flex items-center justify-center p-2 text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -710,7 +728,7 @@ export function Navbar() {
 
           {/* Mobile Drawer */}
           {mobileMenuOpen && (
-            <div className="lg:hidden border-t border-slate-100 py-3 space-y-1 animate-in fade-in">
+            <div className="lg:hidden border-t border-slate-100 py-3 space-y-1 max-h-[calc(100dvh-4rem)] overflow-y-auto animate-in fade-in">
               {user ? (
                 <div className="px-3 py-2.5 bg-slate-50 rounded-xl mb-2 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">

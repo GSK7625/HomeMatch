@@ -4,17 +4,18 @@ using HomeMatch.Modules.Listings.Application.DTOs;
 using HomeMatch.Modules.Listings.Application.Features.Listings.SearchListings;
 using HomeMatch.Modules.Listings.Domain.Entities;
 using HomeMatch.Shared.Common;
+using HomeMatch.Shared.Contracts;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using Npgsql;
 
 namespace HomeMatch.Modules.Listings.Infrastructure.Persistence.Repositories;
 
-public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
+public sealed class ListingRepository(ListingsDbContext db, IRoomListingReader? rooms = null) : IListingRepository
 {
     public Task<int> ExpirePublishedAsync(DateTimeOffset now, long? roomId, CancellationToken cancellationToken)
     {
-        var query = db.Listings.Where(listing => listing.Status == "PUBLISHED" && listing.ExpiresAt <= now);
+        var query = db.Listings.Where(item => item.DeletedAt == null).Where(listing => listing.Status == "PUBLISHED" && listing.ExpiresAt <= now);
         if (roomId.HasValue)
             query = query.Where(listing => listing.RoomId == roomId.Value);
         return query.ExecuteUpdateAsync(update => update
@@ -23,11 +24,11 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
             .SetProperty(listing => listing.UpdatedAt, now), cancellationToken);
     }
 
-    public async Task<(IReadOnlyList<Listing> Items, int TotalCount)> SearchPublicAsync(
+    public async Task<(IReadOnlyList<ListingSearchItemDto> Items, int TotalCount)> SearchPublicAsync(
         SearchListingsQuery filter, long[] roomIds, long[] keywordRoomIds, CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
-        var query = db.Listings.AsNoTracking()
+        var query = db.Listings.Where(item => item.DeletedAt == null).AsNoTracking()
             .Where(listing => listing.Status == "PUBLISHED" && roomIds.Contains(listing.RoomId)
                 && (listing.ExpiresAt == null || listing.ExpiresAt > now));
         if (filter.MinPrice.HasValue)
@@ -38,43 +39,67 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
         {
             var pattern = "%" + filter.Keyword.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
             query = query.Where(listing => keywordRoomIds.Contains(listing.RoomId)
-                || EF.Functions.ILike(listing.Title, pattern, "\\")
-                || EF.Functions.ILike(listing.Description, pattern, "\\"));
+                || EF.Functions.ILike(listing.Title, pattern, "\\"));
         }
 
+        if (filter.Latitude.HasValue && filter.Longitude.HasValue)
+        {
+            var center = new Point(filter.Longitude.Value, filter.Latitude.Value) { SRID = 4326 };
+            var nearby = from listing in query.Include(item => item.Images)
+                         join location in db.ListingLocations on listing.Id equals location.ListingId
+                         where location.Coordinates != null && location.Coordinates.IsWithinDistance(center, filter.RadiusMeters ?? 3000)
+                         select new { Listing = listing, Distance = location.Coordinates!.Distance(center) };
+            var count = await nearby.CountAsync(cancellationToken);
+            var page = await nearby.OrderBy(item => item.Distance).ThenByDescending(item => item.Listing.Id)
+                .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize).ToArrayAsync(cancellationToken);
+            return (page.Select(item => new ListingSearchItemDto(item.Listing, item.Distance)).ToArray(), count);
+        }
         var total = await query.CountAsync(cancellationToken);
         var items = await query.Include(listing => listing.Images)
             .OrderByDescending(listing => listing.PublishedAt).ThenByDescending(listing => listing.Id)
             .Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize)
             .ToArrayAsync(cancellationToken);
-        return (items, total);
+        return (items.Select(item => new ListingSearchItemDto(item)).ToArray(), total);
     }
 
     public Task<Listing?> GetByIdAsync(long listingId, CancellationToken cancellationToken) =>
-        db.Listings.Include(item => item.Images).FirstOrDefaultAsync(item => item.Id == listingId, cancellationToken);
+        db.Listings.Where(item => item.DeletedAt == null).Include(item => item.Images).FirstOrDefaultAsync(item => item.Id == listingId, cancellationToken);
 
     public async Task<IReadOnlyList<Listing>> GetPublicByRoomIdsAsync(
         IReadOnlyCollection<long> roomIds, CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
-        return await db.Listings.AsNoTracking().Include(item => item.Images)
+        return await db.Listings.Where(item => item.DeletedAt == null).AsNoTracking().Include(item => item.Images)
             .Where(item => roomIds.Contains(item.RoomId) && item.Status == "PUBLISHED"
                 && (item.ExpiresAt == null || item.ExpiresAt > now))
             .ToListAsync(cancellationToken);
     }
 
-    public Task<Listing?> GetOwnedAsync(long landlordId, long listingId, CancellationToken cancellationToken) =>
-        db.Listings.Include(item => item.Images).FirstOrDefaultAsync(
-            item => item.Id == listingId && item.LandlordId == landlordId, cancellationToken);
+    public Task<Listing?> GetOwnedForDeletionAsync(long landlordId, long listingId, CancellationToken cancellationToken) =>
+        db.Listings.FirstOrDefaultAsync(item => item.Id == listingId && item.LandlordId == landlordId, cancellationToken);
 
-    public async Task<IReadOnlyList<Listing>> GetMineAsync(long landlordId, CancellationToken cancellationToken) =>
-        await db.Listings.AsNoTracking().Include(item => item.Images)
+    public async Task<Listing?> GetOwnedAsync(long landlordId, long listingId, CancellationToken cancellationToken)
+    {
+        var listing = await db.Listings.Where(item => item.DeletedAt == null).Include(item => item.Images).FirstOrDefaultAsync(
+            item => item.Id == listingId && item.LandlordId == landlordId, cancellationToken);
+        if (listing is not null && rooms is not null && await rooms.GetRoomAsync(listing.RoomId, cancellationToken) is null)
+            return null;
+        return listing;
+    }
+
+    public async Task<IReadOnlyList<Listing>> GetMineAsync(long landlordId, CancellationToken cancellationToken)
+    {
+        var listings = await db.Listings.Where(item => item.DeletedAt == null).AsNoTracking().Include(item => item.Images)
             .Where(item => item.LandlordId == landlordId)
             .OrderByDescending(item => item.CreatedAt).ThenByDescending(item => item.Id).ToListAsync(cancellationToken);
+        if (rooms is null || listings.Count == 0) return listings;
+        var activeRooms = await rooms.GetRoomsAsync(listings.Select(item => item.RoomId).Distinct().ToArray(), cancellationToken);
+        return listings.Where(item => activeRooms.ContainsKey(item.RoomId)).ToArray();
+    }
 
     public async Task<(IReadOnlyList<Listing> Items, int TotalCount)> GetPendingAsync(int page, int pageSize, CancellationToken cancellationToken)
     {
-        var pending = db.Listings.AsNoTracking().Where(item => item.Status == "PENDING_APPROVAL");
+        var pending = db.Listings.Where(item => item.DeletedAt == null).AsNoTracking().Where(item => item.Status == "PENDING_APPROVAL");
         var total = await pending.CountAsync(cancellationToken);
         var items = await pending.Include(item => item.Images).OrderBy(item => item.UpdatedAt).ThenBy(item => item.Id)
             .Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(cancellationToken);
@@ -148,7 +173,7 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
     public async Task<IReadOnlyList<Listing>> GetPublicCandidatesAsync(int offset, int limit, CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
-        return await db.Listings.AsNoTracking().Include(item => item.Images)
+        return await db.Listings.Where(item => item.DeletedAt == null).AsNoTracking().Include(item => item.Images)
             .Where(item => item.Status == "PUBLISHED" && (item.ExpiresAt == null || item.ExpiresAt > now))
             .OrderByDescending(item => item.PublishedAt).ThenByDescending(item => item.Id)
             .Skip(offset).Take(limit).ToListAsync(cancellationToken);
@@ -158,10 +183,10 @@ public sealed class ListingRepository(ListingsDbContext db) : IListingRepository
         db.Listings.AnyAsync(item => item.Slug == slug && (!exceptId.HasValue || item.Id != exceptId.Value), cancellationToken);
 
     public Task<bool> HasOtherPublishedAsync(long roomId, long listingId, CancellationToken cancellationToken) =>
-        db.Listings.AnyAsync(item => item.RoomId == roomId && item.Id != listingId && item.Status == "PUBLISHED", cancellationToken);
+        db.Listings.Where(item => item.DeletedAt == null).AnyAsync(item => item.RoomId == roomId && item.Id != listingId && item.Status == "PUBLISHED", cancellationToken);
 
     public Task<bool> RoomHasListingAsync(long roomId, CancellationToken cancellationToken) =>
-        db.Listings.AnyAsync(item => item.RoomId == roomId, cancellationToken);
+        db.Listings.Where(item => item.DeletedAt == null).AnyAsync(item => item.RoomId == roomId, cancellationToken);
 
     public async Task<ListingCoordinates?> GetCoordinatesAsync(long listingId, CancellationToken cancellationToken)
     {

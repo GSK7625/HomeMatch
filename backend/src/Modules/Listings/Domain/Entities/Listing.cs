@@ -5,6 +5,8 @@ namespace HomeMatch.Modules.Listings.Domain.Entities;
 /// </summary>
 public sealed class Listing
 {
+    public DateTimeOffset? DeletedAt { get; set; }
+
     /// <summary>Mã định danh duy nhất của Tin đăng</summary>
     public long Id { get; set; }
 

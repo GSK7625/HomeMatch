@@ -35,13 +35,14 @@ public static class TariffsEndpoints
     private static async Task<IResult> GetPropertyTariffsAsync(
         ClaimsPrincipal user,
         long propertyId,
+        [FromQuery] long? roomId,
         GetPropertyTariffsHandler handler,
         CancellationToken cancellationToken)
     {
         var landlordId = RequestActor.UserId(user);
         if (landlordId is null) return PropertiesHttpErrors.MissingActor();
 
-        var query = new GetPropertyTariffsQuery(landlordId.Value, propertyId);
+        var query = new GetPropertyTariffsQuery(landlordId.Value, propertyId, roomId);
         var result = await handler.HandleAsync(query, cancellationToken);
         if (result.IsFailure) return PropertiesHttpErrors.Failure(result.Error);
 
@@ -52,6 +53,7 @@ public static class TariffsEndpoints
     private static async Task<IResult> SetPropertyTariffsAsync(
         ClaimsPrincipal user,
         long propertyId,
+        [FromQuery] long? roomId,
         [FromBody] SetPropertyTariffsRequest request,
         SetPropertyTariffsHandler handler,
         CancellationToken cancellationToken)
@@ -59,8 +61,9 @@ public static class TariffsEndpoints
         var landlordId = RequestActor.UserId(user);
         if (landlordId is null) return PropertiesHttpErrors.MissingActor();
 
+        var targetRoomId = roomId ?? request.RoomId;
         var items = request.Tariffs.Select(t => new TariffItemCommand(t.TariffType, t.CalcMethod, t.UnitPrice)).ToList();
-        var command = new SetPropertyTariffsCommand(landlordId.Value, propertyId, items);
+        var command = new SetPropertyTariffsCommand(landlordId.Value, propertyId, items, targetRoomId);
 
         var result = await handler.HandleAsync(command, cancellationToken);
         if (result.IsFailure) return PropertiesHttpErrors.Failure(result.Error);

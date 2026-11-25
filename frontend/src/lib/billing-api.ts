@@ -2,9 +2,12 @@ import { API_BASE, apiRequest } from "@/lib/api-client";
 import {
   BillingDebtSummaryDto,
   BillingInvoiceDetailDto,
+  BillingInvoiceDto,
   BillingPagedDebtInvoicesDto,
   BillingPagedInvoicesDto,
   BillingPaymentDto,
+  BillingUtilityReadingDto,
+  RecordUtilityReadingPayload,
   VNPayIpnResult,
 } from "@/types";
 
@@ -48,6 +51,51 @@ export const billingApi = {
     apiRequest<BillingInvoiceDetailDto>(`${BASE}/invoices/${id}`, {
       method: "GET",
     }),
+
+  createInvoice: (payload: { contractId: number; billingMonth: number; billingYear: number }) =>
+    apiRequest<BillingInvoiceDto>(`${BASE}/invoices`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  cancelInvoice: (id: number, reason: string) =>
+    apiRequest<BillingInvoiceDto>(`${BASE}/invoices/${id}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
+
+  recordUtilityReading: (payload: RecordUtilityReadingPayload) =>
+    apiRequest<BillingUtilityReadingDto>(`${BASE}/utility-readings`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  getUtilityReadings: (params?: {
+    propertyId?: number;
+    roomId?: number;
+    contractId?: number;
+    month?: number;
+    year?: number;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.propertyId) q.set("propertyId", String(params.propertyId));
+    if (params?.roomId) q.set("roomId", String(params.roomId));
+    if (params?.contractId) q.set("contractId", String(params.contractId));
+    if (params?.month) q.set("month", String(params.month));
+    if (params?.year) q.set("year", String(params.year));
+    const qs = q.toString();
+    return apiRequest<BillingUtilityReadingDto[]>(`${BASE}/utility-readings${qs ? `?${qs}` : ""}`, {
+      method: "GET",
+    });
+  },
+
+  getLatestPreviousReading: (roomId: number, month: number, year: number) =>
+    apiRequest<BillingUtilityReadingDto | null>(
+      `${BASE}/utility-readings/latest-previous?roomId=${roomId}&month=${month}&year=${year}`,
+      {
+        method: "GET",
+      }
+    ),
 
   getDebtSummary: (params?: { propertyId?: number; contractId?: number }) => {
     const q = new URLSearchParams();

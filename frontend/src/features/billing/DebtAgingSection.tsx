@@ -27,7 +27,7 @@ export function DebtAgingSection({ data }: DebtAgingSectionProps) {
   }, [data.debtAging.items, debtFilter, debtSearch]);
 
   return (
-    <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+    <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
@@ -40,20 +40,20 @@ export function DebtAgingSection({ data }: DebtAgingSectionProps) {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-slate-500 font-medium">Tổng nợ quá hạn: </span>
-          <span className="text-base font-black text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
+          <span className="text-sm sm:text-base font-black text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
             {data.debtAging.overdueDebt.toLocaleString("vi-VN")} đ
           </span>
         </div>
       </div>
 
       {/* 4 Nhóm tuổi nợ tương tác */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <button
           type="button"
           onClick={() => setDebtFilter(debtFilter === "Trong hạn" ? "all" : "Trong hạn")}
-          className={`p-4 rounded-xl text-left border transition-all cursor-pointer ${
+          className={`p-3.5 sm:p-4 rounded-xl text-left border transition-all cursor-pointer ${
             debtFilter === "Trong hạn"
               ? "bg-emerald-100/70 border-emerald-400 ring-2 ring-emerald-400/20"
               : "bg-emerald-50/50 border-emerald-200/60 hover:bg-emerald-100/40"
@@ -63,7 +63,7 @@ export function DebtAgingSection({ data }: DebtAgingSectionProps) {
             <span className="text-xs font-bold text-emerald-800">Trong hạn</span>
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
           </div>
-          <span className="text-lg font-black text-slate-900 block">
+          <span className="text-base sm:text-lg font-black text-slate-900 block">
             {data.debtAging.currentAmount.toLocaleString("vi-VN")} đ
           </span>
           <span className="text-[10px] text-emerald-700">Chưa đến hạn thanh toán</span>
@@ -72,7 +72,7 @@ export function DebtAgingSection({ data }: DebtAgingSectionProps) {
         <button
           type="button"
           onClick={() => setDebtFilter(debtFilter === "1-30 ngày" ? "all" : "1-30 ngày")}
-          className={`p-4 rounded-xl text-left border transition-all cursor-pointer ${
+          className={`p-3.5 sm:p-4 rounded-xl text-left border transition-all cursor-pointer ${
             debtFilter === "1-30 ngày"
               ? "bg-amber-100/70 border-amber-400 ring-2 ring-amber-400/20"
               : "bg-amber-50/50 border-amber-200/60 hover:bg-amber-100/40"
@@ -82,7 +82,7 @@ export function DebtAgingSection({ data }: DebtAgingSectionProps) {
             <span className="text-xs font-bold text-amber-800">Quá hạn 1 - 30 ngày</span>
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
           </div>
-          <span className="text-lg font-black text-slate-900 block">
+          <span className="text-base sm:text-lg font-black text-slate-900 block">
             {data.debtAging.overdue1To30Days.toLocaleString("vi-VN")} đ
           </span>
           <span className="text-[10px] text-amber-700">Cần gửi nhắc nợ định kỳ</span>
@@ -91,7 +91,7 @@ export function DebtAgingSection({ data }: DebtAgingSectionProps) {
         <button
           type="button"
           onClick={() => setDebtFilter(debtFilter === "31-60 ngày" ? "all" : "31-60 ngày")}
-          className={`p-4 rounded-xl text-left border transition-all cursor-pointer ${
+          className={`p-3.5 sm:p-4 rounded-xl text-left border transition-all cursor-pointer ${
             debtFilter === "31-60 ngày"
               ? "bg-orange-100/70 border-orange-400 ring-2 ring-orange-400/20"
               : "bg-orange-50/50 border-orange-200/60 hover:bg-orange-100/40"
@@ -101,7 +101,7 @@ export function DebtAgingSection({ data }: DebtAgingSectionProps) {
             <span className="text-xs font-bold text-orange-800">Quá hạn 31 - 60 ngày</span>
             <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
           </div>
-          <span className="text-lg font-black text-slate-900 block">
+          <span className="text-base sm:text-lg font-black text-slate-900 block">
             {data.debtAging.overdue31To60Days.toLocaleString("vi-VN")} đ
           </span>
           <span className="text-[10px] text-orange-700">Cảnh báo nhắc nhở trực tiếp</span>
@@ -110,7 +110,7 @@ export function DebtAgingSection({ data }: DebtAgingSectionProps) {
         <button
           type="button"
           onClick={() => setDebtFilter(debtFilter === ">60 ngày" ? "all" : ">60 ngày")}
-          className={`p-4 rounded-xl text-left border transition-all cursor-pointer ${
+          className={`p-3.5 sm:p-4 rounded-xl text-left border transition-all cursor-pointer ${
             debtFilter === ">60 ngày"
               ? "bg-rose-100/70 border-rose-400 ring-2 ring-rose-400/20"
               : "bg-rose-50/50 border-rose-200/60 hover:bg-rose-100/40"
@@ -120,7 +120,7 @@ export function DebtAgingSection({ data }: DebtAgingSectionProps) {
             <span className="text-xs font-bold text-rose-800">Quá hạn &gt; 60 ngày</span>
             <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
           </div>
-          <span className="text-lg font-black text-slate-900 block">
+          <span className="text-base sm:text-lg font-black text-slate-900 block">
             {data.debtAging.overdueOver60Days.toLocaleString("vi-VN")} đ
           </span>
           <span className="text-[10px] text-rose-700 font-semibold">
@@ -173,56 +173,104 @@ export function DebtAgingSection({ data }: DebtAgingSectionProps) {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto border border-slate-100 rounded-xl">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-200/80 bg-slate-50/70 text-slate-500 font-semibold">
-                  <th className="py-2.5 px-3">Phòng / Tòa nhà</th>
-                  <th className="py-2.5 px-3">Khách thuê</th>
-                  <th className="py-2.5 px-3">Hạn chót</th>
-                  <th className="py-2.5 px-3">Số tiền nợ</th>
-                  <th className="py-2.5 px-3">Nhóm tuổi nợ</th>
-                  <th className="py-2.5 px-3 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {filteredDebtItems.map((item) => (
-                  <tr key={item.invoiceId} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3 px-3 font-bold text-slate-900">{item.roomName}</td>
-                    <td className="py-3 px-3">
-                      <span className="font-semibold text-slate-800 block">{item.tenantName}</span>
-                      <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+          <>
+            {/* Mobile Card View (< md) */}
+            <div className="md:hidden space-y-2.5">
+              {filteredDebtItems.map((item) => (
+                <div
+                  key={item.invoiceId}
+                  className="p-3.5 rounded-xl border border-slate-200/80 bg-white space-y-2 text-xs"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="font-bold text-slate-900 block truncate">{item.roomName}</span>
+                      <span className="text-[11px] font-semibold text-slate-700 block">
+                        {item.tenantName}
+                      </span>
+                      <span className="text-[10px] text-slate-400 inline-flex items-center gap-1 mt-0.5">
                         <Phone className="w-3 h-3 text-slate-400" />
                         {item.tenantPhone}
                       </span>
-                    </td>
-                    <td className="py-3 px-3 text-slate-500">{item.dueDate}</td>
-                    <td className="py-3 px-3 font-black text-rose-600">
-                      {item.amount.toLocaleString("vi-VN")} đ
-                    </td>
-                    <td className="py-3 px-3">
-                      <span
-                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                          item.agingBucket === "Trong hạn"
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : item.agingBucket === "1-30 ngày"
-                              ? "bg-amber-50 text-amber-700 border border-amber-200"
-                              : item.agingBucket === "31-60 ngày"
-                                ? "bg-orange-50 text-orange-700 border border-orange-200"
-                                : "bg-rose-50 text-rose-700 border border-rose-200"
-                        }`}
-                      >
-                        {item.agingBucket} {item.overdueDays > 0 ? `(${item.overdueDays} ngày)` : ""}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="font-black text-rose-600 text-sm block">
+                        {item.amount.toLocaleString("vi-VN")} đ
                       </span>
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      <span className="text-[11px] text-slate-400 font-medium">Chờ API nhắc nợ</span>
-                    </td>
+                      <span className="text-[10px] text-slate-500 block">Hạn: {item.dueDate}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                    <span
+                      className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        item.agingBucket === "Trong hạn"
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : item.agingBucket === "1-30 ngày"
+                            ? "bg-amber-50 text-amber-700 border border-amber-200"
+                            : item.agingBucket === "31-60 ngày"
+                              ? "bg-orange-50 text-orange-700 border border-orange-200"
+                              : "bg-rose-50 text-rose-700 border border-rose-200"
+                      }`}
+                    >
+                      {item.agingBucket} {item.overdueDays > 0 ? `(${item.overdueDays} ngày)` : ""}
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-medium">Chờ API nhắc nợ</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto border border-slate-100 rounded-xl">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200/80 bg-slate-50/70 text-slate-500 font-semibold">
+                    <th className="py-2.5 px-3">Phòng / Tòa nhà</th>
+                    <th className="py-2.5 px-3">Khách thuê</th>
+                    <th className="py-2.5 px-3">Hạn chót</th>
+                    <th className="py-2.5 px-3">Số tiền nợ</th>
+                    <th className="py-2.5 px-3">Nhóm tuổi nợ</th>
+                    <th className="py-2.5 px-3 text-right">Thao tác</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {filteredDebtItems.map((item) => (
+                    <tr key={item.invoiceId} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3 px-3 font-bold text-slate-900">{item.roomName}</td>
+                      <td className="py-3 px-3">
+                        <span className="font-semibold text-slate-800 block">{item.tenantName}</span>
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                          <Phone className="w-3 h-3 text-slate-400" />
+                          {item.tenantPhone}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-slate-500">{item.dueDate}</td>
+                      <td className="py-3 px-3 font-black text-rose-600">
+                        {item.amount.toLocaleString("vi-VN")} đ
+                      </td>
+                      <td className="py-3 px-3">
+                        <span
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            item.agingBucket === "Trong hạn"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : item.agingBucket === "1-30 ngày"
+                                ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                : item.agingBucket === "31-60 ngày"
+                                  ? "bg-orange-50 text-orange-700 border border-orange-200"
+                                  : "bg-rose-50 text-rose-700 border border-rose-200"
+                          }`}
+                        >
+                          {item.agingBucket} {item.overdueDays > 0 ? `(${item.overdueDays} ngày)` : ""}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <span className="text-[11px] text-slate-400 font-medium">Chờ API nhắc nợ</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

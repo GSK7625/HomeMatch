@@ -279,7 +279,7 @@ public static class ViewingAppointmentEndpoints
         {
             "Viewing.NotFound" or "Viewing.ListingNotFound" => StatusCodes.Status404NotFound,
             "Viewing.Forbidden" => StatusCodes.Status403Forbidden,
-            "Viewing.ScheduleConflict" or "Viewing.InvalidStatusTransition" => StatusCodes.Status409Conflict,
+            "Viewing.ScheduleConflict" or "Viewing.InvalidStatusTransition" or "Viewing.ListingDeleted" or "Viewing.AppointmentChanged" => StatusCodes.Status409Conflict,
             "Viewing.AuthenticationRequired" => StatusCodes.Status401Unauthorized,
             _ => StatusCodes.Status400BadRequest
         };

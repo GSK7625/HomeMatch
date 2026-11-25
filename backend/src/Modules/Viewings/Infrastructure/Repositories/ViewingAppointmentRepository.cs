@@ -129,6 +129,25 @@ internal sealed class ViewingAppointmentRepository : IViewingAppointmentReposito
         await _dbContext.ViewingAppointments.AddAsync(appointment, cancellationToken);
     }
 
+    public async Task<bool> TrySaveChangesAsync(ViewingAppointment appointment, string expectedStatus, CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var updated = await _dbContext.ViewingAppointments
+            .Where(a => a.Id == appointment.Id && a.Status == expectedStatus)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(a => a.Status, appointment.Status)
+                .SetProperty(a => a.UpdatedAt, appointment.UpdatedAt), cancellationToken);
+        if (updated == 0) return false;
+
+        // The conditional update already saved the status; SaveChanges persists virtual viewing and cancellation details.
+        var entry = _dbContext.Entry(appointment);
+        entry.Property(a => a.Status).OriginalValue = appointment.Status;
+        entry.Property(a => a.UpdatedAt).OriginalValue = appointment.UpdatedAt;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return true;
+    }
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         await _dbContext.SaveChangesAsync(cancellationToken);

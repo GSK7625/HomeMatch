@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { CurrentUserProfile, UserRole } from "@/types";
+import { compareSelection } from "@/lib/compare-selection";
 import {
   authApi,
   getStoredToken,
@@ -49,6 +50,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  useEffect(() => {
+    if (!isLoading && !user) compareSelection.clear();
+  }, [isLoading, user]);
+
   const refreshProfile = useCallback(async () => {
     try {
       const res = await authApi.getMe();
@@ -64,6 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const handleAuthExpired = () => {
+      compareSelection.clear();
       setToken(null);
       setUser(null);
     };
@@ -215,6 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async (allDevices = false) => {
+    compareSelection.clear();
     try {
       if (allDevices) {
         await authApi.logoutAll();

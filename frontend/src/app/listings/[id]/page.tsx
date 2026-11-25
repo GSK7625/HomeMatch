@@ -10,6 +10,7 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { useToast } from "@/components/Toast";
 import { Modal } from "@/components/Modal";
 import { MapLocationViewer } from "@/components/MapLocationViewer";
+import { ListingMedia } from "@/features/listings/ListingMedia";
 import {
   MapPin,
   Calendar,
@@ -38,7 +39,7 @@ export default function ListingDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { user, role } = useAuth();
+  const { user, role, isLoading: authLoading } = useAuth();
   const isLandlord = role === "Landlord" || user?.role === "Landlord";
   const { showToast } = useToast();
 
@@ -246,7 +247,7 @@ export default function ListingDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <div className="aspect-[16/10] bg-slate-200 rounded-2xl" />
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="aspect-[4/3] bg-slate-200 rounded-xl" />
               <div className="aspect-[4/3] bg-slate-200 rounded-xl" />
               <div className="aspect-[4/3] bg-slate-200 rounded-xl" />
@@ -337,6 +338,11 @@ export default function ListingDetailPage() {
   };
 
   const handleAddToCompare = () => {
+    if (authLoading) return;
+    if (!user || !getStoredToken()) {
+      showToast("Vui lòng đăng nhập để so sánh phòng.", "info");
+      return;
+    }
     const res = compareSelection.add(rawDetail?.roomId ?? listing.roomId ?? "");
     showToast(res.message, res.success ? "success" : "error");
   };
@@ -392,6 +398,8 @@ export default function ListingDetailPage() {
   const estWaterCost = listing.waterPrice != null ? estWaterUsage * listing.waterPrice : 0;
   const estServiceFee = listing.serviceFee ?? 0;
   const firstMonthTotal = listing.price + listing.deposit + estElecCost + estWaterCost + estServiceFee;
+  const galleryMedia = rawDetail?.images ?? listing.images.map(imageUrl => ({ imageUrl, mediaType: "IMAGE" }));
+  const activeMedia = galleryMedia[activeImageIndex] ?? galleryMedia[0];
   const hasValidCoordinates =
     typeof listing.latitude === "number" &&
     typeof listing.longitude === "number" &&
@@ -472,12 +480,9 @@ export default function ListingDetailPage() {
           {/* Gallery */}
           <div className="space-y-3">
             <div className="aspect-[16/10] rounded-3xl overflow-hidden bg-slate-100 relative shadow-md">
-              {listing.images.length > 0 ? (
-                <img
-                  src={listing.images[activeImageIndex] || listing.images[0]}
-                  alt={listing.title}
-                  className="w-full h-full object-cover"
-                />
+              {activeMedia ? (
+                <ListingMedia key={activeMedia.imageUrl} media={activeMedia} alt={listing.title}
+                  className="w-full h-full object-contain bg-slate-950" />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2">
                   <Building2 className="w-12 h-12 opacity-40" />
@@ -498,12 +503,13 @@ export default function ListingDetailPage() {
             </div>
 
             {/* Thumbnail selector */}
-            {listing.images.length > 1 && (
+            {galleryMedia.length > 1 && (
               <div className="flex gap-3 overflow-x-auto pb-1">
-                {listing.images.map((img, idx) => (
+                {galleryMedia.map((media, idx) => (
                   <button
                     key={idx}
                     onClick={() => setActiveImageIndex(idx)}
+                    aria-label={`${media.mediaType === "VIDEO" ? "Xem video" : "Xem ảnh"} ${idx + 1}`}
                     className={cn(
                       "w-24 h-16 rounded-2xl overflow-hidden shrink-0 border-2 transition-all",
                       activeImageIndex === idx
@@ -511,7 +517,7 @@ export default function ListingDetailPage() {
                         : "border-transparent opacity-70 hover:opacity-100"
                     )}
                   >
-                    <img src={img} alt="Thumb" className="w-full h-full object-cover" />
+                    <ListingMedia media={media} thumbnail alt={`Media ${idx + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -519,7 +525,7 @@ export default function ListingDetailPage() {
           </div>
 
           {/* Core Info Card */}
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-xs space-y-6">
+          <div className="bg-white p-4 sm:p-8 rounded-3xl border border-slate-200/90 shadow-xs space-y-6">
             {/* Promo banner */}
             {listing.discountTag && (
               <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold">
@@ -556,24 +562,24 @@ export default function ListingDetailPage() {
             </div>
 
             {/* Key Specs Bar */}
-            <div className="grid grid-cols-3 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/70 text-center">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200/70 text-center">
               <div>
-                <span className="block text-[11px] font-bold text-slate-400 uppercase">Giá thuê niêm yết</span>
-                <span className="text-xl sm:text-2xl font-black text-blue-600">
+                <span className="block text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase">Giá thuê niêm yết</span>
+                <span className="text-base sm:text-2xl font-black text-blue-600">
                   {(listing.price / 1000000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tr
                 </span>
                 <span className="text-[10px] text-slate-500 block">/tháng</span>
               </div>
               <div>
-                <span className="block text-[11px] font-bold text-slate-400 uppercase">Diện tích sử dụng</span>
-                <span className="text-xl sm:text-2xl font-black text-slate-800">
+                <span className="block text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase">Diện tích sử dụng</span>
+                <span className="text-base sm:text-2xl font-black text-slate-800">
                   {listing.area != null ? listing.area : "--"}
                 </span>
                 <span className="text-[10px] text-slate-500 block">m² sàn</span>
               </div>
               <div>
-                <span className="block text-[11px] font-bold text-slate-400 uppercase">Tiền đặt cọc</span>
-                <span className="text-xl sm:text-2xl font-black text-slate-800">
+                <span className="block text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase">Tiền đặt cọc</span>
+                <span className="text-base sm:text-2xl font-black text-slate-800">
                   {listing.deposit > 0
                     ? `${(listing.deposit / 1000000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tr`
                     : "0 đ"}
@@ -658,7 +664,7 @@ export default function ListingDetailPage() {
                 Tiện ích & Dịch vụ đi kèm
               </h3>
               {listing.amenities.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5">
                   {listing.amenities.map((item) => (
                     <div
                       key={item}
@@ -958,7 +964,7 @@ export default function ListingDetailPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                 Ngày muốn xem
@@ -985,7 +991,7 @@ export default function ListingDetailPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                 Thời lượng xem

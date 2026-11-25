@@ -95,6 +95,8 @@ export interface TenantReview {
 }
 
 export interface PropertyListing {
+  distanceMeters?: number | null;
+  propertyType?: string | null;
   id: string;
   roomId?: number;
   title: string;
@@ -106,7 +108,7 @@ export interface PropertyListing {
   price: number; // VND/month
   deposit: number; // VND
   area: number | null; // m2
-  roomType: "Phòng trọ" | "Chung cư mini" | "Căn hộ dịch vụ" | "Nhà nguyên căn" | "Ở ghép" | "Studio";
+  roomType: string;
   status: RoomStatus;
   images: string[];
   amenities: string[];
@@ -496,6 +498,19 @@ export interface WardDto {
   provinceCode: string;
 }
 
+export interface GeocodingResult {
+  latitude: number;
+  longitude: number;
+  formattedAddress: string;
+  addressDetail: string;
+  provinceCode: string | null;
+  provinceName: string | null;
+  wardCode: string | null;
+  wardName: string | null;
+  matchStatus: "MATCHED" | "PARTIAL" | "NEEDS_CONFIRMATION";
+  precision: "BUILDING" | "STREET" | "AREA";
+}
+
 export interface CreatePropertyBody {
   name: string;
   provinceCode: string;
@@ -545,6 +560,7 @@ export interface TariffItemBody {
 }
 
 export interface SetPropertyTariffsBody {
+  roomId?: number | null;
   tariffs: TariffItemBody[];
 }
 
@@ -552,6 +568,10 @@ export interface SetPropertyTariffsBody {
 // Listings Module DTOs (/api/v1/listings)
 // ============================================================================
 export interface ListingSummaryDto {
+  distanceMeters?: number | null;
+  roomTypeName?: string | null;
+  wardName?: string | null;
+  propertyType?: string | null;
   id: number;
   roomId: number;
   title: string;
@@ -574,6 +594,10 @@ export interface ListingSummaryDto {
 }
 
 export interface SearchListingsParams {
+  propertyType?: string;
+  latitude?: number;
+  longitude?: number;
+  radiusMeters?: number;
   minPrice?: number;
   maxPrice?: number;
   provinceCode?: string;
@@ -644,6 +668,7 @@ export interface PublicListingDetailDto extends ListingDetailDto {
     floor: number;
     areaSqm: number;
     roomType: string;
+    roomTypeName?: string | null;
     maxOccupants: number;
     status: string;
     availableFrom: string;
@@ -1118,9 +1143,50 @@ export interface BillingPaymentDto {
   createdAt: string;
 }
 
+export interface BillingUtilityReadingDto {
+  id: number;
+  propertyId: number;
+  roomId: number;
+  contractId: number;
+  landlordId: number;
+  tenantId: number;
+  recordedBy: number;
+  billingMonth: number;
+  billingYear: number;
+  electricityOld: number;
+  electricityNew: number;
+  electricityUsage: number;
+  electricityUnitPrice: number;
+  electricityCost: number;
+  waterOld: number;
+  waterNew: number;
+  waterUsage: number;
+  waterUnitPrice: number;
+  waterCost: number;
+  serviceCost: number;
+  readingDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecordUtilityReadingPayload {
+  contractId: number;
+  billingMonth: number;
+  billingYear: number;
+  electricityOld: number;
+  electricityNew: number;
+  waterOld: number;
+  waterNew: number;
+  electricityUnitPriceOverride?: number | null;
+  waterUnitPriceOverride?: number | null;
+  serviceCostOverride?: number | null;
+  readingDate?: string | null;
+}
+
 export interface BillingInvoiceDetailDto extends BillingInvoiceDto {
   contractCode?: string | null;
   payments: BillingPaymentDto[];
+  utilityReading?: BillingUtilityReadingDto | null;
 }
 
 export interface BillingPagedInvoicesDto {

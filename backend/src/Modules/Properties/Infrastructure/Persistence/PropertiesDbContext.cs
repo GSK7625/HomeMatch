@@ -61,6 +61,7 @@ public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> op
             property.ToTable("properties", "properties", table => table.HasCheckConstraint(
                 "ck_properties_type", "property_type IN ('APARTMENT', 'BOARDING_HOUSE', 'SERVICED_APARTMENT', 'HOMESTAY')"));
             property.HasKey(x => x.Id);
+            property.Property(x => x.DeletedAt).HasColumnType("timestamptz");
             property.Property(x => x.Name).HasMaxLength(200).IsRequired();
             property.Property(x => x.ProvinceCode).HasMaxLength(20).IsRequired();
             property.Property(x => x.WardCode).HasMaxLength(20).IsRequired();
@@ -88,6 +89,8 @@ public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> op
                 table.HasCheckConstraint("ck_rooms_status", "status IN ('AVAILABLE', 'RENTED', 'SUSPENDED')");
             });
             room.HasKey(x => x.Id);
+            room.Property(x => x.DeletedAt).HasColumnType("timestamptz");
+            room.Property(x => x.DeletionRequestedAt).HasColumnType("timestamptz");
             room.HasAlternateKey(x => new { x.PropertyId, x.Id })
                 .HasName("ak_rooms_property_id_id");
             room.Property(x => x.RoomNumber).HasMaxLength(50).IsRequired();
@@ -100,7 +103,7 @@ public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> op
             room.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
             room.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
             room.HasIndex(x => new { x.PropertyId, x.RoomNumber }).IsUnique()
-                .HasDatabaseName("ux_rooms_property_number");
+                .HasDatabaseName("ux_rooms_property_number").HasFilter("deleted_at IS NULL");
             room.HasIndex(x => x.PropertyId).HasFilter("status = 'AVAILABLE'")
                 .HasDatabaseName("ix_rooms_available_by_property");
             room.HasOne(x => x.Property).WithMany(x => x.Rooms).HasForeignKey(x => x.PropertyId)

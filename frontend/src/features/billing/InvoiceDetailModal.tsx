@@ -31,6 +31,8 @@ import {
   Loader2,
   Receipt,
   RefreshCw,
+  Zap,
+  Droplet,
 } from "lucide-react";
 
 interface InvoiceDetailModalProps {
@@ -39,6 +41,7 @@ interface InvoiceDetailModalProps {
   onClose: () => void;
   contractMap: Record<number, ContractDisplayInfo>;
   onPaymentUpdated?: () => void;
+  readOnlyPayment?: boolean;
 }
 
 export function InvoiceDetailModal({
@@ -47,6 +50,7 @@ export function InvoiceDetailModal({
   onClose,
   contractMap,
   onPaymentUpdated,
+  readOnlyPayment = false,
 }: InvoiceDetailModalProps) {
   const { showToast } = useToast();
   const [detail, setDetail] = useState<BillingInvoiceDetailDto | null>(null);
@@ -110,7 +114,8 @@ export function InvoiceDetailModal({
   const statusMeta = detail ? getInvoiceStatusMeta(detail.status) : null;
   const remainingDebt = detail ? getRemainingDebt(detail) : 0;
   const activePending = detail ? findActivePendingPayment(detail.payments) : null;
-  const payable = detail ? isInvoicePayable(detail) : false;
+  const payable = detail && !readOnlyPayment ? isInvoicePayable(detail) : false;
+  const reading = detail?.utilityReading ?? null;
 
   return (
     <Modal
@@ -217,11 +222,25 @@ export function InvoiceDetailModal({
                   <span className="font-semibold text-slate-900">{formatVnd(detail.rentAmount)}</span>
                 </div>
                 <div className="flex items-center justify-between px-4 py-2.5">
-                  <span className="text-slate-600">Tiền điện</span>
+                  <div>
+                    <span className="text-slate-600">Tiền điện</span>
+                    {reading && (
+                      <span className="block text-[11px] text-slate-400">
+                        Chỉ số: {reading.electricityOld} → {reading.electricityNew} ({reading.electricityUsage} kWh × {formatVnd(reading.electricityUnitPrice)}/kWh)
+                      </span>
+                    )}
+                  </div>
                   <span className="font-semibold text-slate-900">{formatVnd(detail.electricityAmount)}</span>
                 </div>
                 <div className="flex items-center justify-between px-4 py-2.5">
-                  <span className="text-slate-600">Tiền nước</span>
+                  <div>
+                    <span className="text-slate-600">Tiền nước</span>
+                    {reading && (
+                      <span className="block text-[11px] text-slate-400">
+                        Chỉ số: {reading.waterOld} → {reading.waterNew} ({reading.waterUsage} m³ × {formatVnd(reading.waterUnitPrice)}/m³)
+                      </span>
+                    )}
+                  </div>
                   <span className="font-semibold text-slate-900">{formatVnd(detail.waterAmount)}</span>
                 </div>
                 <div className="flex items-center justify-between px-4 py-2.5">
@@ -236,7 +255,7 @@ export function InvoiceDetailModal({
                 )}
               </div>
 
-              <div className="grid grid-cols-3 gap-2 bg-slate-50 border-t border-slate-200 px-4 py-3 text-xs">
+              <div className="grid grid-cols-1 xs:grid-cols-3 gap-2.5 sm:gap-2 bg-slate-50 border-t border-slate-200 px-4 py-3 text-xs">
                 <div>
                   <span className="text-slate-400 block text-[11px]">Tổng phải trả</span>
                   <span className="font-black text-slate-900 text-sm">{formatVnd(detail.totalAmount)}</span>
@@ -259,6 +278,83 @@ export function InvoiceDetailModal({
               </div>
             </div>
           </div>
+
+          {/* Utility Meter Reading Breakdown Table (if available) */}
+          {reading && (
+            <div className="space-y-2.5">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-amber-500" />
+                <span>Bảng chỉ số tiêu thụ điện nước trong kỳ (Chốt ngày {formatDate(reading.readingDate)})</span>
+              </h4>
+              {/* Mobile Summary Cards (< sm) */}
+              <div className="sm:hidden space-y-2">
+                <div className="p-3 rounded-xl border border-amber-200/70 bg-amber-50/40 text-xs space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-slate-800 inline-flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-amber-500" />
+                      Điện sinh hoạt ({reading.electricityUsage} kWh)
+                    </span>
+                    <span className="font-bold text-slate-900">{formatVnd(reading.electricityCost)}</span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 font-mono">
+                    {reading.electricityOld} → {reading.electricityNew} · {formatVnd(reading.electricityUnitPrice)}/kWh
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl border border-sky-200/70 bg-sky-50/40 text-xs space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-slate-800 inline-flex items-center gap-1.5">
+                      <Droplet className="w-3.5 h-3.5 text-sky-500" />
+                      Nước sinh hoạt ({reading.waterUsage} m³)
+                    </span>
+                    <span className="font-bold text-slate-900">{formatVnd(reading.waterCost)}</span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 font-mono">
+                    {reading.waterOld} → {reading.waterNew} · {formatVnd(reading.waterUnitPrice)}/m³
+                  </div>
+                </div>
+              </div>
+
+              {/* Desktop Table (>= sm) */}
+              <div className="hidden sm:block overflow-x-auto rounded-2xl border border-slate-200">
+                <table className="w-full text-left text-xs bg-white">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
+                      <th className="py-2 px-3">Khoản mục</th>
+                      <th className="py-2 px-3 text-right">Chỉ số đầu</th>
+                      <th className="py-2 px-3 text-right">Chỉ số cuối</th>
+                      <th className="py-2 px-3 text-right">Tiêu thụ</th>
+                      <th className="py-2 px-3 text-right">Đơn giá</th>
+                      <th className="py-2 px-3 text-right">Thành tiền</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    <tr>
+                      <td className="py-2.5 px-3 font-bold text-slate-800 flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Điện sinh hoạt (kWh)</span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono">{reading.electricityOld}</td>
+                      <td className="py-2.5 px-3 text-right font-mono font-bold">{reading.electricityNew}</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-amber-700">{reading.electricityUsage} kWh</td>
+                      <td className="py-2.5 px-3 text-right">{formatVnd(reading.electricityUnitPrice)}</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-slate-900">{formatVnd(reading.electricityCost)}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-3 font-bold text-slate-800 flex items-center gap-1.5">
+                        <Droplet className="w-3.5 h-3.5 text-sky-500" />
+                        <span>Nước sinh hoạt (m³)</span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono">{reading.waterOld}</td>
+                      <td className="py-2.5 px-3 text-right font-mono font-bold">{reading.waterNew}</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-sky-700">{reading.waterUsage} m³</td>
+                      <td className="py-2.5 px-3 text-right">{formatVnd(reading.waterUnitPrice)}</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-slate-900">{formatVnd(reading.waterCost)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Payment CTA */}
           {payable && (
@@ -340,7 +436,7 @@ export function InvoiceDetailModal({
                     >
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-xs font-bold text-slate-900">
+                          <span className="font-mono text-xs font-bold text-slate-900 break-all">
                             {payment.paymentCode}
                           </span>
                           <span
@@ -371,7 +467,7 @@ export function InvoiceDetailModal({
                             <span>Hết hạn: {formatDateTime(payment.expiredAt)}</span>
                           )}
                           {payment.gatewayTransactionNo && (
-                            <span className="font-mono">Mã GD cổng: {payment.gatewayTransactionNo}</span>
+                            <span className="font-mono break-all">Mã GD cổng: {payment.gatewayTransactionNo}</span>
                           )}
                         </div>
                       </div>

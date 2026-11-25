@@ -126,7 +126,7 @@ export function ContractSigningRoom({ contractId, role }: ContractSigningRoomPro
   const months = calcLeaseMonths(detail.startDate, detail.endDate);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1 space-y-5 print:max-w-none print:p-0 print:m-0 print:space-y-0">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 w-full flex-1 space-y-5 print:max-w-none print:p-0 print:m-0 print:space-y-0">
       {/* Back Link */}
       <Link
         href={backHref}
@@ -137,13 +137,13 @@ export function ContractSigningRoom({ contractId, role }: ContractSigningRoomPro
       </Link>
 
       {/* Top E-Contract Header Card */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-5 space-y-5 print:hidden">
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-4 sm:p-5 space-y-5 print:hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20 shrink-0">
-              <FileCheck2 className="w-6 h-6" />
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20 shrink-0">
+              <FileCheck2 className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
                   Hợp Đồng Thuê Nhà Điện Tử

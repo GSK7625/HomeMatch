@@ -152,6 +152,10 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("deleted_at");
+
                     b.Property<long>("LandlordId")
                         .HasColumnType("bigint")
                         .HasColumnName("landlord_id");
@@ -235,6 +239,14 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<DateTimeOffset?>("DeletionRequestedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("deletion_requested_at");
+
                     b.Property<int>("Floor")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
@@ -288,7 +300,8 @@ namespace HomeMatch.Modules.Properties.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("PropertyId", "RoomNumber")
                         .IsUnique()
-                        .HasDatabaseName("ux_rooms_property_number");
+                        .HasDatabaseName("ux_rooms_property_number")
+                        .HasFilter("deleted_at IS NULL");
 
                     b.ToTable("rooms", "properties", t =>
                         {

@@ -6,6 +6,7 @@ namespace HomeMatch.Modules.Properties.Application.Interfaces;
 
 public interface IRoomRepository
 {
+    Task<Room?> GetForDeletionAsync(long propertyId, long roomId, CancellationToken cancellationToken);
     Task<Room?> GetAsync(long propertyId, long roomId, CancellationToken cancellationToken);
     Task<IReadOnlyList<RoomResult>> GetByPropertyAsync(long propertyId, CancellationToken cancellationToken);
     Task<IReadOnlyList<long>> GetAmenityIdsAsync(long roomId, CancellationToken cancellationToken);

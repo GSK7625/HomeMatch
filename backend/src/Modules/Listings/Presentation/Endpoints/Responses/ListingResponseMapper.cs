@@ -11,7 +11,7 @@ internal static class ListingResponseMapper
         return new(ToResponse(result.Listing),
             new(room.RoomId, room.RoomNumber, room.Floor, room.AreaSqm, room.RoomType,
                 room.MaxOccupants, room.Status, room.AvailableFrom,
-                room.Amenities.Select(amenity => new PublicListingAmenityResponse(amenity.Id, amenity.Code, amenity.Name)).ToArray()),
+                room.Amenities.Select(amenity => new PublicListingAmenityResponse(amenity.Id, amenity.Code, amenity.Name)).ToArray(), room.RoomTypeName),
             new(property.Id, property.Name, property.PropertyType, property.ProvinceCode, property.ProvinceName,
                 property.WardCode, property.WardName, property.DistrictName, property.AddressDetail),
             room.Tariffs.Select(tariff => new PublicListingTariffResponse(
@@ -32,7 +32,7 @@ internal static class ListingResponseMapper
         new(result.Id, result.RoomId, result.Title, result.Slug, result.Price, result.Status, result.CoverImageUrl,
             result.DepositAmount, result.AreaSqm, result.RoomType,
             result.DistrictName, result.ProvinceName, result.AddressDetail, result.ElectricityPrice, result.WaterPrice,
-            result.Amenities, result.Latitude, result.Longitude);
+            result.Amenities, result.Latitude, result.Longitude, result.DistanceMeters, result.RoomTypeName, result.WardName, result.PropertyType);
     public static IReadOnlyList<ListingSummaryResponse> ToResponse(IReadOnlyList<ListingSummaryDto> results) =>
         results.Select(ToResponse).ToArray();
     public static IReadOnlyList<SavedListingResponse> ToResponse(IReadOnlyList<SavedListingDto> results) =>

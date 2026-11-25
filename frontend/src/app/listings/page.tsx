@@ -2,8 +2,8 @@
 
 import React, { useState, useMemo, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { searchParamsFor } from "@/features/listings/search-params";
 import { useSearchParams } from "next/navigation";
-import { compareSelection } from "@/lib/compare-selection";
 import { listingsApi, catalogsApi, getStoredToken } from "@/lib/api-client";
 import { useAuth } from "@/features/auth/AuthContext";
 import { PropertyListing, ProvinceDto, WardDto, AmenityDto, RoomTypeDto } from "@/types";
@@ -15,9 +15,7 @@ import {
   Grid,
   List,
   Map as MapIcon,
-  Scale,
   X,
-  ArrowRight,
   Loader2,
   Navigation,
 } from "lucide-react";
@@ -35,6 +33,7 @@ const ROOM_TYPE_OPTIONS = [
 
 function normalizeRoomTypeParam(raw: string | null): string {
   if (!raw || raw === "all") return "";
+  if (raw === "Chung cư mini" || raw === "Căn hộ dịch vụ") return "";
   const upper = raw.trim().toUpperCase();
   if (upper === "SINGLE" || upper === "STUDIO" || upper === "1B1B" || upper === "2B1B" || upper === "DORMITORY") {
     return upper;
@@ -74,20 +73,21 @@ function ListingsContent() {
   const [cityParam, setCityParam] = useState(searchParams.get("city") || "Tất cả");
   const [provinceCode, setProvinceCode] = useState(searchParams.get("provinceCode") || "");
   const [wardCode, setWardCode] = useState(searchParams.get("wardCode") || "");
-  const [occupants, setOccupants] = useState<number>(0);
+  const [occupants, setOccupants] = useState<number>(Number(searchParams.get("occupants")) || 0);
+  const [propertyType, setPropertyType] = useState(searchParams.get("propertyType") || (searchParams.get("roomType") === "Chung cư mini" ? "APARTMENT" : searchParams.get("roomType") === "Căn hộ dịch vụ" ? "SERVICED_APARTMENT" : ""));
+  const [radiusMeters, setRadiusMeters] = useState(3000);
   const [selectedRoomType, setSelectedRoomType] = useState<string>(
     normalizeRoomTypeParam(searchParams.get("roomType"))
   );
   const [priceRange, setPriceRange] = useState(searchParams.get("price") || "all");
-  const [areaRange, setAreaRange] = useState("all");
-  const [selectedAmenityIds, setSelectedAmenityIds] = useState<number[]>([]);
+  const [areaRange, setAreaRange] = useState(searchParams.get("area") || "all");
+  const [selectedAmenityIds, setSelectedAmenityIds] = useState<number[]>(searchParams.getAll("amenityIds").map(Number));
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showMap, setShowMap] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(Math.max(1, Number(searchParams.get("page")) || 1));
   const pageSize = 10;
 
-  const [compareList, setCompareList] = useState<string[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
@@ -126,9 +126,13 @@ function ListingsContent() {
     setCityParam(nextCity);
     setProvinceCode(nextProvinceCode);
     setWardCode(nextWardCode);
+    setPropertyType(searchParams.get("propertyType") || (searchParams.get("roomType") === "Chung cư mini" ? "APARTMENT" : searchParams.get("roomType") === "Căn hộ dịch vụ" ? "SERVICED_APARTMENT" : ""));
     setSelectedRoomType(nextRoomType);
     setPriceRange(nextPrice);
-    setPage(1);
+    setOccupants(Number(searchParams.get("occupants")) || 0);
+    setAreaRange(searchParams.get("area") || "all");
+    setSelectedAmenityIds(searchParams.getAll("amenityIds").map(Number));
+    setPage(Math.max(1, Number(searchParams.get("page")) || 1));
   }, [searchParams]);
 
   useEffect(() => {
@@ -168,20 +172,6 @@ function ListingsContent() {
   }, [provinceCode]);
 
   useEffect(() => {
-    setCompareList(compareSelection.getIds());
-    const handleCompareUpdated = (e: Event) => {
-      const customEvent = e as CustomEvent<{ ids?: string[] }>;
-      if (Array.isArray(customEvent.detail?.ids)) {
-        setCompareList(customEvent.detail.ids);
-      } else {
-        setCompareList(compareSelection.getIds());
-      }
-    };
-    window.addEventListener("homematch:compare-updated", handleCompareUpdated);
-    return () => window.removeEventListener("homematch:compare-updated", handleCompareUpdated);
-  }, []);
-
-  useEffect(() => {
     let isMounted = true;
     if (user && role === "Tenant" && getStoredToken()) {
       listingsApi.getSavedListings().then((res) => {
@@ -203,24 +193,12 @@ function ListingsContent() {
   }, [user, role]);
 
   const handleNearMe = () => {
-    setShowMap(true);
-    showToast("Đang định vị vị trí của bạn qua GPS...", "info");
-    if (typeof navigator !== "undefined" && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          showToast("Đã định vị thành công! Đang hiển thị vị trí của bạn trên bản đồ.", "success");
-          setUserCoords({
-            lat: Number(pos.coords.latitude.toFixed(6)),
-            lng: Number(pos.coords.longitude.toFixed(6)),
-          });
-        },
-        () => {
-          showToast("Không thể lấy vị trí GPS. Đang hiển thị bản đồ mặc định.", "info");
-          setUserCoords({ lat: 21.0285, lng: 105.8542 });
-        },
-        { timeout: 8000, enableHighAccuracy: true }
-      );
-    }
+    if (!navigator.geolocation) { showToast("Trình duyệt không hỗ trợ định vị.", "error"); return; }
+    showToast("Đang lấy vị trí...", "info");
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      setUserCoords({ lat: coords.latitude, lng: coords.longitude }); setShowMap(true); setPage(1);
+    }, () => showToast("Không lấy được vị trí. Hãy cấp quyền và thử lại.", "error"),
+    { timeout: 10000, enableHighAccuracy: true });
   };
 
   useEffect(() => {
@@ -251,6 +229,8 @@ function ListingsContent() {
       try {
         const searchRes = await listingsApi.searchListings({
           keyword: debouncedKeyword || undefined,
+          propertyType: propertyType || undefined, latitude: userCoords?.lat, longitude: userCoords?.lng,
+          radiusMeters: userCoords ? radiusMeters : undefined,
           provinceCode: provinceCode || undefined,
           wardCode: wardCode || undefined,
           minPrice,
@@ -288,7 +268,7 @@ function ListingsContent() {
       isMounted = false;
     };
   }, [
-    debouncedKeyword,
+    debouncedKeyword, propertyType, userCoords, radiusMeters,
     provinceCode,
     wardCode,
     priceRange,
@@ -299,6 +279,15 @@ function ListingsContent() {
     page,
   ]);
 
+  useEffect(() => {
+    const next = searchParamsFor({ keyword: debouncedKeyword, provinceCode, wardCode, propertyType,
+      roomType: selectedRoomType, price: priceRange, area: areaRange, occupants: occupants || undefined,
+      amenityIds: selectedAmenityIds, page: page > 1 ? page : undefined,
+      city: !provinceCode && cityParam !== "Tất cả" ? cityParam : undefined });
+    if (window.location.search.slice(1) !== next.toString())
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${next.size ? "?" + next : ""}`);
+  }, [debouncedKeyword, provinceCode, wardCode, propertyType, selectedRoomType, priceRange, areaRange, occupants, selectedAmenityIds, page, cityParam]);
+
   const toggleAmenityId = (amenityId: number) => {
     setSelectedAmenityIds((prev) =>
       prev.includes(amenityId) ? prev.filter((id) => id !== amenityId) : [...prev, amenityId]
@@ -308,6 +297,7 @@ function ListingsContent() {
 
   const resetFilters = () => {
     setKeyword("");
+    setPropertyType(""); setUserCoords(null);
     setDebouncedKeyword("");
     setCityParam("Tất cả");
     setProvinceCode("");
@@ -334,6 +324,20 @@ function ListingsContent() {
 
   const renderFilterFormContent = () => (
     <>
+      <div>
+        <label className="block text-xs font-bold mb-2">Loại bất động sản</label>
+        <select className="w-full p-2 border rounded-xl" value={propertyType} onChange={e => { setPropertyType(e.target.value); setPage(1); }}>
+          <option value="">Tất cả</option><option value="BOARDING_HOUSE">Dãy trọ</option>
+          <option value="APARTMENT">Chung cư</option><option value="SERVICED_APARTMENT">Căn hộ dịch vụ</option><option value="HOMESTAY">Homestay</option>
+        </select>
+      </div>
+      {userCoords && <div>
+        <label className="block text-xs font-bold mb-2">Bán kính gần tôi</label>
+        <select value={radiusMeters} onChange={e => { setRadiusMeters(Number(e.target.value)); setPage(1); }}>
+          {[1000,3000,5000,10000].map(r => <option key={r} value={r}>{r / 1000} km</option>)}
+        </select>
+        <button className="ml-3 text-blue-600" onClick={() => { setUserCoords(null); setPage(1); }}>Tắt gần tôi</button>
+      </div>}
       {/* Province (Backend Catalog) */}
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
@@ -575,7 +579,7 @@ function ListingsContent() {
           {/* Mobile Filter Button */}
           <button
             onClick={() => setIsMobileFilterOpen(true)}
-            className="h-10 lg:hidden flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors whitespace-nowrap shrink-0"
+            className="h-10 lg:hidden flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors whitespace-nowrap shrink-0"
           >
             <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
             <span>Bộ lọc</span>
@@ -589,7 +593,7 @@ function ListingsContent() {
           {/* Near me button */}
           <button
             onClick={handleNearMe}
-            className="h-10 flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200/80 transition-colors whitespace-nowrap shrink-0"
+            className="h-10 flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200/80 transition-colors whitespace-nowrap shrink-0"
           >
             <Navigation className="w-3.5 h-3.5 text-blue-600 shrink-0" />
             <span className="hidden sm:inline">Tìm phòng gần tôi</span>
@@ -611,7 +615,7 @@ function ListingsContent() {
               }
             }}
             className={cn(
-              "h-10 flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 rounded-xl text-xs font-bold border transition-colors whitespace-nowrap shrink-0",
+              "h-10 flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold border transition-colors whitespace-nowrap shrink-0",
               showMap
                 ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                 : "bg-white text-slate-700 border-slate-200/80 hover:bg-slate-50"
@@ -729,13 +733,14 @@ function ListingsContent() {
               <ListingsInteractiveMap
                 listings={listings}
                 userLocation={userCoords}
+                radiusMeters={userCoords ? radiusMeters : undefined}
                 onLocateMe={handleNearMe}
               />
             </div>
           )}
 
           {/* Quick Filter Chips */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
             <span className="text-slate-400 font-semibold text-[11px] whitespace-nowrap">Lọc nhanh:</span>
             <button
               onClick={() => {
@@ -838,12 +843,12 @@ function ListingsContent() {
 
           {/* Listings List */}
           {isLoading ? (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center space-y-3">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-12 text-center space-y-3">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
               <p className="text-xs font-medium text-slate-500">Đang tải danh sách phòng từ máy chủ...</p>
             </div>
           ) : errorMsg ? (
-            <div className="bg-rose-50 rounded-2xl border border-rose-200 p-10 text-center space-y-3">
+            <div className="bg-rose-50 rounded-2xl border border-rose-200 p-6 sm:p-10 text-center space-y-3">
               <p className="text-sm font-bold text-rose-700">{errorMsg}</p>
               <button
                 onClick={resetFilters}
@@ -853,7 +858,7 @@ function ListingsContent() {
               </button>
             </div>
           ) : listings.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center space-y-3">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-12 text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
                 <Search className="w-6 h-6" />
               </div>
@@ -888,7 +893,7 @@ function ListingsContent() {
 
           {/* Server-side Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-6">
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-6">
               <button
                 disabled={page === 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -920,35 +925,6 @@ function ListingsContent() {
         </div>
       </div>
 
-      {/* Floating Comparison Bar if items exist */}
-      {compareList.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-slate-900/95 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4">
-          <div className="flex items-center gap-2">
-            <Scale className="w-5 h-5 text-blue-400" />
-            <span className="text-xs font-bold">
-              Đang chọn <span className="text-blue-300 font-black">{compareList.length}/3</span> phòng
-              so sánh
-            </span>
-          </div>
-          <Link
-            href="/compare"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors"
-          >
-            <span>So sánh ngay</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-          <button
-            onClick={() => {
-              compareSelection.clear();
-              setCompareList([]);
-            }}
-            className="text-slate-400 hover:text-white p-1 rounded"
-            title="Bỏ chọn so sánh"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
     </div>
   );
 }

@@ -28,7 +28,7 @@ public sealed class SavedListingRepository(ListingsDbContext db) : ISavedListing
     {
         var now = DateTimeOffset.UtcNow;
         return await db.SavedListings.AsNoTracking().Include(item => item.Listing).ThenInclude(item => item.Images)
-            .Where(item => item.UserId == userId && item.Listing.Status == "PUBLISHED"
+            .Where(item => item.UserId == userId && item.Listing.DeletedAt == null && item.Listing.Status == "PUBLISHED"
                 && (item.Listing.ExpiresAt == null || item.Listing.ExpiresAt > now))
             .OrderByDescending(item => item.CreatedAt).ThenByDescending(item => item.Id).ToListAsync(cancellationToken);
     }

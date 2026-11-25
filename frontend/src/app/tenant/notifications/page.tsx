@@ -198,11 +198,11 @@ export default function TenantNotificationsPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 w-full flex-1 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex flex-wrap items-center gap-2 sm:gap-2.5">
             <span>Trung Tâm Thông Báo</span>
             {unreadCount > 0 && (
               <span className="px-2.5 py-0.5 rounded-full bg-rose-500 text-white text-xs font-black">
@@ -239,7 +239,7 @@ export default function TenantNotificationsPage() {
 
       {/* Filter Bar */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {[
             { key: "ALL", label: `Tất cả (${totalCount})` },
             { key: "UNREAD", label: `Chưa đọc (${unreadCount})` },
@@ -284,7 +284,7 @@ export default function TenantNotificationsPage() {
           ))}
         </div>
       ) : notifications.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-14 text-center space-y-3">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-14 text-center space-y-3">
           <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
             <Bell className="w-7 h-7" />
           </div>
@@ -305,7 +305,7 @@ export default function TenantNotificationsPage() {
               <div
                 key={item.id}
                 className={cn(
-                  "rounded-2xl border p-5 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4",
+                  "rounded-2xl border p-4 sm:p-5 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4",
                   item.isRead
                     ? "bg-white border-slate-200/80"
                     : "bg-blue-50/40 border-blue-200 shadow-xs"

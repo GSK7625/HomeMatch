@@ -5,6 +5,8 @@ namespace HomeMatch.Modules.Properties.Presentation.Endpoints.Requests;
 /// <summary>Request DTO để thiết lập / ghi đè toàn bộ đơn giá dịch vụ của bất động sản</summary>
 public sealed record SetPropertyTariffsRequest : IValidatableObject
 {
+    public long? RoomId { get; init; }
+
     [Required]
     public List<TariffItemRequest> Tariffs { get; init; } = [];
 

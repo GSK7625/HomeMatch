@@ -12,7 +12,11 @@ public sealed class GetSavedListingsHandler(ISavedListingRepository saved, IRoom
     {
         var items = await saved.GetForUserAsync(query.UserId, cancellationToken);
         var publicIds = await ListingVisibility.GetPublicIdsAsync(items.Select(item => item.Listing), rooms, cancellationToken);
-        return Result.Success<IReadOnlyList<SavedListingDto>>(items.Where(item => publicIds.Contains(item.ListingId))
-            .Select(item => new SavedListingDto(item.Id, item.ListingId, ListingMapping.ToSummary(item.Listing), item.CreatedAt)).ToArray());
+        var visibleItems = items.Where(item => publicIds.Contains(item.ListingId)).ToArray();
+        var roomCards = await rooms.GetRoomCardSummariesAsync(
+            visibleItems.Select(item => item.Listing.RoomId).Distinct().ToArray(), cancellationToken);
+        return Result.Success<IReadOnlyList<SavedListingDto>>(visibleItems
+            .Select(item => new SavedListingDto(item.Id, item.ListingId,
+                ListingMapping.ToCardSummary(item.Listing, roomCards.GetValueOrDefault(item.Listing.RoomId)), item.CreatedAt)).ToArray());
     }
 }

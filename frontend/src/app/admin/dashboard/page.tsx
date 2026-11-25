@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/AuthContext";
+import { ListingMedia } from "@/features/listings/ListingMedia";
 import {
   adminDashboardApi,
   adminListingsApi,
@@ -660,7 +661,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Tabs Header */}
-      <div className="flex items-center gap-6 border-b border-slate-200 overflow-x-auto">
+      <div className="flex items-center gap-5 sm:gap-6 border-b border-slate-200 overflow-x-auto no-scrollbar">
         <button
           type="button"
           onClick={() => setActiveTab("listings")}
@@ -900,7 +901,12 @@ export default function AdminDashboardPage() {
 
             {/* Mobile Cards */}
             <div className="block md:hidden divide-y divide-slate-100">
-              {listings.map((item) => {
+              {listings.length === 0 ? (
+                <div className="p-6 text-center text-slate-400 text-xs">
+                  {loadingListings ? "Đang tải danh sách tin đăng..." : "Không tìm thấy tin đăng phù hợp."}
+                </div>
+              ) : (
+              listings.map((item) => {
                 const badge = getStatusBadge(item.status);
                 const isPending = item.status === "PENDING_APPROVAL";
                 const canHide = item.status === "PUBLISHED" || item.status === "PENDING_APPROVAL";
@@ -961,7 +967,7 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
                 );
-              })}
+              }))}
             </div>
           </div>
         </div>
@@ -1005,7 +1011,104 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Mobile Card View (< md) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {users.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-400">
+                  {loadingUsers ? "Đang tải danh sách tài khoản..." : "Không tìm thấy tài khoản nào."}
+                </div>
+              ) : (
+                users.map((acc) => {
+                  const isLocked = acc.status === "Suspended";
+                  const isAdminAcc = acc.role === "Admin";
+                  return (
+                    <div key={acc.id} className="p-4 space-y-2.5 text-xs bg-white">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="font-bold text-slate-900 block truncate">{acc.fullName}</span>
+                          <span className="text-[11px] text-slate-500 block truncate">{acc.email}</span>
+                          <span className="text-[10px] text-slate-400 block">
+                            ID #{acc.id} • {acc.phoneNumber || "Chưa có SĐT"} •{" "}
+                            {acc.emailConfirmed ? "Đã xác thực" : "Chưa xác thực"}
+                          </span>
+                        </div>
+                        <span
+                          className={cn(
+                            "px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0",
+                            acc.role === "Landlord"
+                              ? "bg-purple-50 text-purple-700 border-purple-200"
+                              : acc.role === "Admin"
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : "bg-blue-50 text-blue-700 border-blue-200"
+                          )}
+                        >
+                          {acc.role === "Landlord"
+                            ? "Chủ nhà"
+                            : acc.role === "Admin"
+                            ? "Admin"
+                            : "Khách thuê"}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border",
+                              !isLocked
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200/90"
+                                : "bg-rose-50 text-rose-700 border-rose-200/90"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "w-1.5 h-1.5 rounded-full shrink-0",
+                                !isLocked ? "bg-emerald-500" : "bg-rose-500"
+                              )}
+                            />
+                            <span>{!isLocked ? "Hoạt động" : "Bị khóa"}</span>
+                          </span>
+                          <span className="text-[11px] text-slate-400">
+                            {new Date(acc.createdAt).toLocaleDateString("vi-VN")}
+                          </span>
+                        </div>
+
+                        {!isAdminAcc ? (
+                          <button
+                            type="button"
+                            disabled={togglingUserId === acc.id}
+                            onClick={() => handleToggleLockUser(acc)}
+                            className={cn(
+                              "px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors inline-flex items-center gap-1.5 disabled:opacity-50",
+                              !isLocked
+                                ? "border-rose-200 text-rose-600 hover:bg-rose-50"
+                                : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                            )}
+                          >
+                            {!isLocked ? (
+                              <>
+                                <Lock className="w-3.5 h-3.5" />
+                                <span>Khóa tài khoản</span>
+                              </>
+                            ) : (
+                              <>
+                                <Unlock className="w-3.5 h-3.5" />
+                                <span>Mở khóa</span>
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 italic">Quản trị viên</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-xs text-left border-collapse min-w-[760px]">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500 uppercase tracking-wider">
@@ -1147,7 +1250,105 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Mobile Card View (< md) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {reports.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-400">
+                  {loadingReports ? "Đang tải danh sách báo cáo..." : "Chưa có báo cáo vi phạm nào."}
+                </div>
+              ) : (
+                reports.map((rep) => (
+                  <div key={rep.id} className="p-4 space-y-2.5 text-xs bg-white">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold mb-1">
+                          {rep.targetType === "LISTING" ? "Tin đăng" : "Chủ nhà"} #{rep.targetId}
+                        </span>
+                        <span className="font-bold text-slate-900 block line-clamp-2">
+                          {rep.targetTitle}
+                        </span>
+                      </div>
+                      <span
+                        className={cn(
+                          "px-2.5 py-0.5 rounded-full text-[10px] font-bold border shrink-0",
+                          rep.status === "PENDING"
+                            ? "bg-amber-50 text-amber-700 border-amber-200"
+                            : rep.status === "RESOLVED"
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : "bg-slate-100 text-slate-600 border-slate-200"
+                        )}
+                      >
+                        {rep.status === "PENDING"
+                          ? "Chờ xử lý"
+                          : rep.status === "RESOLVED"
+                          ? "Đã xác nhận"
+                          : "Đã bác bỏ"}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+                      <span className="text-rose-600 font-bold block">{rep.reason}</span>
+                      {rep.description && (
+                        <p className="text-[11px] text-slate-600 line-clamp-2">{rep.description}</p>
+                      )}
+                      {rep.adminNote && (
+                        <p className="text-[11px] text-slate-500 italic">
+                          Ghi chú Admin: {rep.adminNote}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                      <span className="truncate">
+                        Báo cáo: <strong className="text-slate-700">{rep.reporterName}</strong>
+                      </span>
+                      <span>{new Date(rep.createdAt).toLocaleDateString("vi-VN")}</span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      {rep.listingId && (
+                        <Link
+                          href={`/listings/${rep.listingId}`}
+                          target="_blank"
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 text-blue-600 font-bold text-xs inline-flex items-center gap-1"
+                        >
+                          <span>Xem tin #{rep.listingId}</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </Link>
+                      )}
+                      {rep.evidenceUrl && (
+                        <a
+                          href={rep.evidenceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 font-bold text-xs inline-flex items-center gap-1"
+                        >
+                          <span>Bằng chứng</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                      {rep.status === "PENDING" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResolvingReport(rep);
+                            setResolutionChoice("RESOLVED");
+                            setResolutionNote("");
+                            setResolutionHideListing(true);
+                          }}
+                          className="flex-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs text-center"
+                        >
+                          Xem xét &amp; Xử lý
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-xs text-left border-collapse min-w-[860px]">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500 uppercase tracking-wider">
@@ -1306,7 +1507,67 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Mobile Card View (< md) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {loadingCatalogs ? (
+                <div className="p-6 text-center text-xs text-slate-400">
+                  Đang tải danh mục...
+                </div>
+              ) : (
+                (catalogSubTab === "roomTypes" ? roomTypes : amenities).map((item) => {
+                  const active = item.isActive ?? true;
+                  return (
+                    <div key={item.id} className="p-4 space-y-2.5 text-xs bg-white">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="font-bold text-slate-900 block">{item.name}</span>
+                          <span className="text-[11px] font-mono text-slate-500 block">
+                            #{item.id} • {item.code}
+                          </span>
+                        </div>
+                        <span
+                          className={cn(
+                            "px-2.5 py-0.5 rounded-full text-[10px] font-bold border shrink-0",
+                            active
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : "bg-slate-100 text-slate-500 border-slate-200"
+                          )}
+                        >
+                          {active ? "Đang hiển thị" : "Đang ẩn"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => openEditCatalogModal(item)}
+                          className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs inline-flex items-center justify-center gap-1"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          <span>Sửa</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCatalogActive(item)}
+                          className={cn(
+                            "flex-1 px-3 py-1.5 rounded-lg border font-bold text-xs inline-flex items-center justify-center gap-1",
+                            active
+                              ? "border-amber-200 text-amber-700 hover:bg-amber-50"
+                              : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                          )}
+                        >
+                          {active ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          <span>{active ? "Ẩn" : "Hiện"}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500 uppercase tracking-wider">
@@ -1439,13 +1700,13 @@ export default function AdminDashboardPage() {
                 <span className="font-bold text-slate-700 uppercase block mb-1.5">
                   Hình ảnh đính kèm ({reviewDetailListing.images.length})
                 </span>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2">
                   {reviewDetailListing.images.map((img) => (
                     <div
                       key={img.id}
                       className="aspect-[16/10] rounded-lg overflow-hidden border border-slate-200 bg-slate-100 relative"
                     >
-                      <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                      <ListingMedia media={img} className="w-full h-full object-contain" />
                       {img.isPrimary && (
                         <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-blue-600 text-white text-[9px] font-bold">
                           Ảnh chính
@@ -1457,7 +1718,7 @@ export default function AdminDashboardPage() {
               </div>
             )}
 
-            <div className="flex gap-3 pt-3 border-t border-slate-100">
+            <div className="flex flex-wrap gap-2 sm:gap-3 pt-3 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setReviewDetailListing(null)}
@@ -1519,7 +1780,7 @@ export default function AdminDashboardPage() {
                 className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
               />
             </div>
-            <div className="flex gap-3 pt-3 border-t border-slate-100">
+            <div className="flex flex-wrap gap-2 sm:gap-3 pt-3 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setRejectingListingId(null)}
@@ -1564,7 +1825,7 @@ export default function AdminDashboardPage() {
                 className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
               />
             </div>
-            <div className="flex gap-3 pt-3 border-t border-slate-100">
+            <div className="flex flex-wrap gap-2 sm:gap-3 pt-3 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setHidingListing(null)}
@@ -1601,7 +1862,7 @@ export default function AdminDashboardPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setResolutionChoice("RESOLVED")}

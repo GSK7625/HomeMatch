@@ -732,7 +732,7 @@ export default function LandlordListingsPage() {
           })}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center max-w-2xl mx-auto space-y-4">
+        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-6 sm:p-12 text-center max-w-2xl mx-auto space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
             <FileText className="w-8 h-8" />
           </div>
@@ -875,7 +875,7 @@ export default function LandlordListingsPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
+            <div className="grid grid-cols-1 xs:grid-cols-3 gap-2.5 sm:gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
               <div>
                 <span className="text-slate-400 block text-[10px] uppercase font-bold">Mã phòng</span>
                 <span className="font-bold text-slate-800">Phòng #{editingListing.roomId}</span>
@@ -903,7 +903,7 @@ export default function LandlordListingsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                   Giá thuê tháng (VNĐ) *
@@ -1029,7 +1029,7 @@ export default function LandlordListingsPage() {
                   <Building2 className="w-4 h-4 text-blue-600" />
                   <span>Chọn Phòng Trong Tòa Nhà Của Bạn:</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                       Tòa nhà
@@ -1096,7 +1096,7 @@ export default function LandlordListingsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                   Giá thuê tháng (VNĐ) *

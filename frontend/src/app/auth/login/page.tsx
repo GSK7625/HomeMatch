@@ -132,7 +132,7 @@ function LoginForm() {
       </div>
 
       {/* Main Card */}
-      <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-6 sm:p-8">
+      <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-5 sm:p-8">
         {/* Brand Header */}
         <div className="text-center mb-6">
           <Link href="/" className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/30 mb-3 hover:scale-105 transition-transform">

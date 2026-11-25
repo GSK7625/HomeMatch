@@ -247,7 +247,7 @@ export default function ListingDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <div className="aspect-[16/10] bg-slate-200 rounded-2xl" />
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="aspect-[4/3] bg-slate-200 rounded-xl" />
               <div className="aspect-[4/3] bg-slate-200 rounded-xl" />
               <div className="aspect-[4/3] bg-slate-200 rounded-xl" />
@@ -525,7 +525,7 @@ export default function ListingDetailPage() {
           </div>
 
           {/* Core Info Card */}
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-xs space-y-6">
+          <div className="bg-white p-4 sm:p-8 rounded-3xl border border-slate-200/90 shadow-xs space-y-6">
             {/* Promo banner */}
             {listing.discountTag && (
               <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold">
@@ -562,24 +562,24 @@ export default function ListingDetailPage() {
             </div>
 
             {/* Key Specs Bar */}
-            <div className="grid grid-cols-3 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/70 text-center">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200/70 text-center">
               <div>
-                <span className="block text-[11px] font-bold text-slate-400 uppercase">Giá thuê niêm yết</span>
-                <span className="text-xl sm:text-2xl font-black text-blue-600">
+                <span className="block text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase">Giá thuê niêm yết</span>
+                <span className="text-base sm:text-2xl font-black text-blue-600">
                   {(listing.price / 1000000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tr
                 </span>
                 <span className="text-[10px] text-slate-500 block">/tháng</span>
               </div>
               <div>
-                <span className="block text-[11px] font-bold text-slate-400 uppercase">Diện tích sử dụng</span>
-                <span className="text-xl sm:text-2xl font-black text-slate-800">
+                <span className="block text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase">Diện tích sử dụng</span>
+                <span className="text-base sm:text-2xl font-black text-slate-800">
                   {listing.area != null ? listing.area : "--"}
                 </span>
                 <span className="text-[10px] text-slate-500 block">m² sàn</span>
               </div>
               <div>
-                <span className="block text-[11px] font-bold text-slate-400 uppercase">Tiền đặt cọc</span>
-                <span className="text-xl sm:text-2xl font-black text-slate-800">
+                <span className="block text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase">Tiền đặt cọc</span>
+                <span className="text-base sm:text-2xl font-black text-slate-800">
                   {listing.deposit > 0
                     ? `${(listing.deposit / 1000000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tr`
                     : "0 đ"}
@@ -664,7 +664,7 @@ export default function ListingDetailPage() {
                 Tiện ích & Dịch vụ đi kèm
               </h3>
               {listing.amenities.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5">
                   {listing.amenities.map((item) => (
                     <div
                       key={item}
@@ -964,7 +964,7 @@ export default function ListingDetailPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                 Ngày muốn xem
@@ -991,7 +991,7 @@ export default function ListingDetailPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                 Thời lượng xem

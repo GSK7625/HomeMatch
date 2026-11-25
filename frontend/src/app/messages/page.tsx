@@ -387,7 +387,7 @@ function MessagesContent() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 py-0 sm:py-6 w-full flex-1 flex flex-col sm:space-y-3 h-[calc(100dvh-4rem)] sm:h-auto">
+    <div className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 py-0 sm:py-6 w-full flex-1 flex flex-col sm:space-y-3 h-[calc(100dvh-8.25rem-env(safe-area-inset-bottom))] lg:h-auto">
       {/* Top Header Card - Tối ưu ẩn trên mobile khi đang xem đoạn hội thoại */}
       <div
         className={cn(
@@ -444,7 +444,7 @@ function MessagesContent() {
       </div>
 
       {/* Main 2-Column Chat Box */}
-      <div className="bg-white rounded-none sm:rounded-2xl border-0 sm:border border-slate-200/90 shadow-none sm:shadow-sm flex flex-col md:flex-row overflow-hidden flex-1 sm:h-[calc(100vh-210px)] sm:min-h-[580px] sm:max-h-[760px]">
+      <div className="bg-white rounded-none sm:rounded-2xl border-0 sm:border border-slate-200/90 shadow-none sm:shadow-sm flex flex-col md:flex-row overflow-hidden flex-1 min-h-0 lg:h-[calc(100vh-210px)] lg:min-h-[580px] lg:max-h-[760px]">
         {/* Left Column: Conversation Sidebar (Fixed Width 320px) */}
         <div
           className={cn(
@@ -621,13 +621,13 @@ function MessagesContent() {
             )}
           >
             {/* Chat Top Header */}
-            <div className="px-4 py-3 border-b border-slate-200/90 flex items-center justify-between gap-3 bg-white z-10">
-              <div className="flex items-center gap-3 min-w-0">
+            <div className="px-3 sm:px-4 py-3 border-b border-slate-200/90 flex items-center justify-between gap-2 sm:gap-3 bg-white z-10">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                 {/* Mobile Back Button */}
                 <button
                   type="button"
                   onClick={() => setShowMobileList(true)}
-                  className="md:hidden p-1.5 -ml-1 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100"
+                  className="md:hidden p-1.5 -ml-1 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 shrink-0"
                   title="Danh sách hội thoại"
                 >
                   <ChevronLeft className="w-5 h-5" />
@@ -702,7 +702,7 @@ function MessagesContent() {
                 {!isLandlord && (
                   <Link
                     href={activeConv.listingId ? `/listings/${activeConv.listingId}` : "/listings"}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold border border-blue-200 transition-colors whitespace-nowrap shadow-2xs"
+                    className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold border border-blue-200 transition-colors whitespace-nowrap shadow-2xs"
                     title={activeConv.listingId ? "Đặt lịch xem phòng này" : "Tìm phòng để đặt lịch xem"}
                   >
                     <Calendar className="w-3.5 h-3.5" />

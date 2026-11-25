@@ -18,7 +18,7 @@ export function RevenueReportSection({ data, selectedPeriod }: RevenueReportSect
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Financial Overview & Progress (Chức năng 3) */}
-      <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+      <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
@@ -36,7 +36,7 @@ export function RevenueReportSection({ data, selectedPeriod }: RevenueReportSect
 
         {/* Progress bar */}
         <div className="space-y-2">
-          <div className="flex justify-between text-xs font-semibold text-slate-600">
+          <div className="flex flex-wrap justify-between gap-1 text-xs font-semibold text-slate-600">
             <span>Tiến độ thu hồi dòng tiền kỳ này</span>
             <span className="font-bold text-slate-900">
               {financials.totalCollected.toLocaleString("vi-VN")} đ /{" "}
@@ -52,20 +52,20 @@ export function RevenueReportSection({ data, selectedPeriod }: RevenueReportSect
         </div>
 
         {/* Metric Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-1">
+          <div className="p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
             <span className="text-[11px] font-semibold text-slate-500 block">
               Tổng Phải Thu (Doanh thu)
             </span>
-            <span className="text-xl font-black text-slate-900 block">
+            <span className="text-lg sm:text-xl font-black text-slate-900 block">
               {financials.totalReceivables.toLocaleString("vi-VN")} đ
             </span>
             <span className="text-[10px] text-slate-400">Tiền phòng + dịch vụ phát sinh</span>
           </div>
 
-          <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-100 space-y-1">
+          <div className="p-3.5 sm:p-4 rounded-xl bg-emerald-50/60 border border-emerald-100 space-y-1">
             <span className="text-[11px] font-semibold text-emerald-700 block">Số Tiền Đã Thu</span>
-            <span className="text-xl font-black text-emerald-800 block">
+            <span className="text-lg sm:text-xl font-black text-emerald-800 block">
               {financials.totalCollected.toLocaleString("vi-VN")} đ
             </span>
             <span className="text-[10px] text-emerald-600 font-medium">
@@ -73,11 +73,11 @@ export function RevenueReportSection({ data, selectedPeriod }: RevenueReportSect
             </span>
           </div>
 
-          <div className="p-4 rounded-xl bg-rose-50/60 border border-rose-100 space-y-1">
+          <div className="p-3.5 sm:p-4 rounded-xl bg-rose-50/60 border border-rose-100 space-y-1">
             <span className="text-[11px] font-semibold text-rose-700 block">
               Tổng Còn Phải Thu (Nợ)
             </span>
-            <span className="text-xl font-black text-rose-700 block">
+            <span className="text-lg sm:text-xl font-black text-rose-700 block">
               {financials.remainingDebt.toLocaleString("vi-VN")} đ
             </span>
             <span className="text-[10px] text-rose-600 font-medium">
@@ -88,7 +88,7 @@ export function RevenueReportSection({ data, selectedPeriod }: RevenueReportSect
       </div>
 
       {/* Revenue Breakdown */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+      <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
         <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
           <PieChart className="w-4 h-4 text-blue-600" />
           <span>Cơ Cấu Doanh Thu Kỳ Này</span>

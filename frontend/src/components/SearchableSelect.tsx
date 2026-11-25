@@ -128,7 +128,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       <div
         onClick={handleOpen}
         className={cn(
-          "w-full flex items-center justify-between gap-2 px-3 py-2 text-xs rounded-xl border bg-white transition-all cursor-pointer select-none",
+          "w-full min-h-[40px] flex items-center justify-between gap-2 px-3 py-2 text-xs rounded-xl border bg-white transition-all cursor-pointer select-none",
           isOpen
             ? "border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
             : "border-slate-200 hover:border-slate-300",
@@ -191,8 +191,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
       {/* Dropdown Options Popup */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white border border-slate-200/90 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-          <div className="max-h-56 overflow-y-auto divide-y divide-slate-50 p-1">
+        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 max-w-full bg-white border border-slate-200/90 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="max-h-52 sm:max-h-60 overflow-y-auto divide-y divide-slate-50 p-1">
             {loading ? (
               <div className="px-3 py-3 text-center text-xs text-slate-400">
                 Đang tải dữ liệu phường/xã...
@@ -205,7 +205,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                     key={opt.value}
                     onClick={() => handleSelect(opt.value)}
                     className={cn(
-                      "flex items-center justify-between px-3 py-2 text-xs rounded-lg cursor-pointer transition-colors",
+                      "flex items-center justify-between px-3 py-2.5 text-xs rounded-lg cursor-pointer transition-colors",
                       isSelected
                         ? "bg-blue-50/80 font-bold text-blue-600"
                         : "text-slate-700 hover:bg-slate-50 font-medium"

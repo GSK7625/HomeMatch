@@ -579,7 +579,7 @@ function ListingsContent() {
           {/* Mobile Filter Button */}
           <button
             onClick={() => setIsMobileFilterOpen(true)}
-            className="h-10 lg:hidden flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors whitespace-nowrap shrink-0"
+            className="h-10 lg:hidden flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors whitespace-nowrap shrink-0"
           >
             <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
             <span>Bộ lọc</span>
@@ -593,7 +593,7 @@ function ListingsContent() {
           {/* Near me button */}
           <button
             onClick={handleNearMe}
-            className="h-10 flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200/80 transition-colors whitespace-nowrap shrink-0"
+            className="h-10 flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200/80 transition-colors whitespace-nowrap shrink-0"
           >
             <Navigation className="w-3.5 h-3.5 text-blue-600 shrink-0" />
             <span className="hidden sm:inline">Tìm phòng gần tôi</span>
@@ -615,7 +615,7 @@ function ListingsContent() {
               }
             }}
             className={cn(
-              "h-10 flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 rounded-xl text-xs font-bold border transition-colors whitespace-nowrap shrink-0",
+              "h-10 flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold border transition-colors whitespace-nowrap shrink-0",
               showMap
                 ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                 : "bg-white text-slate-700 border-slate-200/80 hover:bg-slate-50"
@@ -740,7 +740,7 @@ function ListingsContent() {
           )}
 
           {/* Quick Filter Chips */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
             <span className="text-slate-400 font-semibold text-[11px] whitespace-nowrap">Lọc nhanh:</span>
             <button
               onClick={() => {
@@ -843,12 +843,12 @@ function ListingsContent() {
 
           {/* Listings List */}
           {isLoading ? (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center space-y-3">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-12 text-center space-y-3">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
               <p className="text-xs font-medium text-slate-500">Đang tải danh sách phòng từ máy chủ...</p>
             </div>
           ) : errorMsg ? (
-            <div className="bg-rose-50 rounded-2xl border border-rose-200 p-10 text-center space-y-3">
+            <div className="bg-rose-50 rounded-2xl border border-rose-200 p-6 sm:p-10 text-center space-y-3">
               <p className="text-sm font-bold text-rose-700">{errorMsg}</p>
               <button
                 onClick={resetFilters}
@@ -858,7 +858,7 @@ function ListingsContent() {
               </button>
             </div>
           ) : listings.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center space-y-3">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-12 text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
                 <Search className="w-6 h-6" />
               </div>
@@ -893,7 +893,7 @@ function ListingsContent() {
 
           {/* Server-side Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-6">
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-6">
               <button
                 disabled={page === 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}

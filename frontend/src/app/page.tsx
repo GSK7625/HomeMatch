@@ -166,9 +166,9 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex flex-col gap-16 pb-20">
+    <div className="flex flex-col gap-12 sm:gap-16 pb-12 sm:pb-20">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-b from-slate-950 via-blue-950 to-slate-900 text-white pt-14 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <section className="relative bg-gradient-to-b from-slate-950 via-blue-950 to-slate-900 text-white pt-10 pb-14 sm:pt-14 sm:pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
         {/* Glow & subtle grid background */}
         <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
@@ -197,7 +197,7 @@ export default function HomePage() {
           <div className="mt-8 pt-2 max-w-4xl mx-auto">
             <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl text-slate-800 border border-white/20 text-left">
               {/* Category tabs */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 border-b border-slate-100 scrollbar-none">
+              <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 border-b border-slate-100 no-scrollbar">
                 {[
                   { id: "all", label: "Tất cả" },
                   { id: "BOARDING_HOUSE", label: "Dãy trọ" },
@@ -434,15 +434,15 @@ export default function HomePage() {
 
       {/* Listings Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6 sm:mb-8">
+          <div className="min-w-0">
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
               Danh sách phòng trọ và căn hộ
             </h2>
           </div>
           <Link
             href="/listings"
-            className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-4 py-2 rounded-xl transition-colors"
+            className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3.5 sm:px-4 py-2 rounded-xl transition-colors whitespace-nowrap shrink-0"
           >
             <span>Xem tất cả tin</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -470,8 +470,8 @@ export default function HomePage() {
 
       {/* Commercial Landlord ROI Calculator Widget */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-3xl p-8 sm:p-12 text-white shadow-2xl relative overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-3xl p-5 sm:p-10 lg:p-12 text-white shadow-2xl relative overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center">
             {/* Left 6 cols: Pitch */}
             <div className="lg:col-span-6 space-y-4">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-blue-200">
@@ -504,7 +504,7 @@ export default function HomePage() {
             </div>
 
             {/* Right 6 cols: Live Calculator Widget */}
-            <div className="lg:col-span-6 bg-white/10 backdrop-blur-md p-6 sm:p-8 rounded-2xl border border-white/20 space-y-5">
+            <div className="lg:col-span-6 bg-white/10 backdrop-blur-md p-4 sm:p-8 rounded-2xl border border-white/20 space-y-5">
               <h3 className="font-black text-lg text-white">Bảng Tính Dòng Tiền Dự Kiến</h3>
 
               <div className="space-y-4 text-xs">
@@ -543,7 +543,7 @@ export default function HomePage() {
               </div>
 
               {/* Calculated Outputs */}
-              <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-slate-900/80 border border-white/10 text-center">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-xl bg-slate-900/80 border border-white/10 text-center">
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-bold block">
                     Doanh thu dự kiến / tháng

@@ -255,7 +255,7 @@ export function InvoiceDetailModal({
                 )}
               </div>
 
-              <div className="grid grid-cols-3 gap-2 bg-slate-50 border-t border-slate-200 px-4 py-3 text-xs">
+              <div className="grid grid-cols-1 xs:grid-cols-3 gap-2.5 sm:gap-2 bg-slate-50 border-t border-slate-200 px-4 py-3 text-xs">
                 <div>
                   <span className="text-slate-400 block text-[11px]">Tổng phải trả</span>
                   <span className="font-black text-slate-900 text-sm">{formatVnd(detail.totalAmount)}</span>
@@ -286,7 +286,36 @@ export function InvoiceDetailModal({
                 <Zap className="w-3.5 h-3.5 text-amber-500" />
                 <span>Bảng chỉ số tiêu thụ điện nước trong kỳ (Chốt ngày {formatDate(reading.readingDate)})</span>
               </h4>
-              <div className="overflow-x-auto rounded-2xl border border-slate-200">
+              {/* Mobile Summary Cards (< sm) */}
+              <div className="sm:hidden space-y-2">
+                <div className="p-3 rounded-xl border border-amber-200/70 bg-amber-50/40 text-xs space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-slate-800 inline-flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-amber-500" />
+                      Điện sinh hoạt ({reading.electricityUsage} kWh)
+                    </span>
+                    <span className="font-bold text-slate-900">{formatVnd(reading.electricityCost)}</span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 font-mono">
+                    {reading.electricityOld} → {reading.electricityNew} · {formatVnd(reading.electricityUnitPrice)}/kWh
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl border border-sky-200/70 bg-sky-50/40 text-xs space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-slate-800 inline-flex items-center gap-1.5">
+                      <Droplet className="w-3.5 h-3.5 text-sky-500" />
+                      Nước sinh hoạt ({reading.waterUsage} m³)
+                    </span>
+                    <span className="font-bold text-slate-900">{formatVnd(reading.waterCost)}</span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 font-mono">
+                    {reading.waterOld} → {reading.waterNew} · {formatVnd(reading.waterUnitPrice)}/m³
+                  </div>
+                </div>
+              </div>
+
+              {/* Desktop Table (>= sm) */}
+              <div className="hidden sm:block overflow-x-auto rounded-2xl border border-slate-200">
                 <table className="w-full text-left text-xs bg-white">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
@@ -407,7 +436,7 @@ export function InvoiceDetailModal({
                     >
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-xs font-bold text-slate-900">
+                          <span className="font-mono text-xs font-bold text-slate-900 break-all">
                             {payment.paymentCode}
                           </span>
                           <span
@@ -438,7 +467,7 @@ export function InvoiceDetailModal({
                             <span>Hết hạn: {formatDateTime(payment.expiredAt)}</span>
                           )}
                           {payment.gatewayTransactionNo && (
-                            <span className="font-mono">Mã GD cổng: {payment.gatewayTransactionNo}</span>
+                            <span className="font-mono break-all">Mã GD cổng: {payment.gatewayTransactionNo}</span>
                           )}
                         </div>
                       </div>

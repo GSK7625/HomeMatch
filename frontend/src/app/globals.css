@@ -9,6 +9,11 @@
   --foreground: #0f172a;
 }
 
+html,
+body {
+  overflow-x: clip;
+}
+
 body {
   color: var(--foreground);
   background: var(--background);
@@ -323,6 +328,15 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Safe area insets for notched mobile devices */
+.safe-bottom {
+  padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top);
 }
 
 

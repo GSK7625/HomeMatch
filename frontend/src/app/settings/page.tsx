@@ -236,7 +236,7 @@ export default function AccountSettingsPage() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">
           Cài đặt tài khoản
@@ -293,7 +293,7 @@ export default function AccountSettingsPage() {
         </aside>
 
         {/* Main Panel */}
-        <section className="md:col-span-8 bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs">
+        <section className="md:col-span-8 bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-6 shadow-2xs">
           {activeTab === "profile" && (
             <form onSubmit={handleSaveProfile} className="space-y-5">
               <div>

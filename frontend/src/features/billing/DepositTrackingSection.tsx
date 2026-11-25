@@ -10,7 +10,7 @@ interface DepositTrackingSectionProps {
 
 export function DepositTrackingSection({ data }: DepositTrackingSectionProps) {
   return (
-    <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+    <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
@@ -23,9 +23,9 @@ export function DepositTrackingSection({ data }: DepositTrackingSectionProps) {
           </p>
         </div>
 
-        <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center gap-3">
+        <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100 flex flex-wrap items-center justify-between sm:justify-start gap-2 sm:gap-3">
           <span className="text-xs font-semibold text-indigo-900">Tổng cọc đang giữ:</span>
-          <span className="text-lg font-black text-indigo-700">
+          <span className="text-base sm:text-lg font-black text-indigo-700">
             {data.deposits.totalActiveDeposits.toLocaleString("vi-VN")} đ
           </span>
         </div>
@@ -40,7 +40,7 @@ export function DepositTrackingSection({ data }: DepositTrackingSectionProps) {
           data.deposits.items.map((ctr) => (
             <div
               key={ctr.contractId}
-              className="p-4 rounded-xl border border-slate-200 hover:border-indigo-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white"
+              className="p-3.5 sm:p-4 rounded-xl border border-slate-200 hover:border-indigo-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white"
             >
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -60,7 +60,7 @@ export function DepositTrackingSection({ data }: DepositTrackingSectionProps) {
               </div>
 
               <div className="flex items-center justify-between sm:justify-end gap-5">
-                <div className="text-right">
+                <div className="text-left sm:text-right">
                   <span className="text-[10px] text-slate-400 block font-medium">
                     Tiền cọc giữ:
                   </span>

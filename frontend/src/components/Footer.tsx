@@ -5,7 +5,7 @@ import { Home, ShieldCheck, Award, CheckCircle2, Lock, HelpCircle } from "lucide
 export function Footer() {
   return (
     <footer className="bg-slate-950 text-slate-400 text-sm mt-auto border-t border-slate-800/80">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
         {/* Top Trust Banner */}
         <div className="pb-10 mb-10 border-b border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="flex items-center gap-3">
@@ -180,9 +180,9 @@ export function Footer() {
         </div>
 
         {/* Bottom Copyright & Tech Standards */}
-        <div className="pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+        <div className="pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-center sm:text-left">
           <p>© 2026 HomeMatch. Nền tảng kết nối người thuê và chủ nhà.</p>
-          <div className="flex items-center gap-3 text-slate-500 text-[11px]">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-slate-500 text-[11px]">
             <span>Quy chế hoạt động</span>
             <span>•</span>
             <span>Chính sách bảo mật</span>

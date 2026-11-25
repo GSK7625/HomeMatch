@@ -285,7 +285,7 @@ export function OtpSignPanel({ detail, role, onUpdated }: OtpSignPanelProps) {
   return (
     <div className="space-y-4 print:hidden">
       {/* CARD 1: OTP SIGNING / LIFECYCLE ACTION */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-5 space-y-4">
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-4 sm:p-5 space-y-4">
         <div className="flex items-center justify-between gap-2">
           <span
             className={cn(
@@ -447,7 +447,7 @@ export function OtpSignPanel({ detail, role, onUpdated }: OtpSignPanelProps) {
               </div>
 
               {/* 6 OTP Boxes */}
-              <div className="grid grid-cols-6 gap-2">
+              <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
                 {digits.map((digit, i) => (
                   <input
                     key={i}
@@ -461,7 +461,7 @@ export function OtpSignPanel({ detail, role, onUpdated }: OtpSignPanelProps) {
                     onChange={(e) => handleDigitChange(i, e.target.value)}
                     onKeyDown={(e) => handleDigitKeyDown(i, e)}
                     placeholder="•"
-                    className="h-12 text-center text-lg font-black font-mono rounded-xl border border-slate-300 bg-slate-50/70 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                    className="h-11 sm:h-12 min-w-0 px-0 text-center text-base sm:text-lg font-black font-mono rounded-xl border border-slate-300 bg-slate-50/70 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
                   />
                 ))}
               </div>
@@ -638,7 +638,7 @@ export function OtpSignPanel({ detail, role, onUpdated }: OtpSignPanelProps) {
       </div>
 
       {/* CARD 2: SAFE DEPOSIT LEDGER */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-5 space-y-3.5">
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-4 sm:p-5 space-y-3.5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-xs font-black text-slate-900">
             <Wallet className="w-4 h-4 text-emerald-600" />
@@ -686,7 +686,7 @@ export function OtpSignPanel({ detail, role, onUpdated }: OtpSignPanelProps) {
                   type="button"
                   onClick={() => setDepositType(t.key)}
                   className={cn(
-                    "py-1.5 rounded-lg text-[10px] font-bold border transition-colors",
+                    "py-1.5 px-1 rounded-lg text-[10px] font-bold border transition-colors whitespace-nowrap truncate",
                     depositType === t.key
                       ? "bg-slate-900 text-white border-slate-900"
                       : "bg-white text-slate-600 border-slate-200"

@@ -34,8 +34,8 @@ export function MarketingAndViewingsSection({
       {/* SECTION 6: Thống Kê Tin Đăng, Phễu Khách & Lịch Xem Phòng (Chức năng 6) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Phễu Khách Quan Tâm */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <Users className="w-4 h-4 text-blue-600" />
@@ -45,7 +45,7 @@ export function MarketingAndViewingsSection({
                 Hiệu quả chuyển đổi từ tin đăng đến hợp đồng đã ký.
               </p>
             </div>
-            <div className="text-right space-y-1">
+            <div className="text-left sm:text-right space-y-1">
               <div>
                 <span className="text-[10px] text-slate-400 block">Tin đang hiển thị</span>
                 <span className="text-xs font-black text-blue-600">
@@ -140,8 +140,8 @@ export function MarketingAndViewingsSection({
         </div>
 
         {/* Lịch Xem Phòng Hôm Nay */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-emerald-600" />
@@ -165,22 +165,22 @@ export function MarketingAndViewingsSection({
               data.viewingsToday.map((vw) => (
                 <div
                   key={vw.appointmentId}
-                  className="p-3.5 rounded-xl border border-slate-100 hover:border-slate-300 bg-slate-50/50 hover:bg-white transition-all flex items-center justify-between gap-3"
+                  className="p-3.5 rounded-xl border border-slate-100 hover:border-slate-300 bg-slate-50/50 hover:bg-white transition-all flex flex-col xs:flex-row xs:items-center justify-between gap-2.5"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className="p-2.5 rounded-lg bg-blue-100 text-blue-700 font-bold text-xs shrink-0 flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5" />
                       <span>{vw.scheduledTime}</span>
                     </div>
-                    <div>
-                      <span className="font-bold text-xs text-slate-900 block">{vw.roomName}</span>
-                      <span className="text-[11px] text-slate-500 block">
+                    <div className="min-w-0">
+                      <span className="font-bold text-xs text-slate-900 block truncate">{vw.roomName}</span>
+                      <span className="text-[11px] text-slate-500 block truncate">
                         Khách: <strong>{vw.tenantName}</strong> • {vw.tenantPhone}
                       </span>
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0">
+                  <div className="flex xs:flex-col items-center xs:items-end justify-between gap-1 shrink-0">
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 block mb-1">
                       {vw.viewingType}
                     </span>
@@ -194,7 +194,7 @@ export function MarketingAndViewingsSection({
       </div>
 
       {/* Quick Operation Navigators */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+      <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
         <h3 className="font-bold text-sm text-slate-900">Lối Tắt Vận Hành Nghiệp Vụ</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <Link

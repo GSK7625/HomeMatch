@@ -59,7 +59,7 @@ export default function FavoritesPage() {
   }, [authLoading, loadFavorites]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 w-full flex-1 space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2 text-rose-600 text-xs font-bold uppercase tracking-wider mb-1">
@@ -91,7 +91,7 @@ export default function FavoritesPage() {
       </div>
 
       {!authLoading && !isTenant ? (
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-16 text-center space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-16 text-center space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
             <LogIn className="w-8 h-8" />
           </div>
@@ -126,7 +126,7 @@ export default function FavoritesPage() {
           </button>
         </div>
       ) : favListings.length === 0 && !loading ? (
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-16 text-center space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-16 text-center space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center mx-auto">
             <Heart className="w-8 h-8" />
           </div>

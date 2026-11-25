@@ -517,7 +517,7 @@ export function TenantBillingTab({
           </div>
 
           {utilityReadings.length === 0 ? (
-            <div className="p-12 text-center space-y-2">
+            <div className="p-6 sm:p-12 text-center space-y-2">
               <Zap className="w-9 h-9 text-slate-300 mx-auto" />
               <h4 className="text-sm font-bold text-slate-800">
                 Chưa có dữ liệu ghi chỉ số điện nước cho kỳ đã chọn
@@ -527,80 +527,140 @@ export function TenantBillingTab({
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
-                    <th className="py-3 px-4">Kỳ / Phòng</th>
-                    <th className="py-3 px-4">Chỉ số Điện (kWh)</th>
-                    <th className="py-3 px-4 text-right">Đơn giá Điện</th>
-                    <th className="py-3 px-4 text-right">Tiền Điện</th>
-                    <th className="py-3 px-4">Chỉ số Nước (m³)</th>
-                    <th className="py-3 px-4 text-right">Đơn giá Nước</th>
-                    <th className="py-3 px-4 text-right">Tiền Nước</th>
-                    <th className="py-3 px-4 text-right">Phí Dịch Vụ</th>
-                    <th className="py-3 px-4 text-right">Tổng Chi Phí DV</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {utilityReadings.map((r) => {
-                    const info = contractMap[r.contractId];
-                    const totalUtilityCost = r.electricityCost + r.waterCost + r.serviceCost;
-                    return (
-                      <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3.5 px-4">
+            <>
+              {/* Mobile Card View (< md) */}
+              <div className="md:hidden divide-y divide-slate-100">
+                {utilityReadings.map((r) => {
+                  const info = contractMap[r.contractId];
+                  const totalUtilityCost = r.electricityCost + r.waterCost + r.serviceCost;
+                  return (
+                    <div key={r.id} className="p-4 space-y-3 text-xs bg-white">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
                           <span className="font-black text-slate-900 block">
                             Tháng {String(r.billingMonth).padStart(2, "0")}/{r.billingYear}
                           </span>
-                          <span className="text-[11px] text-slate-500">
+                          <span className="text-[11px] text-slate-500 block truncate">
                             {info?.roomName || `Phòng #${r.roomId}`} • Chốt: {formatDate(r.readingDate)}
                           </span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="font-mono text-slate-700">
-                            {r.electricityOld} → <strong>{r.electricityNew}</strong>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-[10px] text-slate-400 uppercase font-semibold block">
+                            Tổng DV
                           </span>
-                          <span className="ml-1.5 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-bold text-[10px]">
-                            {r.electricityUsage} kWh
+                          <span className="font-black text-blue-600 text-sm">
+                            {formatVnd(totalUtilityCost)}
                           </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-right text-slate-600">
-                          {formatVnd(r.electricityUnitPrice)}/kWh
-                        </td>
-                        <td className="py-3.5 px-4 text-right font-bold text-slate-900">
-                          {formatVnd(r.electricityCost)}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="font-mono text-slate-700">
-                            {r.waterOld} → <strong>{r.waterNew}</strong>
-                          </span>
-                          <span className="ml-1.5 px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 font-bold text-[10px]">
-                            {r.waterUsage} m³
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-right text-slate-600">
-                          {formatVnd(r.waterUnitPrice)}/m³
-                        </td>
-                        <td className="py-3.5 px-4 text-right font-bold text-slate-900">
-                          {formatVnd(r.waterCost)}
-                        </td>
-                        <td className="py-3.5 px-4 text-right font-semibold text-slate-800">
-                          {formatVnd(r.serviceCost)}
-                        </td>
-                        <td className="py-3.5 px-4 text-right font-black text-blue-600">
-                          {formatVnd(totalUtilityCost)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
+                        <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/70 space-y-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-amber-900">Điện ({r.electricityUsage} kWh)</span>
+                            <span className="font-black text-slate-900">{formatVnd(r.electricityCost)}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-600 font-mono">
+                            {r.electricityOld} → {r.electricityNew} · {formatVnd(r.electricityUnitPrice)}/kWh
+                          </div>
+                        </div>
+
+                        <div className="p-2.5 rounded-xl bg-sky-50/70 border border-sky-200/70 space-y-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-sky-900">Nước ({r.waterUsage} m³)</span>
+                            <span className="font-black text-slate-900">{formatVnd(r.waterCost)}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-600 font-mono">
+                            {r.waterOld} → {r.waterNew} · {formatVnd(r.waterUnitPrice)}/m³
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-100">
+                        <span className="text-slate-500">Phí dịch vụ khác</span>
+                        <span className="font-bold text-slate-800">{formatVnd(r.serviceCost)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop Table (>= md) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
+                      <th className="py-3 px-4">Kỳ / Phòng</th>
+                      <th className="py-3 px-4">Chỉ số Điện (kWh)</th>
+                      <th className="py-3 px-4 text-right">Đơn giá Điện</th>
+                      <th className="py-3 px-4 text-right">Tiền Điện</th>
+                      <th className="py-3 px-4">Chỉ số Nước (m³)</th>
+                      <th className="py-3 px-4 text-right">Đơn giá Nước</th>
+                      <th className="py-3 px-4 text-right">Tiền Nước</th>
+                      <th className="py-3 px-4 text-right">Phí Dịch Vụ</th>
+                      <th className="py-3 px-4 text-right">Tổng Chi Phí DV</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {utilityReadings.map((r) => {
+                      const info = contractMap[r.contractId];
+                      const totalUtilityCost = r.electricityCost + r.waterCost + r.serviceCost;
+                      return (
+                        <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3.5 px-4">
+                            <span className="font-black text-slate-900 block">
+                              Tháng {String(r.billingMonth).padStart(2, "0")}/{r.billingYear}
+                            </span>
+                            <span className="text-[11px] text-slate-500">
+                              {info?.roomName || `Phòng #${r.roomId}`} • Chốt: {formatDate(r.readingDate)}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="font-mono text-slate-700">
+                              {r.electricityOld} → <strong>{r.electricityNew}</strong>
+                            </span>
+                            <span className="ml-1.5 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-bold text-[10px]">
+                              {r.electricityUsage} kWh
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-right text-slate-600">
+                            {formatVnd(r.electricityUnitPrice)}/kWh
+                          </td>
+                          <td className="py-3.5 px-4 text-right font-bold text-slate-900">
+                            {formatVnd(r.electricityCost)}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="font-mono text-slate-700">
+                              {r.waterOld} → <strong>{r.waterNew}</strong>
+                            </span>
+                            <span className="ml-1.5 px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 font-bold text-[10px]">
+                              {r.waterUsage} m³
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-right text-slate-600">
+                            {formatVnd(r.waterUnitPrice)}/m³
+                          </td>
+                          <td className="py-3.5 px-4 text-right font-bold text-slate-900">
+                            {formatVnd(r.waterCost)}
+                          </td>
+                          <td className="py-3.5 px-4 text-right font-semibold text-slate-800">
+                            {formatVnd(r.serviceCost)}
+                          </td>
+                          <td className="py-3.5 px-4 text-right font-black text-blue-600">
+                            {formatVnd(totalUtilityCost)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       ) : selectedAgingGroup ? (
         debtInvoices.length === 0 ? (
-          <div className="p-12 text-center space-y-2 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+          <div className="p-6 sm:p-12 text-center space-y-2 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
             <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
             <h4 className="text-sm font-bold text-slate-800">
               Không có hóa đơn nợ trong nhóm này
@@ -854,7 +914,7 @@ export function TenantBillingTab({
 
       {/* 5. Pagination */}
       {totalCount > PAGE_SIZE && (
-        <div className="flex items-center justify-between bg-white px-4 py-3 rounded-2xl border border-slate-200/80 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-white px-4 py-3 rounded-2xl border border-slate-200/80 text-xs">
           <span className="text-slate-500">
             Trang <strong>{page}</strong> / {totalPages} · Tổng{" "}
             <strong>{totalCount}</strong> hóa đơn

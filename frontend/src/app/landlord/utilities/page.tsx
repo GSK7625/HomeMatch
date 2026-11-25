@@ -859,12 +859,12 @@ export default function LandlordUtilitiesPage() {
         </div>
 
         {loadingData ? (
-          <div className="p-12 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+          <div className="p-6 sm:p-12 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
             <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
             <span>Đang tải danh sách phòng và chỉ số điện nước...</span>
           </div>
         ) : billableContracts.length === 0 ? (
-          <div className="p-10 text-center space-y-2">
+          <div className="p-6 sm:p-10 text-center space-y-2">
             <Calculator className="w-8 h-8 text-slate-300 mx-auto" />
             <h3 className="text-xs font-bold text-slate-800">
               Chưa có hợp đồng đang thuê (ACTIVE) nào trong phạm vi đã chọn
@@ -874,7 +874,138 @@ export default function LandlordUtilitiesPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* Mobile Card View (< md) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {billableContracts.map((ctr) => {
+                const info = contractMap[ctr.id];
+                const roomObj = roomMap[ctr.roomId];
+                const reading = readings.find((r) => r.roomId === ctr.roomId);
+                const activeInvoice = invoices.find(
+                  (i) => i.contractId === ctr.id && i.status !== "CANCELLED"
+                );
+                const invMeta = activeInvoice ? getInvoiceStatusMeta(activeInvoice.status) : null;
+
+                return (
+                  <div key={ctr.id} className="p-4 space-y-3 text-xs bg-white">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="font-black text-slate-900 text-sm block">
+                          {roomObj ? `Phòng ${roomObj.roomNumber}` : info?.roomName || `Phòng #${ctr.roomId}`}
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-mono block truncate">
+                          {ctr.contractCode} • {formatVnd(ctr.monthlyRent)}/tháng
+                        </span>
+                      </div>
+                      {activeInvoice && invMeta ? (
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border shrink-0",
+                            invMeta.badgeClass
+                          )}
+                        >
+                          <span className={cn("w-1.5 h-1.5 rounded-full", invMeta.dotClass)} />
+                          {invMeta.label}
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 shrink-0">
+                          Chưa phát hành HĐ
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
+                      <div className="p-2.5 rounded-xl bg-amber-50/60 border border-amber-200/70 space-y-0.5">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-bold text-amber-900">Điện</span>
+                          <span className="font-black text-slate-900">
+                            {reading ? formatVnd(reading.electricityCost) : "—"}
+                          </span>
+                        </div>
+                        {reading ? (
+                          <div className="text-[11px] text-slate-600 font-mono">
+                            {reading.electricityOld} → {reading.electricityNew} ({reading.electricityUsage} kWh)
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-slate-400 italic">Chưa ghi chỉ số</div>
+                        )}
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-sky-50/60 border border-sky-200/70 space-y-0.5">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-bold text-sky-900">Nước</span>
+                          <span className="font-black text-slate-900">
+                            {reading ? formatVnd(reading.waterCost) : "—"}
+                          </span>
+                        </div>
+                        {reading ? (
+                          <div className="text-[11px] text-slate-600 font-mono">
+                            {reading.waterOld} → {reading.waterNew} ({reading.waterUsage} m³)
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-slate-400 italic">Chưa ghi chỉ số</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+                      <span>
+                        Phí DV: <strong className="text-slate-900">{reading ? formatVnd(reading.serviceCost) : formatVnd(serviceFee)}</strong>
+                      </span>
+                      {activeInvoice && (
+                        <span>
+                          Tổng HĐ: <strong className="text-blue-600">{formatVnd(activeInvoice.totalAmount)}</strong>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        disabled={Boolean(activeInvoice)}
+                        onClick={() => handleOpenReadingModal(ctr)}
+                        title={
+                          activeInvoice
+                            ? "Đã có hóa đơn trong kỳ (BR-BIL-13). Cần hủy hóa đơn nếu muốn sửa lại chỉ số."
+                            : "Ghi hoặc cập nhật chỉ số công tơ điện nước"
+                        }
+                        className="flex-1 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        {reading ? "Sửa chỉ số" : "Ghi chỉ số"}
+                      </button>
+
+                      {!activeInvoice ? (
+                        <button
+                          type="button"
+                          disabled={creatingInvoiceContractId === ctr.id}
+                          onClick={() => handleCreateInvoice(ctr.id)}
+                          className="flex-1 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors inline-flex items-center justify-center gap-1 disabled:opacity-50 cursor-pointer"
+                        >
+                          {creatingInvoiceContractId === ctr.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <FilePlus2 className="w-3.5 h-3.5" />
+                          )}
+                          <span>Phát hành HĐ</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setDetailInvoiceId(activeInvoice.id)}
+                          className="flex-1 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors inline-flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Xem HĐ</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
@@ -1028,12 +1159,13 @@ export default function LandlordUtilitiesPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 
       {/* SECTION 4: Danh Sách Hóa Đơn & Theo Dõi Khoản Phải Thu, Đã Thu, Còn Nợ */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
               <Receipt className="w-4 h-4 text-blue-600" />
@@ -1063,7 +1195,7 @@ export default function LandlordUtilitiesPage() {
         </div>
 
         {filteredInvoices.length === 0 ? (
-          <div className="p-10 text-center space-y-2">
+          <div className="p-6 sm:p-10 text-center space-y-2">
             <Receipt className="w-8 h-8 text-slate-300 mx-auto" />
             <p className="text-xs font-bold text-slate-700">
               Chưa có hóa đơn nào trong kỳ {String(selectedMonth).padStart(2, "0")}/{selectedYear} khớp bộ lọc
@@ -1073,7 +1205,105 @@ export default function LandlordUtilitiesPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* Mobile Card View (< md) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {filteredInvoices.map((inv) => {
+                const meta = getInvoiceStatusMeta(inv.status);
+                const roomObj = roomMap[inv.roomId];
+                const info = contractMap[inv.contractId];
+                const remaining = getRemainingDebt(inv);
+                const canCancel = inv.status === "UNPAID" || inv.status === "OVERDUE";
+
+                return (
+                  <div key={inv.id} className="p-4 space-y-3 text-xs bg-white">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="font-mono font-bold text-slate-900 block">
+                          {inv.invoiceCode}
+                        </span>
+                        <span className="text-[11px] text-slate-500 block">
+                          {roomObj ? `Phòng ${roomObj.roomNumber}` : info?.roomName || `Phòng #${inv.roomId}`} • Hạn:{" "}
+                          {formatDate(inv.dueDate)}
+                        </span>
+                      </div>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border shrink-0",
+                          meta.badgeClass
+                        )}
+                      >
+                        <span className={cn("w-1.5 h-1.5 rounded-full", meta.dotClass)} />
+                        {meta.label}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1.5 text-[11px] p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="flex justify-between gap-1">
+                        <span className="text-slate-500">Phòng:</span>
+                        <strong className="text-slate-800">{formatVnd(inv.rentAmount)}</strong>
+                      </div>
+                      <div className="flex justify-between gap-1">
+                        <span className="text-slate-500">Điện:</span>
+                        <strong className="text-amber-700">{formatVnd(inv.electricityAmount)}</strong>
+                      </div>
+                      <div className="flex justify-between gap-1">
+                        <span className="text-slate-500">Nước:</span>
+                        <strong className="text-sky-700">{formatVnd(inv.waterAmount)}</strong>
+                      </div>
+                      <div className="flex justify-between gap-1">
+                        <span className="text-slate-500">Dịch vụ:</span>
+                        <strong className="text-slate-800">{formatVnd(inv.serviceAmount)}</strong>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 xs:grid-cols-3 gap-1.5 xs:gap-2 xs:text-center p-2.5 rounded-xl border border-slate-100">
+                      <div className="flex xs:block items-center justify-between">
+                        <span className="text-[10px] text-slate-400 block">Phải thu</span>
+                        <span className="font-black text-slate-900">{formatVnd(inv.totalAmount)}</span>
+                      </div>
+                      <div className="flex xs:block items-center justify-between">
+                        <span className="text-[10px] text-slate-400 block">Đã thu</span>
+                        <span className="font-bold text-emerald-600">{formatVnd(inv.paidAmount)}</span>
+                      </div>
+                      <div className="flex xs:block items-center justify-between">
+                        <span className="text-[10px] text-slate-400 block">Còn nợ</span>
+                        <span className={cn("font-black", remaining > 0 ? "text-rose-600" : "text-slate-600")}>
+                          {formatVnd(remaining)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setDetailInvoiceId(inv.id)}
+                        className="flex-1 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs inline-flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Chi tiết</span>
+                      </button>
+                      {canCancel && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCancellingInvoice(inv);
+                            setCancelReason("");
+                          }}
+                          className="flex-1 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs inline-flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                          <span>Hủy HĐ</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
@@ -1176,6 +1406,7 @@ export default function LandlordUtilitiesPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 
@@ -1430,8 +1661,8 @@ export default function LandlordUtilitiesPage() {
         >
           <form onSubmit={handleSaveReading} className="space-y-4">
             {/* Electricity inputs */}
-            <div className="p-4 rounded-2xl border border-amber-200 bg-amber-50/40 space-y-3">
-              <div className="flex items-center justify-between">
+            <div className="p-3.5 sm:p-4 rounded-2xl border border-amber-200 bg-amber-50/40 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-1.5">
                 <span className="text-xs font-black text-amber-900 flex items-center gap-1.5">
                   <Zap className="w-4 h-4 text-amber-500" />
                   <span>Chỉ Số Công Tơ Điện (kWh)</span>
@@ -1441,7 +1672,7 @@ export default function LandlordUtilitiesPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-600 mb-1">
                     Chỉ số đầu kỳ (kWh)
@@ -1470,7 +1701,7 @@ export default function LandlordUtilitiesPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-amber-200/60 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-1.5 pt-2 border-t border-amber-200/60 text-xs">
                 <span className="text-slate-600">
                   Tiêu thụ: <strong className="text-amber-800">{previewElecUsage} kWh</strong>
                 </span>
@@ -1481,8 +1712,8 @@ export default function LandlordUtilitiesPage() {
             </div>
 
             {/* Water inputs */}
-            <div className="p-4 rounded-2xl border border-sky-200 bg-sky-50/40 space-y-3">
-              <div className="flex items-center justify-between">
+            <div className="p-3.5 sm:p-4 rounded-2xl border border-sky-200 bg-sky-50/40 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-1.5">
                 <span className="text-xs font-black text-sky-900 flex items-center gap-1.5">
                   <Droplet className="w-4 h-4 text-sky-500" />
                   <span>Chỉ Số Đồng Hồ Nước (m³)</span>
@@ -1492,7 +1723,7 @@ export default function LandlordUtilitiesPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-600 mb-1">
                     Chỉ số đầu kỳ (m³)
@@ -1521,7 +1752,7 @@ export default function LandlordUtilitiesPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-sky-200/60 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-1.5 pt-2 border-t border-sky-200/60 text-xs">
                 <span className="text-slate-600">
                   Tiêu thụ: <strong className="text-sky-800">{previewWaterUsage} m³</strong>
                 </span>

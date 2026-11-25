@@ -358,7 +358,7 @@ export default function LandlordViewingsPage() {
             return (
               <div
                 key={item.id}
-                className="bg-white rounded-2xl border border-slate-200/90 hover:border-blue-200 shadow-xs hover:shadow-md transition-all p-5 flex flex-col justify-between gap-4"
+                className="bg-white rounded-2xl border border-slate-200/90 hover:border-blue-200 shadow-xs hover:shadow-md transition-all p-4 sm:p-5 flex flex-col justify-between gap-4"
               >
                 <div className="space-y-3.5">
                   {/* Top Status & Viewing Format Badge */}
@@ -416,7 +416,7 @@ export default function LandlordViewingsPage() {
 
                   {/* Scheduled Time Box */}
                   <div className="p-3.5 bg-blue-50/50 border border-blue-100 rounded-xl space-y-2 text-xs">
-                    <div className="flex items-center justify-between gap-2 text-blue-950 font-bold">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-blue-950 font-bold">
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-blue-600 shrink-0" />
                         <span>
@@ -435,7 +435,7 @@ export default function LandlordViewingsPage() {
                     )}
 
                     {item.virtualViewing && (
-                      <div className="p-2.5 rounded-lg bg-indigo-50/90 border border-indigo-200/80 flex items-center justify-between gap-2">
+                      <div className="p-2.5 rounded-lg bg-indigo-50/90 border border-indigo-200/80 flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <Video className="w-4 h-4 text-indigo-600 shrink-0" />
                           <span className="text-[11px] font-semibold text-indigo-950 truncate">
@@ -572,8 +572,8 @@ export default function LandlordViewingsPage() {
 
       {/* Confirm Virtual Viewing Modal */}
       {confirmTarget && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-4 sm:p-6 max-h-[90dvh] overflow-y-auto shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
@@ -641,8 +641,8 @@ export default function LandlordViewingsPage() {
 
       {/* Reject / Cancel Modal */}
       {cancelTarget && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-4 sm:p-6 max-h-[90dvh] overflow-y-auto shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">

@@ -378,7 +378,7 @@ export default function TenantViewingsPage() {
             return (
               <div
                 key={item.id}
-                className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all p-6 flex flex-col justify-between space-y-4"
+                className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all p-4 sm:p-6 flex flex-col justify-between space-y-4"
               >
                 <div className="space-y-3.5">
                   {/* Top Row: Status Badge + ID & Created Date */}
@@ -431,7 +431,7 @@ export default function TenantViewingsPage() {
 
                   {/* Scheduled Time & Notes Box */}
                   <div className="p-3.5 bg-blue-50/50 border border-blue-100 rounded-xl space-y-2 text-xs">
-                    <div className="flex items-center justify-between gap-2 text-blue-950 font-bold">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-blue-950 font-bold">
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-blue-600 shrink-0" />
                         <span>
@@ -471,7 +471,7 @@ export default function TenantViewingsPage() {
                   </div>
 
                   {/* Contact Info Row */}
-                  <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                  <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
                     <div>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">
                         Chủ nhà phụ trách
@@ -591,7 +591,7 @@ export default function TenantViewingsPage() {
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                 Ngày hẹn xem
@@ -618,7 +618,7 @@ export default function TenantViewingsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                 Thời lượng buổi xem

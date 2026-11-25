@@ -160,23 +160,23 @@ export function ListingCard({ listing, onFavoriteChange, isFavorite: isFavoriteP
         )}
 
         {/* Top Badges & Action Buttons */}
-        <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 z-10 pointer-events-none">
+        <div className="absolute top-2.5 left-2.5 right-2.5 sm:top-3 sm:left-3 sm:right-3 flex items-start justify-between gap-2 z-10 pointer-events-none">
           {/* Badges Left */}
-          <div className="flex flex-wrap items-center gap-1.5 max-w-[calc(100%-76px)]">
-            <span className="inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-bold bg-slate-900/85 text-white backdrop-blur-md shadow-xs whitespace-nowrap">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 max-w-[calc(100%-76px)]">
+            <span className="inline-flex items-center h-6 px-2 sm:px-2.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-slate-900/85 text-white backdrop-blur-md shadow-xs whitespace-nowrap">
               {listing.roomType}
             </span>
 
             {listing.isVerifiedLandlord && (
-              <span className="inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-[11px] font-bold bg-emerald-500 text-white shadow-xs whitespace-nowrap">
-                <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+              <span className="inline-flex items-center gap-1 h-6 px-2 sm:px-2.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-500 text-white shadow-xs whitespace-nowrap">
+                <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
                 <span>Xác thực 100%</span>
               </span>
             )}
 
             <span
               className={cn(
-                "inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-bold shadow-xs whitespace-nowrap",
+                "inline-flex items-center h-6 px-2 sm:px-2.5 rounded-full text-[10px] sm:text-[11px] font-bold shadow-xs whitespace-nowrap",
                 statusColors[listing.status]
               )}
             >
@@ -282,7 +282,7 @@ export function ListingCard({ listing, onFavoriteChange, isFavorite: isFavoriteP
         </div>
 
         {/* Footer: Tariff & Action */}
-        <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+        <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-0.5 text-slate-700 font-medium">
               <Zap className="w-3 h-3 text-amber-500" />

@@ -478,7 +478,7 @@ export function CreateContractModal({
               File PDF đính kèm (tùy chọn)
             </label>
             {pdfFile ? (
-              <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-blue-50 border border-blue-200 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 rounded-xl bg-blue-50 border border-blue-200 text-xs">
                 <div className="flex items-center gap-2 min-w-0">
                   <FileText className="w-4 h-4 text-blue-600 shrink-0" />
                   <span className="font-semibold text-blue-900 truncate">{pdfFile.name}</span>

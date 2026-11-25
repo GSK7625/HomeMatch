@@ -811,21 +811,134 @@ export default function LandlordPropertiesPage() {
 
       {/* Backend Rooms Table */}
       {isBackendConnected && selectedPropertyId ? (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto">
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
             <h3 className="font-black text-slate-900 text-sm flex items-center gap-2">
-              <Layers className="w-4 h-4 text-blue-600" />
+              <Layers className="w-4 h-4 text-blue-600 shrink-0" />
               <span>Danh Sách Phòng Tại {selectedProperty?.name}</span>
             </h3>
             <button
               onClick={() => selectedPropertyId && loadRooms(selectedPropertyId)}
-              className="text-xs font-bold text-slate-500 hover:text-blue-600 flex items-center gap-1"
+              className="text-xs font-bold text-slate-500 hover:text-blue-600 flex items-center gap-1 shrink-0"
             >
               <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
               <span>Làm mới</span>
             </button>
           </div>
 
+          {/* Mobile Card View (< md) */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {rooms.length === 0 ? (
+              <div className="p-6 text-center text-xs text-slate-400">
+                Chưa có phòng nào trong bất động sản này. Bấm &quot;Thêm Phòng Mới&quot; để bắt đầu!
+              </div>
+            ) : (
+              rooms.map((room) => {
+                const roomTypeLabel =
+                  roomTypes.find((t) => t.value === room.roomType)?.label || room.roomType;
+                const roomAmenityNames = (room.amenityIds || [])
+                  .map((id) => amenities.find((a) => a.id === id)?.name)
+                  .filter(Boolean) as string[];
+                return (
+                  <div key={room.id} className="p-4 space-y-3 text-xs bg-white">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 text-sm">Phòng {room.roomNumber}</div>
+                        <div className="text-[11px] text-slate-400">
+                          Tầng {room.floor} • Mã #{room.id} • {room.maxOccupants} người
+                        </div>
+                      </div>
+                      <select
+                        value={room.status}
+                        onChange={(e) =>
+                          handleUpdateStatus(
+                            room.id,
+                            e.target.value as "AVAILABLE" | "RENTED" | "SUSPENDED"
+                          )
+                        }
+                        className={cn(
+                          "px-2.5 py-1.5 rounded-xl text-[11px] font-bold border focus:outline-none cursor-pointer shrink-0",
+                          room.status === "AVAILABLE" &&
+                            "bg-emerald-50 text-emerald-700 border-emerald-300",
+                          room.status === "RENTED" &&
+                            "bg-slate-100 text-slate-700 border-slate-300",
+                          room.status === "SUSPENDED" &&
+                            "bg-rose-50 text-rose-700 border-rose-300"
+                        )}
+                      >
+                        <option value="AVAILABLE">Còn trống</option>
+                        <option value="RENTED">Đã thuê</option>
+                        <option value="SUSPENDED">Tạm ngừng</option>
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Loại &amp; Diện tích</span>
+                        <span className="font-bold text-slate-800">{roomTypeLabel} · {room.areaSqm} m²</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Trống từ</span>
+                        <span className="font-bold text-blue-600">
+                          {room.availableFrom
+                            ? new Date(room.availableFrom).toLocaleDateString("vi-VN")
+                            : "Sẵn sàng"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {roomAmenityNames.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {roomAmenityNames.slice(0, 4).map((name) => (
+                          <span
+                            key={name}
+                            className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-semibold"
+                          >
+                            {name}
+                          </span>
+                        ))}
+                        {roomAmenityNames.length > 4 && (
+                          <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px] font-bold">
+                            +{roomAmenityNames.length - 4}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditRoom(room)}
+                        className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-[11px] transition-colors"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span>Sửa</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget({ kind: "room", id: room.id, propertyId: selectedPropertyId, name: `phòng ${room.roomNumber}` })}
+                        disabled={deleting}
+                        className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold text-[11px] transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Xóa</span>
+                      </button>
+                      <Link
+                        href={`/landlord/listings?roomId=${room.id}`}
+                        className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-[11px] transition-colors"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Đăng tin</span>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop Table (>= md) */}
+          <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-xs text-left border-collapse min-w-[800px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500 uppercase tracking-wider">
@@ -953,9 +1066,10 @@ export default function LandlordPropertiesPage() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center max-w-2xl mx-auto space-y-4">
+        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-6 sm:p-12 text-center max-w-2xl mx-auto space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
             <Building2 className="w-8 h-8" />
           </div>
@@ -998,7 +1112,7 @@ export default function LandlordPropertiesPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                   Mô hình bất động sản
@@ -1105,7 +1219,7 @@ export default function LandlordPropertiesPage() {
 
             {/* GPS Location Picker Block */}
             <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <label className="text-[11px] font-bold text-slate-700 uppercase flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-blue-600" />
                   <span>Tọa độ vị trí GPS (Bắt buộc xác nhận)</span>
@@ -1175,7 +1289,7 @@ export default function LandlordPropertiesPage() {
           maxWidth="lg"
         >
           <form onSubmit={handleCreateRoom} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                   Số hiệu phòng *
@@ -1204,7 +1318,7 @@ export default function LandlordPropertiesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                   Loại phòng
@@ -1338,7 +1452,7 @@ export default function LandlordPropertiesPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                   Mô hình bất động sản
@@ -1445,7 +1559,7 @@ export default function LandlordPropertiesPage() {
 
             {/* GPS Location Picker Block for Edit */}
             <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <label className="text-[11px] font-bold text-slate-700 uppercase flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-blue-600" />
                   <span>Tọa độ vị trí GPS (Bắt buộc xác nhận)</span>
@@ -1515,7 +1629,7 @@ export default function LandlordPropertiesPage() {
           maxWidth="lg"
         >
           <form onSubmit={handleUpdateRoom} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                   Số hiệu phòng *
@@ -1543,7 +1657,7 @@ export default function LandlordPropertiesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                   Loại phòng

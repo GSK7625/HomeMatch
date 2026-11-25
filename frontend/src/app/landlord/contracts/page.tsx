@@ -278,7 +278,7 @@ function LandlordContractsContent() {
       )}
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
         {STATUS_FILTER_TABS.map((t) => (
           <button
             key={t.key}
@@ -331,7 +331,157 @@ function LandlordContractsContent() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* Mobile Card View (< md) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {displayedContracts.map((ctr) => {
+                const statusMeta = getStatusMeta(ctr.status);
+                const depositMeta = getDepositMeta(ctr.depositStatus);
+                const daysLeft = getDaysRemaining(ctr.endDate);
+                const snap = parseContractSnapshot(ctr.documentSnapshot);
+                const roomTitle = roomMap.get(ctr.roomId) || snap.roomName || `Phòng #${ctr.roomId}`;
+                const tenantLabel = snap.tenant?.fullName || `Khách #${ctr.tenantId}`;
+                const detailHref = `/landlord/contracts/${ctr.id}`;
+
+                return (
+                  <div
+                    key={ctr.id}
+                    onClick={() => router.push(detailHref)}
+                    className="p-4 space-y-3 text-xs bg-white hover:bg-slate-50/70 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-mono text-[11px] font-bold bg-slate-100 px-2 py-0.5 rounded-md text-slate-800">
+                            {ctr.contractCode}
+                          </span>
+                          {ctr.contractFileUrl && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">
+                              PDF
+                            </span>
+                          )}
+                        </div>
+                        <div className="font-bold text-slate-900 line-clamp-2">{roomTitle}</div>
+                      </div>
+
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border shrink-0",
+                          statusMeta.badgeClass
+                        )}
+                      >
+                        <span className={cn("w-1.5 h-1.5 rounded-full", statusMeta.dotClass)} />
+                        {statusMeta.label}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+                      <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                        <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{tenantLabel}</span>
+                        {snap.tenant?.phone && <span className="text-slate-400 font-normal">· {snap.tenant.phone}</span>}
+                      </div>
+                      {ctr.status === "PENDING_SIGNATURE" && (
+                        <div className="flex items-center gap-1.5 text-[10px] font-semibold">
+                          <span className={ctr.landlordSignedAt ? "text-emerald-600" : "text-amber-600"}>
+                            Chủ {ctr.landlordSignedAt ? "✓" : "○"}
+                          </span>
+                          <span>·</span>
+                          <span className={ctr.tenantSignedAt ? "text-emerald-600" : "text-amber-600"}>
+                            Khách {ctr.tenantSignedAt ? "✓" : "○"}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold block">Giá thuê / tháng</span>
+                        <span className="font-black text-blue-600 text-sm">{formatVnd(ctr.monthlyRent)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold block">Tiền cọc</span>
+                        <span className="font-bold text-slate-900">{formatVnd(ctr.depositAmount)}</span>
+                        <span
+                          className={cn(
+                            "inline-block ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border",
+                            depositMeta.className
+                          )}
+                        >
+                          {depositMeta.label}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                      <span className="inline-flex items-center gap-1 font-medium text-slate-700">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        {formatDate(ctr.startDate)} → {formatDate(ctr.endDate)}
+                      </span>
+                      <span>
+                        Đóng ngày {ctr.billingDueDay}
+                        {ctr.status === "ACTIVE" && daysLeft >= 0 && (
+                          <span className={cn("font-bold ml-1", daysLeft <= 30 ? "text-amber-600" : "text-slate-400")}>
+                            · Còn {daysLeft} ngày
+                          </span>
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+                      <Link
+                        href={detailHref}
+                        className={cn(
+                          "flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition-colors",
+                          ctr.status === "PENDING_SIGNATURE" && !ctr.landlordSignedAt
+                            ? "bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                            : ctr.status === "SIGNED"
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                            : "border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
+                        )}
+                      >
+                        <Eye className="w-3.5 h-3.5 shrink-0" />
+                        <span>
+                          {ctr.status === "PENDING_SIGNATURE" && !ctr.landlordSignedAt
+                            ? "Ký OTP"
+                            : ctr.status === "SIGNED"
+                            ? "Kích hoạt"
+                            : "Mở HĐ"}
+                        </span>
+                      </Link>
+
+                      {isRestorableContractStatus(ctr.status) && (
+                        <button
+                          type="button"
+                          onClick={() => handleRestoreContract(ctr)}
+                          disabled={restoringId === ctr.id}
+                          className="h-9 px-3 inline-flex items-center justify-center gap-1 rounded-xl border border-blue-200 text-blue-600 hover:bg-blue-50 disabled:opacity-50 text-xs font-bold transition-colors"
+                          title="Khôi phục về Bản nháp"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Khôi phục</span>
+                        </button>
+                      )}
+
+                      {isDeletableContractStatus(ctr.status) && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteContract(ctr)}
+                          disabled={deletingId === ctr.id}
+                          className="h-9 px-3 inline-flex items-center justify-center rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 disabled:opacity-50 transition-colors"
+                          title="Xóa hợp đồng"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-xs text-left border-collapse min-w-[920px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-500 uppercase tracking-wider text-[11px]">
@@ -501,6 +651,7 @@ function LandlordContractsContent() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
         </>

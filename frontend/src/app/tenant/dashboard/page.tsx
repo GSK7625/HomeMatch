@@ -293,9 +293,9 @@ function TenantDashboardContent() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 w-full flex-1 space-y-6 sm:space-y-8">
       {/* Welcome Banner & Account Summary (Mục 3.4) */}
-      <div className="bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 rounded-2xl p-6 sm:p-8 text-white shadow-xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 rounded-2xl p-4 sm:p-8 text-white shadow-xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 sm:gap-6">
         <div className="space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-white/20 backdrop-blur-md">
@@ -358,19 +358,19 @@ function TenantDashboardContent() {
       </div>
 
       {/* 4 KPI Stat Cards (Mục 3.4.1) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Link
           href="/tenant/viewed-listings"
-          className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-blue-300 transition-all flex items-center gap-4 group"
+          className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-blue-300 transition-all flex items-center gap-2.5 sm:gap-4 group min-w-0"
         >
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors flex items-center justify-center shrink-0">
-            <Eye className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors flex items-center justify-center shrink-0">
+            <Eye className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <span className="block text-2xl font-black text-slate-900">
+          <div className="min-w-0">
+            <span className="block text-xl sm:text-2xl font-black text-slate-900">
               {stats.viewedCount}
             </span>
-            <span className="text-xs text-slate-500 font-medium group-hover:text-blue-600">
+            <span className="text-[11px] sm:text-xs text-slate-500 font-medium group-hover:text-blue-600 block truncate">
               Phòng đã xem →
             </span>
           </div>
@@ -378,58 +378,58 @@ function TenantDashboardContent() {
 
         <Link
           href="/tenant/favorites"
-          className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-rose-300 transition-all flex items-center gap-4 group"
+          className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-rose-300 transition-all flex items-center gap-2.5 sm:gap-4 group min-w-0"
         >
-          <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-colors flex items-center justify-center shrink-0">
-            <Heart className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-rose-50 text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-colors flex items-center justify-center shrink-0">
+            <Heart className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <span className="block text-2xl font-black text-slate-900">
+          <div className="min-w-0">
+            <span className="block text-xl sm:text-2xl font-black text-slate-900">
               {stats.favCount}
             </span>
-            <span className="text-xs text-slate-500 font-medium group-hover:text-rose-600">
-              Tin đã lưu yêu thích →
+            <span className="text-[11px] sm:text-xs text-slate-500 font-medium group-hover:text-rose-600 block truncate">
+              Tin đã lưu →
             </span>
           </div>
         </Link>
 
         <Link
           href="/tenant/viewings"
-          className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-amber-300 transition-all flex items-center gap-4 group"
+          className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-amber-300 transition-all flex items-center gap-2.5 sm:gap-4 group min-w-0"
         >
-          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors flex items-center justify-center shrink-0">
-            <Calendar className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors flex items-center justify-center shrink-0">
+            <Calendar className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <span className="block text-2xl font-black text-slate-900">
+          <div className="min-w-0">
+            <span className="block text-xl sm:text-2xl font-black text-slate-900">
               {stats.viewingCount}
             </span>
-            <span className="text-xs text-slate-500 font-medium group-hover:text-amber-600">
-              Lịch hẹn xem phòng →
+            <span className="text-[11px] sm:text-xs text-slate-500 font-medium group-hover:text-amber-600 block truncate">
+              Lịch hẹn xem →
             </span>
           </div>
         </Link>
 
         <Link
           href="/messages"
-          className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all flex items-center gap-4 group"
+          className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all flex items-center gap-2.5 sm:gap-4 group min-w-0"
         >
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors flex items-center justify-center shrink-0">
-            <MessageSquare className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors flex items-center justify-center shrink-0">
+            <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <span className="block text-2xl font-black text-slate-900">
+          <div className="min-w-0">
+            <span className="block text-xl sm:text-2xl font-black text-slate-900">
               {stats.chatCount}
             </span>
-            <span className="text-xs text-slate-500 font-medium group-hover:text-emerald-600">
-              Phiên chat chủ trọ →
+            <span className="text-[11px] sm:text-xs text-slate-500 font-medium group-hover:text-emerald-600 block truncate">
+              Phiên chat →
             </span>
           </div>
         </Link>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-slate-200 gap-5 overflow-x-auto">
+      <div className="flex border-b border-slate-200 gap-4 sm:gap-5 overflow-x-auto no-scrollbar">
         <button
           type="button"
           onClick={() => setActiveTab("overview")}
@@ -796,7 +796,7 @@ function TenantDashboardContent() {
       {activeTab === "contracts" && (
         <div className="space-y-4">
           {contracts.length === 0 ? (
-            <div className="p-12 text-center space-y-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+            <div className="p-6 sm:p-12 text-center space-y-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
               <FileText className="w-10 h-10 text-slate-300 mx-auto" />
               <h4 className="text-sm font-bold text-slate-800">Chưa Có Hợp Đồng Thuê Nhà</h4>
               <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
@@ -811,7 +811,7 @@ function TenantDashboardContent() {
                 <Link
                   key={ctr.id}
                   href={`/tenant/contracts/${ctr.id}`}
-                  className="block bg-white rounded-2xl border border-slate-200/80 hover:border-blue-300 shadow-xs p-6 space-y-4 transition-all"
+                  className="block bg-white rounded-2xl border border-slate-200/80 hover:border-blue-300 shadow-xs p-4 sm:p-6 space-y-4 transition-all"
                 >
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
                     <div className="flex items-center gap-3">

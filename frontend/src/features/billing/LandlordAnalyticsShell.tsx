@@ -71,7 +71,7 @@ export function LandlordAnalyticsShell({
           </p>
         </div>
 
-        <div className="flex items-center justify-center gap-4 text-xs text-slate-500">
+        <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500">
           <Link
             href={`/auth/login?redirect=${encodeURIComponent(redirectPath)}`}
             className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-500/20 transition-all"
@@ -90,10 +90,10 @@ export function LandlordAnalyticsShell({
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 w-full flex-1 space-y-6">
       {/* Top Banner, Module Switcher & Filter Controls (Chức năng 2: Lọc dashboard và báo cáo) */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-5">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+      <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-5">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 sm:gap-6">
           <div>
             <div className="flex flex-wrap items-center gap-2 text-blue-600 text-xs font-bold uppercase tracking-wider mb-1">
               <Building2 className="w-4 h-4" />
@@ -115,14 +115,14 @@ export function LandlordAnalyticsShell({
           </div>
 
           {/* Filter Toolbar (Chức năng 2) */}
-          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full lg:w-auto bg-slate-50 p-2.5 rounded-xl border border-slate-200">
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 pl-1">
               <Filter className="w-3.5 h-3.5 text-slate-400" />
               <span>Bộ lọc:</span>
             </div>
 
             {/* Building Filter */}
-            <div className="flex-1 sm:flex-initial">
+            <div className="w-full xs:w-auto xs:flex-1 sm:flex-initial min-w-0">
               <select
                 value={selectedBuilding}
                 onChange={(e) => onBuildingChange(e.target.value)}
@@ -138,7 +138,7 @@ export function LandlordAnalyticsShell({
             </div>
 
             {/* Period Filter */}
-            <div className="flex-1 sm:flex-initial">
+            <div className="flex-1 sm:flex-initial min-w-0">
               <select
                 value={selectedPeriod}
                 onChange={(e) => onPeriodChange(e.target.value)}

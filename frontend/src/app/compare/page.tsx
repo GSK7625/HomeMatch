@@ -101,7 +101,7 @@ export default function ComparePage() {
   if (!user || !getStoredToken()) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8 w-full flex-1">
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-16 text-center space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-16 text-center space-y-4">
           <Scale className="w-10 h-10 text-blue-600 mx-auto" />
           <h1 className="text-lg font-bold text-slate-800">Vui lòng đăng nhập để so sánh phòng</h1>
           <Link
@@ -145,12 +145,12 @@ export default function ComparePage() {
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-16 text-center space-y-3">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-16 text-center space-y-3">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
           <p className="text-xs font-medium text-slate-500">Đang tải dữ liệu so sánh từ máy chủ...</p>
         </div>
       ) : comparedListings.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-16 text-center space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-16 text-center space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
             <Scale className="w-8 h-8" />
           </div>
@@ -178,14 +178,14 @@ export default function ComparePage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse min-w-[650px]">
+            <table className="w-full text-[11px] sm:text-xs text-left border-collapse min-w-[520px] sm:min-w-[650px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/70">
-                  <th className="p-4 w-40 sm:w-48 font-bold text-slate-500 uppercase tracking-wider sticky left-0 z-20 bg-slate-50 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">
+                  <th className="p-2.5 sm:p-4 w-28 sm:w-48 font-bold text-slate-500 uppercase tracking-wider sticky left-0 z-20 bg-slate-50 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">
                     Tiêu chí đối chiếu
                   </th>
                 {comparedListings.map((room) => (
-                  <th key={room.id} className="p-4 w-72 align-top">
+                  <th key={room.id} className="p-2.5 sm:p-4 w-44 sm:w-72 align-top">
                     <div className="relative space-y-3">
                       <button
                         onClick={() => handleRemove(room.roomId ?? room.id)}
@@ -232,9 +232,9 @@ export default function ComparePage() {
             <tbody className="divide-y divide-slate-100">
               {/* Row: Giá thuê */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Giá thuê / tháng</td>
+                <td className="p-2.5 sm:p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Giá thuê / tháng</td>
                 {comparedListings.map((r) => (
-                  <td key={r.id} className="p-4 font-black text-blue-600 text-sm">
+                  <td key={r.id} className="p-2.5 sm:p-4 font-black text-blue-600 text-xs sm:text-sm">
                     {(r.price / 1000000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} triệu đ
                   </td>
                 ))}
@@ -242,9 +242,9 @@ export default function ComparePage() {
 
               {/* Row: Tiền cọc */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Tiền đặt cọc</td>
+                <td className="p-2.5 sm:p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Tiền đặt cọc</td>
                 {comparedListings.map((r) => (
-                  <td key={r.id} className="p-4 font-semibold text-slate-800">
+                  <td key={r.id} className="p-2.5 sm:p-4 font-semibold text-slate-800">
                     {r.deposit > 0
                       ? `${(r.deposit / 1000000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} triệu đ`
                       : "Không yêu cầu cọc"}
@@ -254,9 +254,9 @@ export default function ComparePage() {
 
               {/* Row: Diện tích */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Diện tích sử dụng</td>
+                <td className="p-2.5 sm:p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Diện tích sử dụng</td>
                 {comparedListings.map((r) => (
-                  <td key={r.id} className="p-4 font-bold text-slate-800">
+                  <td key={r.id} className="p-2.5 sm:p-4 font-bold text-slate-800">
                     {r.area != null ? `${r.area} m²` : "Chưa cập nhật"}
                   </td>
                 ))}
@@ -264,9 +264,9 @@ export default function ComparePage() {
 
               {/* Row: Loại hình */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Loại hình phòng</td>
+                <td className="p-2.5 sm:p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Loại hình phòng</td>
                 {comparedListings.map((r) => (
-                  <td key={r.id} className="p-4">
+                  <td key={r.id} className="p-2.5 sm:p-4">
                     <span className="px-2 py-0.5 rounded-md bg-slate-100 font-bold text-slate-700">
                       {r.roomType}
                     </span>
@@ -276,9 +276,9 @@ export default function ComparePage() {
 
               {/* Row: Vị trí */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Khu vực / Địa chỉ</td>
+                <td className="p-2.5 sm:p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Khu vực / Địa chỉ</td>
                 {comparedListings.map((r) => (
-                  <td key={r.id} className="p-4 font-medium text-slate-700">
+                  <td key={r.id} className="p-2.5 sm:p-4 font-medium text-slate-700">
                     {[r.district, r.city].filter(Boolean).join(", ") || r.address}
                   </td>
                 ))}
@@ -286,9 +286,9 @@ export default function ComparePage() {
 
               {/* Row: Giá điện */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Giá điện (đ/kWh)</td>
+                <td className="p-2.5 sm:p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Giá điện (đ/kWh)</td>
                 {comparedListings.map((r) => (
-                  <td key={r.id} className="p-4 font-semibold text-amber-700">
+                  <td key={r.id} className="p-2.5 sm:p-4 font-semibold text-amber-700">
                     {r.electricityPrice != null ? `${r.electricityPrice.toLocaleString()} đ` : "Chưa cập nhật"}
                   </td>
                 ))}
@@ -296,9 +296,9 @@ export default function ComparePage() {
 
               {/* Row: Giá nước */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Giá nước (đ/m³)</td>
+                <td className="p-2.5 sm:p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Giá nước (đ/m³)</td>
                 {comparedListings.map((r) => (
-                  <td key={r.id} className="p-4 font-semibold text-sky-700">
+                  <td key={r.id} className="p-2.5 sm:p-4 font-semibold text-sky-700">
                     {r.waterPrice != null ? `${r.waterPrice.toLocaleString()} đ` : "Chưa cập nhật"}
                   </td>
                 ))}
@@ -306,9 +306,9 @@ export default function ComparePage() {
 
               {/* Row: Phí dịch vụ */}
               <tr className="hover:bg-slate-50/50">
-                <td className="p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Phí dịch vụ / tháng</td>
+                <td className="p-2.5 sm:p-4 font-bold text-slate-700 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">Phí dịch vụ / tháng</td>
                 {comparedListings.map((r) => (
-                  <td key={r.id} className="p-4 font-semibold text-slate-800">
+                  <td key={r.id} className="p-2.5 sm:p-4 font-semibold text-slate-800">
                     {r.serviceFee != null ? `${r.serviceFee.toLocaleString()} đ` : "Chưa cập nhật"}
                   </td>
                 ))}
@@ -316,7 +316,7 @@ export default function ComparePage() {
 
               {/* Section Header: Tiện ích */}
               <tr className="bg-slate-100/70 font-bold text-slate-800">
-                <td colSpan={comparedListings.length + 1} className="p-3 text-[11px] uppercase tracking-wider">
+                <td colSpan={comparedListings.length + 1} className="p-2.5 sm:p-3 text-[11px] uppercase tracking-wider">
                   Bảng đối chiếu tiện ích đi kèm
                 </td>
               </tr>
@@ -330,11 +330,11 @@ export default function ComparePage() {
               ) : (
                 allAmenities.map((amenity) => (
                   <tr key={amenity} className="hover:bg-slate-50/50">
-                    <td className="p-3.5 font-medium text-slate-600 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">{amenity}</td>
+                    <td className="p-2.5 sm:p-3.5 font-medium text-slate-600 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">{amenity}</td>
                     {comparedListings.map((r) => {
                       const hasAmenity = r.amenities.includes(amenity);
                       return (
-                        <td key={r.id} className="p-3.5">
+                        <td key={r.id} className="p-2.5 sm:p-3.5">
                           {hasAmenity ? (
                             <div className="flex items-center gap-1.5 text-emerald-600 font-bold">
                               <CheckCircle2 className="w-4 h-4" />

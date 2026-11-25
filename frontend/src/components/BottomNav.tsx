@@ -14,6 +14,8 @@ import {
   Building2,
   Calendar,
   FileText,
+  ShieldCheck,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -69,6 +71,63 @@ export function BottomNav() {
     return null;
   }
 
+  // For Admin: dedicated 3-item bottom nav
+  if (role === "Admin") {
+    const adminItems = [
+      {
+        label: "Quản trị",
+        href: "/admin/dashboard",
+        icon: ShieldCheck,
+        isActive: pathname.startsWith("/admin"),
+      },
+      {
+        label: "Sàn tin",
+        href: "/listings",
+        icon: Search,
+        isActive: pathname.startsWith("/listings"),
+      },
+      {
+        label: "Cài đặt",
+        href: "/settings",
+        icon: Settings,
+        isActive: pathname.startsWith("/settings"),
+      },
+    ];
+
+    return (
+      <nav
+        aria-label="Thanh điều hướng quản trị"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 py-1 safe-bottom"
+      >
+        <div className="grid grid-cols-3 items-center justify-around max-w-lg mx-auto">
+          {adminItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex flex-col items-center justify-center min-h-[44px] min-w-0 py-1.5 px-1 rounded-xl transition-all relative",
+                  item.isActive
+                    ? "text-blue-600 font-bold scale-105"
+                    : "text-slate-500 hover:text-slate-800 font-medium"
+                )}
+              >
+                <Icon className={cn("w-5 h-5", item.isActive ? "stroke-[2.5]" : "stroke-[1.75]")} />
+                <span className="text-[10px] mt-1 tracking-tight truncate max-w-full">
+                  {item.label}
+                </span>
+                {item.isActive && (
+                  <span className="absolute bottom-0 w-5 h-0.5 bg-blue-600 rounded-full" />
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    );
+  }
+
   // For Landlords: Bottom nav tailored for landlord workflows
   if (role === "Landlord") {
     const landlordItems = [
@@ -117,7 +176,7 @@ export function BottomNav() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all relative",
+                  "flex flex-col items-center justify-center min-h-[44px] min-w-0 py-1.5 px-1 rounded-xl transition-all relative",
                   item.isActive
                     ? "text-blue-600 font-bold scale-105"
                     : "text-slate-500 hover:text-slate-800 font-medium"
@@ -189,7 +248,7 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all relative",
+                "flex flex-col items-center justify-center min-h-[44px] min-w-0 py-1.5 px-1 rounded-xl transition-all relative",
                 item.isActive
                   ? "text-blue-600 font-bold scale-105"
                   : "text-slate-500 hover:text-slate-800 font-medium"

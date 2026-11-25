@@ -59,8 +59,8 @@ export default function TenantContractsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 space-y-6">
-      <div className="flex items-center justify-between gap-4 pb-5 border-b border-slate-200">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 w-full flex-1 space-y-6">
+      <div className="flex flex-wrap items-start sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2 text-blue-600 text-xs font-bold uppercase tracking-wider mb-1">
             <FileText className="w-4 h-4" />
@@ -105,10 +105,10 @@ export default function TenantContractsPage() {
               <Link
                 key={ctr.id}
                 href={`/tenant/contracts/${ctr.id}`}
-                className="block p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-blue-300 shadow-xs transition-all space-y-4"
+                className="block p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-blue-300 shadow-xs transition-all space-y-4"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
+                <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-3">
+                  <div className="min-w-0">
                     <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800">
                       {ctr.contractCode}
                     </span>
@@ -118,7 +118,7 @@ export default function TenantContractsPage() {
                   </div>
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border",
+                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border shrink-0",
                       statusMeta.badgeClass
                     )}
                   >
@@ -127,7 +127,7 @@ export default function TenantContractsPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3 rounded-xl">
+                <div className="grid grid-cols-1 xs:grid-cols-2 gap-2.5 sm:gap-3 text-xs bg-slate-50 p-3 rounded-xl">
                   <div>
                     <div className="text-[10px] text-slate-400 font-semibold uppercase">Giá thuê / tháng</div>
                     <div className="font-black text-blue-600 mt-0.5">{formatVnd(ctr.monthlyRent)}</div>
@@ -141,7 +141,7 @@ export default function TenantContractsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs pt-1">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
                   <span className="text-slate-500 flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5" />
                     {formatDate(ctr.startDate)} → {formatDate(ctr.endDate)}

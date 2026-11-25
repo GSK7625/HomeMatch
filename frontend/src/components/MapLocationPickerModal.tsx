@@ -367,7 +367,7 @@ export const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
         <div className="relative rounded-2xl overflow-hidden border border-slate-200/80 shadow-inner bg-slate-100">
           <div
             ref={mapContainerRef}
-            className="w-full h-[320px] sm:h-[380px] z-0"
+            className="w-full h-[240px] sm:h-[360px] z-0"
           />
           <div className="absolute top-2 left-2 z-[400] bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-medium text-slate-700 shadow-xs flex items-center gap-1.5">
             <MapPin className="w-3.5 h-3.5 text-blue-600" />
@@ -379,8 +379,8 @@ export const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
           Tôi đã kiểm tra ghim và địa chỉ của tòa nhà.
         </label>
         {/* Coordinate details & inputs */}
-        <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
+          <div className="grid grid-cols-2 gap-2.5 w-full sm:flex sm:items-center sm:gap-3 sm:w-auto">
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-400 block">Vĩ độ (Lat)</span>
               <input
@@ -401,7 +401,7 @@ export const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
                     }
                   }
                 }}
-                className="w-28 px-2 py-1 text-xs font-mono font-semibold rounded-lg border border-slate-200 bg-white"
+                className="w-full sm:w-28 px-2 py-1.5 text-xs font-mono font-semibold rounded-lg border border-slate-200 bg-white"
               />
             </div>
             <div>
@@ -424,7 +424,7 @@ export const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
                     }
                   }
                 }}
-                className="w-28 px-2 py-1 text-xs font-mono font-semibold rounded-lg border border-slate-200 bg-white"
+                className="w-full sm:w-28 px-2 py-1.5 text-xs font-mono font-semibold rounded-lg border border-slate-200 bg-white"
               />
             </div>
           </div>
@@ -433,7 +433,7 @@ export const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200/60 rounded-xl border border-slate-200 transition-colors"
+              className="flex-1 sm:flex-initial justify-center px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200/60 rounded-xl border border-slate-200 transition-colors"
             >
               Hủy
             </button>
@@ -441,9 +441,9 @@ export const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
               type="button"
               onClick={handleConfirm}
               disabled={!confirmed || isSearching || isLocating}
-              className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-xl shadow-md shadow-blue-500/20 inline-flex items-center gap-1.5 transition-all"
+              className="flex-1 sm:flex-initial justify-center px-4 sm:px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-xl shadow-md shadow-blue-500/20 inline-flex items-center gap-1.5 transition-all whitespace-nowrap"
             >
-              <Check className="w-3.5 h-3.5" />
+              <Check className="w-3.5 h-3.5 shrink-0" />
               <span>Xác nhận vị trí GPS</span>
             </button>
           </div>

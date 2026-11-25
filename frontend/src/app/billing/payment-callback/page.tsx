@@ -183,8 +183,8 @@ function PaymentCallbackContent() {
   const invoiceMeta = state.invoice ? getInvoiceStatusMeta(state.invoice.status) : null;
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-12 sm:py-16 w-full flex-1">
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6 sm:p-8 space-y-6">
+    <div className="max-w-xl mx-auto px-4 py-6 sm:py-16 w-full flex-1">
+      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-8 space-y-6">
         <div className="text-center space-y-3">
           <div
             className={cn(
@@ -210,44 +210,44 @@ function PaymentCallbackContent() {
         </div>
 
         {(state.paymentCode || state.amount || state.invoice) && (
-          <div className="rounded-2xl bg-slate-50 border border-slate-200/80 p-4 space-y-2.5 text-xs">
+          <div className="rounded-2xl bg-slate-50 border border-slate-200/80 p-3.5 sm:p-4 space-y-2.5 text-xs">
             {state.paymentCode && (
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-slate-500">Mã giao dịch</span>
-                <span className="font-mono font-bold text-slate-900">{state.paymentCode}</span>
+                <span className="font-mono font-bold text-slate-900 break-all text-right">{state.paymentCode}</span>
               </div>
             )}
             {typeof state.amount === "number" && state.amount > 0 && (
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-slate-500">Số tiền giao dịch</span>
                 <span className="font-black text-blue-600 text-sm">{formatVnd(state.amount)}</span>
               </div>
             )}
             {state.bankCode && (
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-slate-500">Ngân hàng</span>
                 <span className="font-bold text-slate-800">{state.bankCode}</span>
               </div>
             )}
             {state.gatewayTransactionNo && (
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-slate-500">Mã tham chiếu VNPay</span>
-                <span className="font-mono font-semibold text-slate-800">
+                <span className="font-mono font-semibold text-slate-800 break-all text-right">
                   {state.gatewayTransactionNo}
                 </span>
               </div>
             )}
             {state.invoice && invoiceMeta && (
               <>
-                <div className="border-t border-slate-200 my-1 pt-2.5 flex items-center justify-between gap-2">
+                <div className="border-t border-slate-200 my-1 pt-2.5 flex flex-wrap items-center justify-between gap-2">
                   <span className="text-slate-500">Hóa đơn</span>
-                  <span className="font-bold text-slate-900">
+                  <span className="font-bold text-slate-900 text-right">
                     {state.invoice.invoiceCode} (Tháng{" "}
                     {String(state.invoice.billingMonth).padStart(2, "0")}/
                     {state.invoice.billingYear})
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-slate-500">Trạng thái hóa đơn</span>
                   <span
                     className={cn(
@@ -259,9 +259,9 @@ function PaymentCallbackContent() {
                   </span>
                 </div>
                 {state.invoice.paidAt && (
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-slate-500">Thời gian thanh toán</span>
-                    <span className="font-medium text-slate-700">
+                    <span className="font-medium text-slate-700 text-right">
                       {formatDateTime(state.invoice.paidAt)}
                     </span>
                   </div>
